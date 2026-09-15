@@ -25,7 +25,7 @@ def baseline_table(payload) -> str:
     """
     lines = ["| Family | Selected configuration | `S` |", "|---|---|---|"]
     for row in payload["families"]:
-        config = row["selected_config"] or "--"
+        config = row["best_config"] or "--"
         lines.append(f"| {row['family']} | `{config}` | **{row['S']:.2f}** |")
     lines += ["",
               f"`S*` = **{payload['S_star']:.2f}** ({payload['strongest']}, "
@@ -33,7 +33,15 @@ def baseline_table(payload) -> str:
               f"{payload['weakest']} at {payload['weakest_S']:.2f}, and that is what "
               f"`agent/solution.py` ships with.  Scores are means over "
               f"{len(payload['official_seeds'])} run seeds; the spread between "
-              f"weakest and strongest is {payload['spread']:.2f} points."]
+              f"weakest and strongest is {payload['spread']:.2f} points.",
+              "",
+              f"Each family is shown at its best official configuration.  Letting "
+              f"the public proxy diagnostic pick instead would set the bar at "
+              f"{payload['S_star_if_selected_on_proxy']:.2f} rather than "
+              f"{payload['S_star']:.2f} -- a measure of how little the proxy "
+              f"transfers, and a warning against trusting it too far.  "
+              f"{payload['configs_in_grid_above_S_star']} of the "
+              f"{payload['grid_size']} swept configurations exceed `S*`."]
     return "\n".join(lines)
 
 

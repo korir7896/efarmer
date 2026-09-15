@@ -1,0 +1,399 @@
+{
+  "S_star": 57.706346287111444,
+  "gates": {
+    "public_tuning_ceiling": {
+      "argmax_on_proxy": "IRM|lam=100,warm=0.3",
+      "S": 51.10860507007079,
+      "S_star": 57.706346287111444,
+      "Q_C": 0.3220444838859891,
+      "Q_AB": 64.38476415646632,
+      "pass": true
+    },
+    "reconstruction_ceiling": {
+      "argmax_on_reconstructed": "IRM|lam=100,warm=0.3",
+      "S": 51.10860507007079,
+      "S_star": 57.706346287111444,
+      "pass": true
+    },
+    "proxy_correlation": {
+      "spearman": 0.25145088043586866,
+      "n": 77,
+      "pass": false
+    },
+    "transition_separation": {
+      "median_step": {
+        "A": 520.0,
+        "B": 110.0,
+        "C": 360.0
+      },
+      "separation_fraction": 0.2,
+      "total_steps": 800,
+      "pass": true
+    },
+    "warmup_anti_transfer": {
+      "per_family": {
+        "IRM": {
+          "warm_ab": 0.5,
+          "warm_c": 0.5,
+          "Q_C_at_ab_optimum": 0.4683538334863858,
+          "Q_C_at_c_optimum": 0.4683538334863858,
+          "Q_C_cost_of_transfer": 0.0
+        },
+        "VREx": {
+          "warm_ab": 0.1,
+          "warm_c": 0.5,
+          "Q_C_at_ab_optimum": 0.42911314862614236,
+          "Q_C_at_c_optimum": 0.5830653697944492,
+          "Q_C_cost_of_transfer": 0.15395222116830687
+        },
+        "GroupDRO": {
+          "warm_ab": 0.1,
+          "warm_c": 0.1,
+          "Q_C_at_ab_optimum": 0.36999567989194504,
+          "Q_C_at_c_optimum": 0.36999567989194504,
+          "Q_C_cost_of_transfer": 0.0
+        },
+        "SD": {
+          "warm_ab": 0.1,
+          "warm_c": 0.1,
+          "Q_C_at_ab_optimum": 0.3368860760720529,
+          "Q_C_at_c_optimum": 0.33791507916175045,
+          "Q_C_cost_of_transfer": 0.0010290030896975555
+        },
+        "EQRM": {
+          "warm_ab": 0.1,
+          "warm_c": 0.5,
+          "Q_C_at_ab_optimum": 0.5169456756208143,
+          "Q_C_at_c_optimum": 0.5316808277454425,
+          "Q_C_cost_of_transfer": 0.01473515212462817
+        }
+      },
+      "max_Q_C_cost": 0.15395222116830687,
+      "families_with_differing_warmup": [
+        "VREx",
+        "EQRM"
+      ],
+      "pass": true
+    },
+    "rank_reversal": {
+      "best_per_setting": {
+        "A": {
+          "config": "IRM|lam=10000,warm=0.3",
+          "Q": 0.7105112973916934,
+          "family": "IRM"
+        },
+        "B": {
+          "config": "IRM|lam=10000,warm=0.5",
+          "Q": 0.6776859445722275,
+          "family": "IRM"
+        },
+        "C": {
+          "config": "VREx|lam=100000,warm=0.5",
+          "Q": 0.5830653697944492,
+          "family": "VREx"
+        }
+      },
+      "distinct_families": [
+        "IRM",
+        "VREx"
+      ],
+      "pass": true
+    },
+    "penalty_anti_transfer": {
+      "per_family": {
+        "IRM": {
+          "ab_optimal": "lam=10000,warm=0.5",
+          "c_optimal": "lam=10000,warm=0.5",
+          "coef_ab": 10000.0,
+          "coef_c": 10000.0,
+          "warm_ab": 0.5,
+          "warm_c": 0.5,
+          "Q_C_at_ab_optimum": 0.4683538334863858,
+          "Q_C_at_c_optimum": 0.4683538334863858,
+          "Q_C_cost_of_transfer": 0.0
+        },
+        "VREx": {
+          "ab_optimal": "lam=10000,warm=0.1",
+          "c_optimal": "lam=100000,warm=0.5",
+          "coef_ab": 10000.0,
+          "coef_c": 100000.0,
+          "warm_ab": 0.1,
+          "warm_c": 0.5,
+          "Q_C_at_ab_optimum": 0.42911314862614236,
+          "Q_C_at_c_optimum": 0.5830653697944492,
+          "Q_C_cost_of_transfer": 0.15395222116830687
+        },
+        "GroupDRO": {
+          "ab_optimal": "eta=100,warm=0.1",
+          "c_optimal": "eta=100,warm=0.1",
+          "coef_ab": 100.0,
+          "coef_c": 100.0,
+          "warm_ab": 0.1,
+          "warm_c": 0.1,
+          "Q_C_at_ab_optimum": 0.36999567989194504,
+          "Q_C_at_c_optimum": 0.36999567989194504,
+          "Q_C_cost_of_transfer": 0.0
+        },
+        "SD": {
+          "ab_optimal": "lam=0.001,warm=0.1",
+          "c_optimal": "lam=1,warm=0.1",
+          "coef_ab": 0.001,
+          "coef_c": 1.0,
+          "warm_ab": 0.1,
+          "warm_c": 0.1,
+          "Q_C_at_ab_optimum": 0.3368860760720529,
+          "Q_C_at_c_optimum": 0.33791507916175045,
+          "Q_C_cost_of_transfer": 0.0010290030896975555
+        },
+        "EQRM": {
+          "ab_optimal": "coef=44.721,warm=0.1",
+          "c_optimal": "coef=44.721,warm=0.5",
+          "coef_ab": 44.721,
+          "coef_c": 44.721,
+          "warm_ab": 0.1,
+          "warm_c": 0.5,
+          "Q_C_at_ab_optimum": 0.5169456756208143,
+          "Q_C_at_c_optimum": 0.5316808277454425,
+          "Q_C_cost_of_transfer": 0.01473515212462817
+        }
+      },
+      "families_with_differing_coefficient": [
+        "VREx",
+        "SD"
+      ],
+      "pass": true
+    },
+    "loss_scale_routes": {
+      "uniform_points": [
+        [
+          -1.0,
+          36.938886811428
+        ],
+        [
+          0.0,
+          36.82468464551132
+        ],
+        [
+          1.0,
+          37.03875090749016
+        ]
+      ],
+      "uniform_slope_per_decade": 0.049932048031080735,
+      "uniform_spread": 0.21406626197884293,
+      "mid_run_probes": {
+        "probe|scale-step(ERM,1e-05)": 41.9185323473449,
+        "probe|scale-step(ERM,0.01)": 35.63482629685176,
+        "probe|freeze(ERM,0.5)": 43.32175021402709
+      },
+      "best_mid_run_probe": 43.32175021402709,
+      "ERM_baseline": 37.389852413246736,
+      "gain_over_ERM": 5.931897800780355,
+      "margin_below_S_star": 14.384596073084353,
+      "note": "uniform rescaling is closed by weight_decay=0; a mid-run scale change is not, and is bounded here rather than assumed away",
+      "pass": true
+    },
+    "binding_world_audit": {
+      "share": {
+        "(0.1, 0.1, 1.0, 1.0)": 0.912568306010929,
+        "(0.1, 0.9, 1.0, 1.0)": 0.03278688524590164,
+        "(0.9, 0.9, 1.0, 0.45)": 0.03278688524590164,
+        "(0.9, 0.1, 1.0, 1.0)": 0.01639344262295082,
+        "(0.5, 0.5, 1.5, 1.0)": 0.00546448087431694
+      },
+      "most_common_share": 0.912568306010929,
+      "pass": false
+    },
+    "fingerprint_policy": {
+      "declared": "legal -- see docs/classification_rules.md",
+      "setting_identification_accuracy": 0.9523809523809523,
+      "early_risk_levels": {
+        "A": 0.47719037481716703,
+        "B": 0.4209988829067775,
+        "C": 0.44467553879533495
+      },
+      "branch_probe_S": 43.087384170356174,
+      "branch_probe_beats_S_star": false,
+      "pass": true
+    },
+    "headroom": {
+      "reference_solution_S": 60.544240742663945,
+      "S_star": 57.706346287111444,
+      "margin": 2.837894455552501,
+      "pass": true
+    }
+  },
+  "cue_recovery_accuracy": {
+    "A": {
+      "z1": 0.99975,
+      "z2": 0.99375,
+      "median_split_cap": 0.9995
+    },
+    "B": {
+      "z1": 0.99775,
+      "z2": 0.99475,
+      "median_split_cap": 0.9955
+    },
+    "C": {
+      "z1": 0.99575,
+      "z2": 0.99975,
+      "median_split_cap": 0.9915
+    }
+  },
+  "combination_rule": {
+    "n_competent": 17,
+    "geometric_mean_spread": 11.275168640840278,
+    "outer_minimum_spread": 17.89277068749999,
+    "geometric_mean_stdev": 3.573697962768642,
+    "outer_minimum_stdev": 4.513583919829504
+  },
+  "reconstruction_top": [
+    [
+      "IRM|lam=100,warm=0.3",
+      73.89088827422998
+    ],
+    [
+      "IRM|lam=100,warm=0.5",
+      72.86842862907952
+    ],
+    [
+      "IRM|lam=1000,warm=0.3",
+      70.44534195194547
+    ],
+    [
+      "IRM|lam=10000,warm=0.5",
+      68.79178829731187
+    ],
+    [
+      "IRM|lam=100000,warm=0.5",
+      68.69719842447577
+    ]
+  ],
+  "probe_scores": {
+    "probe|scale(ERM,0.1)": {
+      "proxy_score": 52.454359927857794,
+      "S": 36.938886811428,
+      "Q_A": 0.4121364588429877,
+      "Q_B": 0.37039324682666647,
+      "Q_C": 0.33017737861431967
+    },
+    "probe|scale(ERM,1)": {
+      "proxy_score": 52.51910372733752,
+      "S": 36.82468464551132,
+      "Q_A": 0.40744099529776096,
+      "Q_B": 0.3693643414279544,
+      "Q_C": 0.3318160727604192
+    },
+    "probe|scale(ERM,10)": {
+      "proxy_score": 52.257718563918395,
+      "S": 37.03875090749016,
+      "Q_A": 0.41154658559996943,
+      "Q_B": 0.3707039745846587,
+      "Q_C": 0.3330602096283681
+    },
+    "probe|scale-step(ERM,1e-05)": {
+      "proxy_score": 52.16846389711986,
+      "S": 41.9185323473449,
+      "Q_A": 0.40734247325953793,
+      "Q_B": 0.5253346520464458,
+      "Q_C": 0.34420919018255064
+    },
+    "probe|scale-step(ERM,0.01)": {
+      "proxy_score": 52.352054635793344,
+      "S": 35.63482629685176,
+      "Q_A": 0.3725608617349115,
+      "Q_B": 0.3603397834341156,
+      "Q_C": 0.3370656496337614
+    },
+    "probe|freeze(ERM,0.5)": {
+      "proxy_score": 51.99271809564109,
+      "S": 43.32175021402709,
+      "Q_A": 0.40956939860417146,
+      "Q_B": 0.5760807529754596,
+      "Q_C": 0.34459352754003425
+    },
+    "probe|VREx+SD(10,0.001)": {
+      "proxy_score": 55.814433080852574,
+      "S": 36.838059952599394,
+      "Q_A": 0.38928624978984416,
+      "Q_B": 0.3849228228646849,
+      "Q_C": 0.3336165024104017
+    },
+    "probe|VREx+SD(10,0.01)": {
+      "proxy_score": 54.39599286501664,
+      "S": 36.344620774490096,
+      "Q_A": 0.38397250772705654,
+      "Q_B": 0.37295942082634664,
+      "Q_C": 0.33524222409404664
+    },
+    "probe|VREx+SD(30,0.001)": {
+      "proxy_score": 62.40646404528769,
+      "S": 39.034008436107,
+      "Q_A": 0.4317133104947976,
+      "Q_B": 0.39988282305659134,
+      "Q_C": 0.34450955100205943
+    },
+    "probe|VREx+SD(30,0.01)": {
+      "proxy_score": 61.07313661143651,
+      "S": 39.12775135877008,
+      "Q_A": 0.42699411051576613,
+      "Q_B": 0.40625261877410895,
+      "Q_C": 0.345331831321075
+    },
+    "probe|EQRM+DRO(2,0.1)": {
+      "proxy_score": 66.7303726584229,
+      "S": 42.84242815745078,
+      "Q_A": 0.46000966337456645,
+      "Q_B": 0.490472429334822,
+      "Q_C": 0.3485304097017597
+    },
+    "probe|EQRM+DRO(2,1)": {
+      "proxy_score": 66.91035395500504,
+      "S": 41.13177928108621,
+      "Q_A": 0.44482120179716444,
+      "Q_B": 0.4617110112421898,
+      "Q_C": 0.3388260390145843
+    },
+    "probe|EQRM+DRO(4.472,0.1)": {
+      "proxy_score": 66.37296284057054,
+      "S": 40.024707853994045,
+      "Q_A": 0.45135453508618745,
+      "Q_B": 0.4095621966214103,
+      "Q_C": 0.346854104256573
+    },
+    "probe|EQRM+DRO(4.472,1)": {
+      "proxy_score": 67.59466259176021,
+      "S": 40.98401929006986,
+      "Q_A": 0.4651827817184202,
+      "Q_B": 0.43391976000511834,
+      "Q_C": 0.34104413305894066
+    },
+    "probe|fingerprint-branch": {
+      "proxy_score": 63.0491186694594,
+      "S": 43.087384170356174,
+      "Q_A": 0.40744099529776096,
+      "Q_B": 0.6043733128935517,
+      "Q_C": 0.32484813937849255
+    },
+    "reference|adaptive": {
+      "proxy_score": 68.35097192802336,
+      "S": 60.72853760645177,
+      "Q_A": 0.6040733326249542,
+      "Q_B": 0.7116705373919859,
+      "Q_C": 0.5209665253693697
+    }
+  },
+  "rescored": {
+    "IRM|lam=100,warm=0.3": {
+      "S": 51.10860507007079,
+      "Q_A": 0.7066297983253912,
+      "Q_B": 0.586643510549339,
+      "Q_C": 0.3220444838859891
+    },
+    "reference|adaptive": {
+      "S": 60.544240742663945,
+      "Q_A": 0.6596000118616551,
+      "Q_B": 0.6564116376440099,
+      "Q_C": 0.5125799152216218
+    }
+  }
+}

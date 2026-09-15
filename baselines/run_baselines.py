@@ -284,6 +284,7 @@ def main(argv=None) -> int:
                                            for r in families),
         "configs_in_grid_above_S_star": sum(
             1 for r in summary if r["S"] > families[0]["S"]),
+        "grid_size": len(summary),
         "official_seeds": list(OFFICIAL_RUN_SEEDS),
         "diagnostic_seeds": list(DIAGNOSTIC_SEEDS),
         "families": families,

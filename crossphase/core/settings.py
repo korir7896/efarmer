@@ -48,11 +48,17 @@ OFFICIAL_WORLDS = (
 #: coordinates: milder disagreement, four worlds rather than five, and an
 #: independent seed, so the world that binds the minimum under the proxy need not
 #: be the world that binds it officially.
+#: Moved closer to the official coordinates than the first draft, which sat at
+#: (.20,.20) and correlated with the official score at only Spearman 0.25 --
+#: below the 0.5 floor, where the twelve evaluations stop being feedback and
+#: become noise.  Still deliberately distinct: different coordinates, four
+#: worlds rather than five, an independent seed and smaller pools, so the world
+#: that binds under the proxy need not be the one that binds officially.
 PROXY_WORLDS = (
-    (0.20, 0.20, 1.00, 1.00),
-    (0.20, 0.80, 1.00, 1.00),
-    (0.80, 0.20, 1.00, 1.00),
-    (0.65, 0.65, 1.30, 0.60),
+    (0.15, 0.15, 1.00, 1.00),
+    (0.15, 0.85, 1.00, 1.00),
+    (0.85, 0.15, 1.00, 1.00),
+    (0.60, 0.60, 1.40, 0.55),
 )
 
 OFFICIAL_SOURCE_N = 2000
@@ -61,7 +67,7 @@ PROXY_SOURCE_N = 900
 PROXY_WORLD_N = 700
 
 #: Run seeds used by the public diagnostic.  The grader uses different ones.
-PUBLIC_RUN_SEEDS = (101, 102)
+PUBLIC_RUN_SEEDS = (101, 102, 103)
 
 #: Seed for the public proxy pools.  The official pool seed is grader-private.
 PUBLIC_POOL_SEED = 202
