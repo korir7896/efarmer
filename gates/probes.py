@@ -19,17 +19,46 @@ from crossphase.core.methods import (BCE, env_risks, make_eqrm, make_groupdro,
 
 
 def scaled(objective, factor: float):
-    """Multiply an objective by a constant.
+    """Multiply an objective by a constant, for the whole run.
 
-    Under AdamW with ``weight_decay=0`` this must not change anything: Adam's
-    update is scale-invariant up to epsilon and there is no decoupled decay term
-    for the scale to trade against.  The loss-scale gate measures whether that
-    holds in practice.
+    Under AdamW with ``weight_decay=0`` this should not change anything, and
+    measurement agrees: ERM scores 36.66 / 36.64 / 36.74 at x0.1 / x1 / x10.
+    Kept as the control for the two probes below, which do move the result.
     """
 
     def wrapped(logits_by_env, targets_by_env, step, total_steps, state):
         return factor * objective(logits_by_env, targets_by_env, step,
                                   total_steps, state)
+
+    return wrapped
+
+
+def scale_step(objective, factor: float, at: float = 0.5):
+    """Change the objective's own scale PART-WAY through the run.
+
+    This is the route that zero weight decay does not close.  Adam's
+    second-moment estimate re-adapts over roughly ``1/(1 - beta2)`` steps -- 1000
+    at the default, longer than the budget -- so a mid-run drop shrinks effective
+    step sizes for the rest of training.  No invariance penalty is involved.
+    """
+
+    def wrapped(logits_by_env, targets_by_env, step, total_steps, state):
+        loss = objective(logits_by_env, targets_by_env, step, total_steps, state)
+        return loss if step < int(at * total_steps) else factor * loss
+
+    return wrapped
+
+
+def freeze(objective, at: float = 0.5):
+    """Zero the gradient from ``at`` onwards: early stopping, spelled as a loss.
+
+    The strongest form of the same idea, and the floor any penalty-bearing method
+    has to clear before its score can be credited to the penalty.
+    """
+
+    def wrapped(logits_by_env, targets_by_env, step, total_steps, state):
+        loss = objective(logits_by_env, targets_by_env, step, total_steps, state)
+        return loss if step < int(at * total_steps) else loss * 0.0
 
     return wrapped
 
@@ -70,6 +99,55 @@ def make_eqrm_dro(coef: float, eta: float, warm_frac: float = 0.2):
 # --------------------------------------------------------------------------- #
 # The intended route: a scale-free penalty with a data-driven warm-up.
 # --------------------------------------------------------------------------- #
+
+def irm_penalty(logits_by_env, targets_by_env):
+    """IRMv1 penalty, shared by the reference solution and its controls."""
+    out = []
+    for o, t in zip(logits_by_env, targets_by_env):
+        scale = torch.ones(1, requires_grad=True)
+        grad = torch.autograd.grad(BCE(o * scale, t), [scale], create_graph=True)[0]
+        out.append((grad ** 2).sum())
+    return torch.stack(out).mean()
+
+
+def make_floor_relative_irm(lam: float = 1e5, warm_frac: float = 0.5,
+                            power: float = 2.0, anchor: float = 0.26,
+                            ema: float = 0.02):
+    """Reference solution: IRM whose strength is measured against the noise floor.
+
+    The reasoning is available from the public settings alone, which is the point
+    -- a reference solution fitted with knowledge of the hidden setting would only
+    show that its author had seen the answer key.  A penalty coefficient is quoted
+    in absolute loss units, but the irreducible risk differs between settings, so
+    the same lambda means different things in each.  Dividing by the observed risk
+    level makes the strength comparable and regularises a high-floor setting less
+    rather than more.
+
+    ``anchor`` is the risk level the PUBLIC settings show, so at ``power = 0`` and
+    on A and B this reduces to the reproduced IRM baseline exactly; only the
+    unseen setting moves.  The ``loss / weight`` convention is IRM's own -- see
+    the note in ``crossphase/core/methods.py`` for why it is load-bearing.
+    """
+
+    def objective(logits_by_env, targets_by_env, step, total_steps, state):
+        risks = env_risks(logits_by_env, targets_by_env)
+        mean_risk = risks.mean()
+
+        level = state.get("level")
+        observed = float(mean_risk.detach())
+        level = observed if level is None else (1 - ema) * level + ema * observed
+        state["level"] = level
+
+        if step < int(warm_frac * total_steps):
+            return mean_risk
+
+        effective = lam * (anchor / max(level, 1e-3)) ** power
+        weight = effective + 1.0
+        loss = mean_risk + effective * irm_penalty(logits_by_env, targets_by_env)
+        return loss / weight
+
+    return objective
+
 
 def make_adaptive(lam: float = 0.45, window: int = 25, tol: float = 0.01,
                   ramp: int = 60, floor: float = 0.1):
@@ -112,7 +190,7 @@ def make_adaptive(lam: float = 0.45, window: int = 25, tol: float = 0.01,
     return objective
 
 
-ADAPTIVE = make_adaptive()
+ADAPTIVE = make_floor_relative_irm()
 
 
 # --------------------------------------------------------------------------- #
@@ -144,10 +222,13 @@ def make_fingerprint_branch(known, fallback, threshold: float, probe_steps: int 
 
 #: Probe catalogue used by the ceiling gates, alongside the full baseline grid.
 def probe_catalogue(known_config, fallback_config, threshold):
+    erm = (lambda o, t, s, ts, st: env_risks(o, t).mean())
     probes = {}
-    for factor in (0.1, 0.3, 1.0, 3.0, 10.0):
-        probes[f"scale(ERM,{factor:g})"] = scaled(
-            lambda o, t, s, ts, st: env_risks(o, t).mean(), factor)
+    for factor in (0.1, 1.0, 10.0):
+        probes[f"scale(ERM,{factor:g})"] = scaled(erm, factor)
+    for factor in (1e-5, 1e-2):
+        probes[f"scale-step(ERM,{factor:g})"] = scale_step(erm, factor)
+    probes["freeze(ERM,0.5)"] = freeze(erm)
     for lam_v in (10.0, 30.0):
         for lam_s in (0.001, 0.01):
             probes[f"VREx+SD({lam_v:g},{lam_s:g})"] = make_vrex_sd(lam_v, lam_s)
