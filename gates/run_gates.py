@@ -394,7 +394,7 @@ def build_report(workers=None) -> dict:
 
     # ---- transition timing -------------------------------------------------- #
     transition_labels = [f"{f}|{'' if c == '(none)' else c}"
-                         for f, c in ((r["family"], r["selected_config"])
+                         for f, c in ((r["family"], r["best_config"])
                                       for r in baselines["families"])]
     transition = stage_transition(sorted(set(transition_labels + ["ERM|"])))
     per_setting_steps = collections.defaultdict(list)
