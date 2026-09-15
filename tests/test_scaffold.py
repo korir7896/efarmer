@@ -1,4 +1,9 @@
-"""Scaffold invariants.  Run with: python -m pytest tests -q (or python -m tests.run)."""
+"""Scaffold invariants visible to a solving agent.
+
+Author-side invariants that need the hidden setting, the official evaluation
+spec or the packaging tool live in ``tests/test_private.py``, which does not
+ship in the agent bundle.  Run both with ``python -m tests.run``.
+"""
 
 from __future__ import annotations
 
@@ -8,12 +13,11 @@ import numpy as np
 import torch
 
 from crossphase.core.engine import (ObjectiveError, TRAIN, combine, quality,
-                                    run_setting, train_model)
+                                    train_model)
 from crossphase.core.generator import sample, training_environments
 from crossphase.core.methods import erm, make_groupdro, make_irm
 from crossphase.core.model import build_model, parameter_count
 from crossphase.core.settings import PROXY_WORLDS, SETTING_A, SETTING_B
-from grader.private_specs import OFFICIAL_WORLDS, SETTING_C
 
 
 def test_generator_is_deterministic():
@@ -34,14 +38,6 @@ def test_label_is_balanced_and_cues_are_label_driven():
     assert abs(y.mean() - 0.5) < 0.02
 
 
-def test_environment_count_distribution_is_setting_independent():
-    for seed in range(50):
-        counts = {s.env_count_for_seed(seed)
-                  for s in (SETTING_A, SETTING_B, SETTING_C)}
-        assert len(counts) == 1, "env count must not identify the setting"
-        assert 4 <= counts.pop() <= 6
-
-
 def test_environment_order_is_permuted():
     orders = set()
     for seed in (11, 12, 13, 14, 15):
@@ -59,18 +55,6 @@ def test_model_is_length_agnostic_and_fixed_size():
 
 def test_weight_decay_is_zero():
     assert TRAIN.weight_decay == 0.0, "a non-zero decay reopens the loss-scale route"
-
-
-def test_worlds_are_four_tuples():
-    for world in OFFICIAL_WORLDS + PROXY_WORLDS:
-        assert len(world) == 4
-        p1, p2, sigma_mult, core_mult = world
-        assert 0.0 <= p1 <= 1.0 and 0.0 <= p2 <= 1.0
-        assert sigma_mult > 0 and core_mult > 0
-
-
-def test_official_and_proxy_worlds_are_disjoint():
-    assert not (set(OFFICIAL_WORLDS) & set(PROXY_WORLDS))
 
 
 def test_quality_and_combine():
@@ -110,11 +94,3 @@ def test_irm_penalty_is_computable_from_logits_alone():
     loss = objective(logits, targets, 10, 100, {})
     loss.backward()
     assert all(o.grad is not None for o in logits)
-
-
-def test_end_to_end_run_is_reproducible():
-    cfg = TRAIN.__class__(steps=12)
-    args = (SETTING_C, erm, 11, OFFICIAL_WORLDS, 300, 200, cfg)
-    first = run_setting(*args, pool_seed=999)
-    second = run_setting(*args, pool_seed=999)
-    assert first["Q"] == second["Q"]
