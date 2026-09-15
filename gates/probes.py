@@ -191,8 +191,8 @@ def make_adaptive(lam: float = 0.45, window: int = 25, tol: float = 0.01,
 
 
 def make_regime_fallback(threshold: float = 0.30, decide_at: int = 200,
-                         window: int = 50, lam: float = 1e3,
-                         irm_warm: float = 0.3, vrex_lam: float = 1e5,
+                         window: int = 50, lam: float = 1e4,
+                         irm_warm: float = 0.65, vrex_lam: float = 1e5,
                          vrex_warm: float = 0.5):
     """Reference solution: recognise an unfamiliar regime, then fall back.
 
@@ -225,10 +225,16 @@ def make_regime_fallback(threshold: float = 0.30, decide_at: int = 200,
     knife edge.
 
     Both branches are pinned to the configurations the baseline sweep actually
-    selects, so each control returns its own baseline exactly: always-tuned
-    scores 58.501 (IRM) and always-conservative 46.733 (V-REx).  Neither
-    reproduces the combination, 61.539, which is what shows the branch is really
-    branching rather than silently always firing the same way.
+    selects, so the always-tuned control returns its own baseline exactly
+    (59.209).  Neither branch alone reproduces the combination, 64.518, which is
+    what shows the branch is really branching rather than silently always firing
+    the same way.
+
+    The tuned branch warms up at 0.65, a fraction the declared twelve-point grid
+    did not contain -- it was found only after the boundary expansion.  Note what
+    that means for the decision point: the branch has to be chosen by step 200,
+    long before either branch engages, so the regime signal must be readable from
+    early training alone.
 
     ``docs/classification_rules.md`` declared this route legal before any of
     these measurements were taken.  That ordering is the point of the rule.
