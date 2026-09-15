@@ -692,21 +692,25 @@ def render_markdown(report) -> str:
               "prevented.", ""]
 
     audit = g["binding_world_audit"]
+    share = audit["most_common_share"]
     lines += ["## Binding-world audit", "",
-              f"The cue-flipped world binds the minimum in "
-              f"{audit['most_common_share']:.0%} of cells, one point over the 90% "
-              f"limit, so **this gate fails and the threshold has not been moved to "
-              f"suit it**.  Stated plainly, as the design requires when one world "
-              f"dominates: `Q` is in practice `sqrt(I * T_flip)`.", "",
-              "The remaining worlds are kept rather than dropped because they are "
-              "not decorative -- they bind in the other cells, and they bind for "
-              "IRM and V-REx, the two strongest methods, which is exactly where a "
-              "worst-case minimum has to bite.  The alternative fix, tightening "
-              "the core-attenuation world from 0.45 to 0.30, is measured to bind "
-              "far more often against IRM in setting C and would likely clear the "
-              "gate; it needs a full re-sweep and gate re-run to move one point on "
-              "a heuristic threshold, and is recorded here as the known remedy "
-              "rather than applied.", ""]
+              f"The cue-flipped world binds the minimum in {share:.0%} of "
+              f"measured cells, against a 90% limit, so this gate "
+              + ("**passes**" if audit["pass"] else
+                 "**fails, and the threshold has not been moved to suit it**")
+              + ".  Stated plainly either way, because the margin is not large: "
+                "`Q` is in practice close to `sqrt(I * T_flip)`.", "",
+              "The remaining worlds are not decorative -- they bind in the other "
+              "cells, and they bind for the strongest methods, which is where a "
+              "worst-case minimum has to bite.  Diverged runs are excluded from "
+              "the denominator: counting a run that produced no measurement as "
+              "evidence about which world binds once made this audit read 64% "
+              "when 32% of its cells were failures.", "",
+              "The known remedy if this drifts back over the limit is to tighten "
+              "the core-attenuation world from 0.45 to 0.30, which is measured to "
+              "bind far more often against IRM in setting C.  It costs a full "
+              "re-sweep and gate re-run, and is recorded here rather than "
+              "applied.", ""]
 
     combo = report["combination_rule"]
     wider = ("outer minimum"
