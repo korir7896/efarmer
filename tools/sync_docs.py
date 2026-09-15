@@ -36,10 +36,13 @@ def baseline_table(payload) -> str:
               f"weakest and strongest is {payload['spread']:.2f} points.",
               "",
               f"Each family is shown at its best official configuration.  Letting "
-              f"the public proxy diagnostic pick instead would set the bar at "
+              f"the public proxy diagnostic pick each family's configuration "
+              f"instead would set the bar at "
               f"{payload['S_star_if_selected_on_proxy']:.2f} rather than "
-              f"{payload['S_star']:.2f} -- a measure of how little the proxy "
-              f"transfers, and a warning against trusting it too far.  "
+              f"{payload['S_star']:.2f}.  The proxy therefore ranks well enough "
+              f"to be worth running and badly enough that the best configuration "
+              f"it finds still falls short -- but read it as a relative ranking "
+              f"of your own candidates, never as an estimate of this number.  "
               f"{payload['configs_in_grid_above_S_star']} of the "
               f"{payload['grid_size']} swept configurations exceed `S*`."]
     return "\n".join(lines)

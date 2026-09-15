@@ -429,10 +429,16 @@ def build_report(workers=None) -> dict:
         "public_tuning_ceiling": {
             "argmax_on_proxy": public_arg,
             "S": rescored[public_arg]["S"],
+            # The global argmax is not the most adversarial reading.  Letting the
+            # proxy pick a configuration for EACH family and taking the best of
+            # those is stronger, and it is what an agent working family by family
+            # would actually do.
+            "S_per_family_proxy_selection": baselines.get("S_star_if_selected_on_proxy"),
             "S_star": s_star,
             "Q_C": rescored[public_arg]["Q_C"],
             "Q_AB": geo([rescored[public_arg]["Q_A"], rescored[public_arg]["Q_B"]]),
-            "pass": rescored[public_arg]["S"] <= s_star,
+            "pass": (rescored[public_arg]["S"] <= s_star
+                 and (baselines.get("S_star_if_selected_on_proxy", 0.0) <= s_star)),
         },
         "reconstruction_ceiling": {
             "argmax_on_reconstructed": recon_arg,
@@ -530,9 +536,12 @@ def render_markdown(report) -> str:
         lines.append(f"| {name} | {requirement} | {measured} | "
                      f"{'PASS' if ok else 'FAIL'} |")
 
+    per_family = g["public_tuning_ceiling"].get("S_per_family_proxy_selection")
     row("Public-tuning ceiling", "argmax on proxy scores <= S*",
         f"{g['public_tuning_ceiling']['S']:.3f} vs {report['S_star']:.3f} "
-        f"({g['public_tuning_ceiling']['argmax_on_proxy']})",
+        f"({g['public_tuning_ceiling']['argmax_on_proxy']})"
+        + (f"; per-family proxy selection reaches {per_family:.3f}"
+           if per_family is not None else ""),
         g["public_tuning_ceiling"]["pass"])
     row("Reconstruction ceiling", "argmax on rebuilt worlds <= S*",
         f"{g['reconstruction_ceiling']['S']:.3f} vs {report['S_star']:.3f} "
@@ -594,6 +603,23 @@ def render_markdown(report) -> str:
               "perfectly, so the reconstruction route is fully live and is "
               "assumed available to any competent agent.  It is gated, not "
               "prevented.", ""]
+
+    audit = g["binding_world_audit"]
+    lines += ["## Binding-world audit", "",
+              f"The cue-flipped world binds the minimum in "
+              f"{audit['most_common_share']:.0%} of cells, one point over the 90% "
+              f"limit, so **this gate fails and the threshold has not been moved to "
+              f"suit it**.  Stated plainly, as the design requires when one world "
+              f"dominates: `Q` is in practice `sqrt(I * T_flip)`.", "",
+              "The remaining worlds are kept rather than dropped because they are "
+              "not decorative -- they bind in the other cells, and they bind for "
+              "IRM and V-REx, the two strongest methods, which is exactly where a "
+              "worst-case minimum has to bite.  The alternative fix, tightening "
+              "the core-attenuation world from 0.45 to 0.30, is measured to bind "
+              "far more often against IRM in setting C and would likely clear the "
+              "gate; it needs a full re-sweep and gate re-run to move one point on "
+              "a heuristic threshold, and is recorded here as the known remedy "
+              "rather than applied.", ""]
 
     combo = report["combination_rule"]
     lines += ["## Combination rule", "",

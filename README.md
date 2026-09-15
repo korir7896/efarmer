@@ -84,7 +84,18 @@ configuration is chosen the way you would have to choose it — on the public pr
 diagnostic, never on the official score.
 
 <!-- AUTO:baselines -->
-(run `python -m baselines.run_baselines` then `python -m tools.sync_docs`)
+| Family | Selected configuration | `S` |
+|---|---|---|
+| IRM | `lam=100000,warm=0.5` | **57.71** |
+| EQRM | `coef=44.721,warm=0.1` | **51.33** |
+| VREx | `lam=100000,warm=0.1` | **45.56** |
+| GroupDRO | `eta=100,warm=0.5` | **40.87** |
+| ERM | `(none)` | **36.64** |
+| SD | `lam=0.001,warm=0.5` | **36.62** |
+
+`S*` = **57.71** (IRM, `lam=100000,warm=0.5`).  The weakest family is SD at 36.62, and that is what `agent/solution.py` ships with.  Scores are means over 5 run seeds; the spread between weakest and strongest is 21.09 points.
+
+Each family is shown at its best official configuration.  Letting the public proxy diagnostic pick each family's configuration instead would set the bar at 57.14 rather than 57.71.  The proxy therefore ranks well enough to be worth running and badly enough that the best configuration it finds still falls short -- but read it as a relative ranking of your own candidates, never as an estimate of this number.  2 of the 61 swept configurations exceed `S*`.
 <!-- /AUTO:baselines -->
 
 Papers, forms and the methods deliberately excluded by the contract are in
@@ -161,7 +172,21 @@ Every gate below blocked release; the numbers behind them are in
 [`reports/gates.md`](reports/gates.md).
 
 <!-- AUTO:gates -->
-(run `python -m gates.run_gates` then `python -m tools.sync_docs`)
+| Gate | Verdict |
+|---|---|
+| public tuning ceiling | PASS |
+| reconstruction ceiling | PASS |
+| proxy correlation | PASS |
+| transition separation | PASS |
+| warmup anti transfer | PASS |
+| rank reversal | PASS |
+| penalty anti transfer | PASS |
+| loss scale routes | PASS |
+| binding world audit | FAIL |
+| fingerprint policy | PASS |
+| headroom | PASS |
+
+Full numbers in [`reports/gates.md`](reports/gates.md).
 <!-- /AUTO:gates -->
 
 ## Running it
