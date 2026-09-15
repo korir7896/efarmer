@@ -50,7 +50,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 #: Seeds used for the full-grid official diagnostic.  The selected configurations
 #: are re-scored on the complete official seed set.
-DIAGNOSTIC_SEEDS = OFFICIAL_RUN_SEEDS[:3]
+DIAGNOSTIC_SEEDS = OFFICIAL_RUN_SEEDS[:2]
 
 
 def geo(values) -> float:
@@ -131,6 +131,20 @@ def summarise(table) -> list:
     return out
 
 
+def rescore_pairs(pairs, seeds):
+    """Re-measure explicit (family, config) pairs on the full official seed set."""
+    jobs = [("official", fam, label, setting, seed) for fam, label in pairs
+            for setting in ("A", "B", "C") for seed in seeds]
+    rows = pmap(_job, jobs)
+    per: dict = collections.defaultdict(lambda: collections.defaultdict(list))
+    binding: dict = collections.defaultdict(list)
+    for _kind, family, label, setting, _seed, q, bind, _retained in rows:
+        per[(family, label)][setting].append(q)
+        binding[(family, label)].append(bind)
+    return ({k: {s: sum(v) / len(v) for s, v in d.items()} for k, d in per.items()},
+            {k: dict(collections.Counter(v)) for k, v in binding.items()})
+
+
 def rescore_selected(selected, seeds):
     jobs = [("official", fam, label, setting, seed)
             for fam, label in selected.items()
@@ -182,12 +196,28 @@ def main(argv=None) -> int:
             out[family] = "" if best["config"] == "(none)" else best["config"]
         return out
 
-    # The bar: each family at its best official configuration.
-    best_configs = argmax_per_family(lambda r: r["S"])
+    def top_k_per_family(key, k=2):
+        out = []
+        for family in GRIDS:
+            rows = sorted((r for r in summary if r["family"] == family),
+                          key=key, reverse=True)[:k]
+            out += [(family, "" if r["config"] == "(none)" else r["config"])
+                    for r in rows]
+        return out
+
+    # The grid is measured on few seeds, so the top candidates of every family
+    # are re-measured on the full official seed set and the winner is taken there.
+    finalists = top_k_per_family(lambda r: r["S"])
+    final_q, final_binding = rescore_pairs(finalists, OFFICIAL_RUN_SEEDS)
+    best_configs = {}
+    for family in GRIDS:
+        cands = [(f, c) for f, c in finalists if f == family]
+        best_configs[family] = max(cands, key=lambda fc: geo(final_q[fc].values()))[1]
     # The diagnostic: what tuning on the visible proxy would have chosen instead.
     proxy_configs = argmax_per_family(lambda r: r["proxy_score"])
 
-    official_q, binding = rescore_selected(best_configs, OFFICIAL_RUN_SEEDS)
+    official_q = {f: final_q[(f, c)] for f, c in best_configs.items()}
+    binding = {f: final_binding[(f, c)] for f, c in best_configs.items()}
     proxy_q, _ = rescore_selected(proxy_configs, OFFICIAL_RUN_SEEDS)
 
     families = []

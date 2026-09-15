@@ -55,13 +55,13 @@ PROXY_WORLDS = (
     (0.65, 0.65, 1.30, 0.60),
 )
 
-OFFICIAL_SOURCE_N = 2500
-OFFICIAL_WORLD_N = 1500
+OFFICIAL_SOURCE_N = 2000
+OFFICIAL_WORLD_N = 1200
 PROXY_SOURCE_N = 900
 PROXY_WORLD_N = 700
 
 #: Run seeds used by the public diagnostic.  The grader uses different ones.
-PUBLIC_RUN_SEEDS = (101, 102, 103)
+PUBLIC_RUN_SEEDS = (101, 102)
 
 #: Seed for the public proxy pools.  The official pool seed is grader-private.
 PUBLIC_POOL_SEED = 202

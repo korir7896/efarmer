@@ -126,30 +126,30 @@ def make_eqrm(coef: float, warm_frac: float):
     return objective
 
 
-WARM_FRACS = (0.0, 0.2, 0.5)
+WARM_FRACS = (0.1, 0.3, 0.5)
 
 #: The public selection grid.  Every non-ERM family gets the same
 #: twelve-configuration budget (four coefficients x three warm-up fractions).
 #:
-#: IRM and EQRM are swept over ranges shifted down from the headline values in
-#: their papers.  IRM's published lambda ~ 1e4 is paired with the ``loss / lambda``
-#: rescaling, which under this task's AdamW(weight_decay=0) optimiser is a no-op,
-#: so the effective penalty strength is lambda itself; and EQRM's published
-#: alpha ~ 1 - e^-100 gives a coefficient of ~14 on a risk spread computed from
-#: four to six environments, which is degenerate here.  Both ranges bracket the
-#: usable regime and include a published-scale endpoint.
+#: The grids bracket each paper's published range.  IRM's headline lambda ~ 1e4
+#: and EQRM's alpha ~ 1 - e^-100 (coefficient 14.142) both sit inside their grids
+#: here, and both are live rather than degenerate: in this regime the shortcut is
+#: the better within-environment predictor, so recovering the stable feature takes
+#: penalties of published strength.  Warm-up fractions are 0.1, 0.3 and 0.5 -- a
+#: penalty of this strength from step zero destroys the run in every family, so
+#: zero warm-up is not a usable configuration and is not offered.
 GRIDS = {
     "ERM": {"": lambda: erm},
     "IRM": {f"lam={l:g},warm={w:g}": (lambda l=l, w=w: make_irm(l, w))
-            for l in (0.1, 1.0, 10.0, 100.0) for w in WARM_FRACS},
+            for l in (1e2, 1e3, 1e4, 1e5) for w in WARM_FRACS},
     "VREx": {f"lam={l:g},warm={w:g}": (lambda l=l, w=w: make_vrex(l, w))
-             for l in (1.0, 10.0, 30.0, 100.0) for w in WARM_FRACS},
+             for l in (1e2, 1e3, 1e4, 1e5) for w in WARM_FRACS},
     "GroupDRO": {f"eta={e:g},warm={w:g}": (lambda e=e, w=w: make_groupdro(e, w))
-                 for e in (1e-3, 1e-2, 1e-1, 1.0) for w in WARM_FRACS},
+                 for e in (0.1, 1.0, 10.0, 100.0) for w in WARM_FRACS},
     "SD": {f"lam={l:g},warm={w:g}": (lambda l=l, w=w: make_sd(l, w))
            for l in (0.001, 0.01, 0.1, 1.0) for w in WARM_FRACS},
     "EQRM": {f"coef={c:g},warm={w:g}": (lambda c=c, w=w: make_eqrm(c, w))
-             for c in (1.414, 2.0, 4.472, 14.142) for w in WARM_FRACS},
+             for c in (4.472, 14.142, 31.623, 44.721) for w in WARM_FRACS},
 }
 
 
