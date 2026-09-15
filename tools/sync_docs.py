@@ -1,0 +1,68 @@
+"""Rewrite the auto-generated numeric blocks in the docs from ``reports/``.
+
+    python -m tools.sync_docs
+
+Keeps the README's baseline table and target from drifting away from the
+measurements.  Every block is delimited by ``<!-- AUTO:name -->`` markers.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+REPORTS = REPO_ROOT / "reports"
+
+
+def baseline_table(payload) -> str:
+    lines = ["| Family | Selected configuration | `Q_A` | `Q_B` | `Q_C` | `S` |",
+             "|---|---|---|---|---|---|"]
+    for row in payload["families"]:
+        config = row["selected_config"] or "--"
+        lines.append(f"| {row['family']} | `{config}` | {row['Q_A']:.3f} | "
+                     f"{row['Q_B']:.3f} | {row['Q_C']:.3f} | **{row['S']:.2f}** |")
+    lines += ["",
+              f"`S*` = **{payload['S_star']:.2f}** ({payload['strongest']}, "
+              f"`{payload['strongest_config'] or '--'}`).  The weakest family is "
+              f"{payload['weakest']} at {payload['weakest_S']:.2f}, and that is what "
+              f"`agent/solution.py` ships with.  Scores are means over "
+              f"{len(payload['official_seeds'])} run seeds."]
+    return "\n".join(lines)
+
+
+def gate_table(payload) -> str:
+    lines = ["| Gate | Verdict |", "|---|---|"]
+    for name, gate in payload["gates"].items():
+        lines.append(f"| {name.replace('_', ' ')} | "
+                     f"{'PASS' if gate['pass'] else 'FAIL'} |")
+    lines.append("")
+    lines.append("Full numbers in [`reports/gates.md`](reports/gates.md).")
+    return "\n".join(lines)
+
+
+def replace_block(text: str, name: str, body: str) -> str:
+    pattern = re.compile(rf"(<!-- AUTO:{name} -->\n).*?(\n<!-- /AUTO:{name} -->)",
+                         re.DOTALL)
+    if not pattern.search(text):
+        raise SystemExit(f"marker AUTO:{name} not found")
+    return pattern.sub(lambda m: m.group(1) + body + m.group(2), text)
+
+
+def main() -> int:
+    readme = REPO_ROOT / "README.md"
+    text = readme.read_text()
+    text = replace_block(text, "baselines",
+                         baseline_table(json.loads((REPORTS / "baselines.json").read_text())))
+    gates_path = REPORTS / "gates.json"
+    if gates_path.exists():
+        text = replace_block(text, "gates",
+                             gate_table(json.loads(gates_path.read_text())))
+    readme.write_text(text)
+    print("README.md updated from reports/")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

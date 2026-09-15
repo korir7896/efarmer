@@ -1,0 +1,3 @@
+# CrossPhase runs on CPU and needs nothing beyond these two.
+numpy>=1.24
+torch>=2.0
