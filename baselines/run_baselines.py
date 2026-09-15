@@ -61,6 +61,16 @@ def geo(values) -> float:
 
 
 def _job(item):
+    """A configuration that blows up scores zero, exactly as the grader treats a
+    submission that blows up.  It must not take the sweep down with it."""
+    try:
+        return _run(item)
+    except Exception:  # noqa: BLE001
+        kind, family, label, setting, seed = item
+        return kind, family, label, setting, seed, 0.0, "error", 0.0
+
+
+def _run(item):
     kind, family, label, setting, seed = item
     objective = GRIDS[family][label]()
     if kind == "proxy":
@@ -173,6 +183,15 @@ def main(argv=None) -> int:
 
     if args.reuse_sweep and (out_dir / "sweep.json").exists():
         summary = json.loads((out_dir / "sweep.json").read_text())
+        stale = [r for r in summary
+                 if r["family"] not in GRIDS
+                 or ("" if r["config"] == "(none)" else r["config"]) not in GRIDS[r["family"]]]
+        if stale:
+            raise SystemExit(
+                f"reports/sweep.json holds {len(stale)} configurations that are no "
+                f"longer in the grid (e.g. {stale[0]['family']} "
+                f"{stale[0]['config']}).  It predates the current method grid; "
+                f"re-run without --reuse-sweep.")
         print(f"reusing {len(summary)} cached grid rows")
     else:
         jobs = build_jobs(DIAGNOSTIC_SEEDS)
@@ -181,7 +200,9 @@ def main(argv=None) -> int:
         rows = pmap(_job, jobs, workers=args.workers)
         print(f"sweep finished in {time.time() - started:.0f}s")
         summary = summarise(collect(rows))
-
+        # Persist the grid BEFORE anything that can fail.  These are hours of
+        # training runs and nothing downstream is worth losing them to.
+        (out_dir / "sweep.json").write_text(json.dumps(summary, indent=2))
         with (out_dir / "sweep.csv").open("w", newline="") as fh:
             fields = [k for k in summary[0] if k != "binding_all"]
             writer = csv.DictWriter(fh, fieldnames=fields)
