@@ -52,8 +52,17 @@ def make_irm(lam: float, warm_frac: float):
         weight = lam * warm(step, total_steps, warm_frac) + 1.0
         loss = mean_risk + (weight - 1.0) * penalty
         if weight > 1.0:
-            # Faithful to the reference implementation.  Under AdamW with
-            # weight_decay=0 this rescaling cannot change the trajectory.
+            # Faithful to the reference implementation -- and load-bearing, which
+            # is worth stating because the obvious assumption is wrong.  This is
+            # NOT a harmless rescaling: the loss is returned undivided before
+            # warm-up and divided by (1 + lambda) after it, so at lambda = 1e5 its
+            # magnitude drops five orders of magnitude at the warm-up boundary.
+            # Adam's second-moment estimate is adapted to the old scale and
+            # re-adapts over ~1/(1 - beta2) = 1000 steps, longer than the run has
+            # left, so effective step sizes stay small afterwards.  Measured on
+            # this task: 57.71 with the division, 41.55 without.  A UNIFORM
+            # rescaling really is neutral here (ERM scores 36.66 / 36.64 / 36.74
+            # at x0.1 / x1 / x10); it is the mid-run discontinuity that bites.
             loss = loss / weight
         return loss
 

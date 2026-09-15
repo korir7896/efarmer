@@ -107,12 +107,33 @@ if that ceiling sits at or below `S*`.
 
 ## 5. Escape hatches, and how they are closed
 
-* **Loss scaling.** `AdamW(weight_decay=0)`.  Adam's update is scale-invariant up
-  to epsilon; with a non-zero decoupled decay, multiplying the objective by ten
-  would cut the effective regularisation strength — a real hyperparameter behind
-  an objective's mask, reachable by a one-character edit.  Setting the decay to
-  zero closes it at the source rather than trying to catch it with a probe grid.
-  The residual slope is measured anyway.
+* **Uniform loss scaling — closed.** `AdamW(weight_decay=0)`.  Adam's update is
+  scale-invariant up to epsilon; with a non-zero decoupled decay, multiplying the
+  objective by ten would cut the effective regularisation strength.  Setting the
+  decay to zero closes that.  Measured: ERM scores 36.66 / 36.64 / 36.74 at
+  ×0.1 / ×1 / ×10, and IRM moves 0.52 across the central decade.
+* **Mid-run scale changes — open, bounded, and measured.**  Zero weight decay
+  does *not* close this, and an earlier draft of this document wrongly claimed it
+  did.  An objective that changes its own scale part-way through a run shifts the
+  result, because Adam's second-moment estimate re-adapts over roughly
+  `1/(1 - beta2)` steps — 1000 at the default `beta2 = 0.999`, longer than the
+  800-step budget.  Two probes with no invariance penalty at all quantify it: an
+  ERM whose loss drops by `1e-5` at the half-way point scores 41.56, and one that
+  zeroes its gradient there scores 42.40, against plain ERM's 36.64.  So the
+  route is worth about 5.8 points — and falls 15 points short of `S*` = 57.71,
+  so it does not win the task.  It is reported, not assumed away.
+
+  This is also why the reproduced IRM is documented carefully: its published
+  implementation divides the loss by `lambda` after warm-up but not before, and
+  that discontinuity is load-bearing here (57.71 with it, 41.55 without).  The
+  reproduction keeps the published convention and states the effect, rather than
+  quietly "fixing" a paper's implementation to suit the scaffold.
+
+  Lowering `beta2` to 0.95 was tested as a fix.  It does close the scale-step
+  route (the probe drops to 35.86, below ERM), but it also collapses IRM's honest
+  margin over the freeze probe from 15 points to 1.3.  That trades a bounded,
+  measured leak for a substantially weaker task, so `betas` stays at the PyTorch
+  default.
 * **Public tuning.** Scored by the public-tuning ceiling gate.
 * **Cue reconstruction.** Scored by the reconstruction ceiling gate.
 * **Setting fingerprinting.** Branching on first-steps loss statistics is legal

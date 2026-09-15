@@ -27,6 +27,19 @@ class TrainConfig:
     to epsilon, but *decoupled* weight decay is not, so a non-zero value would
     turn "multiply the loss by 10" into a real regularisation-strength knob that
     an objective could reach with a one-character edit.
+
+    That closes uniform rescaling, and only uniform rescaling.  Measured here:
+    ERM scores 36.66 / 36.64 / 36.74 at x0.1 / x1 / x10, flat.  But an objective
+    that changes its own scale *part-way through the run* still moves the result,
+    because Adam's second-moment estimate re-adapts over ~1/(1 - beta2) steps.
+    An ERM whose loss drops by 1e-5 at the half-way point scores 41.56 against
+    plain ERM's 36.64, and an objective that simply zeroes its gradient there
+    scores 42.40.  Both are far below ``S*`` = 57.71, so neither wins the task,
+    but both are real and both are reported by the loss-scale gate rather than
+    assumed away.  ``betas`` stays at the PyTorch default: lowering beta2 to 0.95
+    closes the scale-step route but also shrinks IRM's genuine margin over the
+    freeze probe from 15 points to 1.3, which trades a bounded, measured leak for
+    a much weaker task.
     """
 
     steps: int = 800
