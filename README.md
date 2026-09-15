@@ -59,20 +59,30 @@ Q_s = sqrt( I_s * min_j T_{s,j} )     I = balanced accuracy on the source pool
 S   = 100 * ( Q_A * Q_B * Q_C )^(1/3) T_j = balanced accuracy on target world j
 ```
 
-The five official worlds are
+There are five official target worlds.  Each is a `(p1, p2, sigma_mult,
+core_mult)` tuple — the probability that each cue agrees with the label, a
+multiplier on the observation noise, and a multiplier on the core amplitude.
+What each one stresses is public; the coordinates are not:
 
-| `(p1, p2, sigma_mult, core_mult)` | stresses |
+| World | Stresses |
 |---|---|
-| `(.10, .10, 1.00, 1.00)` | both cues flipped — shortcut reliance |
-| `(.10, .90, 1.00, 1.00)` | cue conflict |
-| `(.90, .10, 1.00, 1.00)` | cue conflict, the other way |
-| `(.50, .50, 1.60, 1.00)` | cues uninformative, noise floor raised 60% |
-| `(.90, .90, 1.00, 0.42)` | cues aligned, core attenuated to 42% |
+| two cue-flipped | shortcut reliance — both cues point away from the label |
+| two cue-conflict | reliance on one cue in particular |
+| one noise-raised | core-detector quality under a higher noise floor |
+| one core-attenuated | core-detector quality when the stable signal is weak |
 
-`p1`/`p2` are the probabilities that each cue agrees with the label.  Three
-worlds punish shortcut reliance; two punish a model that has been regularised
-into a weak core detector.  Source retention is half of `Q`, so robustness cannot
-be bought by destroying the model.
+Three punish shortcut reliance; two punish a model that has been regularised into
+a weak core detector, so the worst case is contested from both directions.
+Source retention is half of `Q`, so robustness cannot be bought by destroying the
+model.
+
+The **coordinates** are withheld, and that is a considered choice rather than
+obscurantism.  Both nuisance cues are recoverable from the public training data
+at better than 0.99 accuracy, so an agent holding the exact coordinates could
+rebuild the official A and B target pools almost exactly and score against them
+directly.  The scoring *formula*, the number of worlds and the kind of stress
+each applies are all public — a hidden metric would make this a guessing game —
+but the numbers are not.
 
 **A submission passes when `S` strictly exceeds `S*`.**  There is no margin.
 
@@ -145,17 +155,22 @@ agent/solution.py             the one function you may edit
 agent/evaluate_public.py      the budgeted proxy diagnostic
 agent/method_references.md    papers, forms, and what the contract excludes
 docs/classification_rules.md  what counts as a legal win
-tests/                        scaffold invariants
+tests/test_scaffold.py        scaffold invariants
 ```
+
+`tools/build_agent_bundle.py` builds exactly that list and audits the archive for
+private material; `tests/test_private.py` asserts the audit passes.
 
 Withheld during a trial — author and reviewer material:
 
 ```
 grader/                       the official grader, the private pool and run
-                              seeds, and setting C's generator
+                              seeds, the official target-world coordinates, and
+                              setting C's generator
 reports/                      the full sweep, the per-setting breakdown of every
                               baseline, and the gate measurements
-baselines/  gates/  tools/    the reproduction and gate harnesses
+baselines/  gates/  tools/    the reproduction, gate and packaging harnesses
+tests/test_private.py         author-side invariants
 docs/task_design.md           why the task is shaped the way it is
 docs/originality.md  docs/reviewer_checklist.md
 ```

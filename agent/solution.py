@@ -37,10 +37,12 @@ RULES
 
 THE SHIPPED OBJECTIVE
 --------------------
-Spectral Decoupling (Pezeshki et al., arXiv:2011.09468) at its best official
-configuration, ``lambda = 0.001`` with warm-up at half the budget.  Of the six
-reproduced families this is the weakest, which is why it is what you start
-from.  Each family's score, and ``S*``, are in the README.
+Empirical risk minimisation -- the weakest distinct baseline of the six
+reproduced here.  Spectral Decoupling scores fractionally lower (36.619 against
+36.636), but only at the bottom of its coefficient range, where its penalty is
+small enough to be inert; that is an unhelpful coefficient rather than a
+different method, so ERM is what you start from.  Each family's score, and
+``S*``, are in the README.
 """
 
 from __future__ import annotations
@@ -53,23 +55,13 @@ import torch.nn.functional as F
 # --------------------------------------------------------------------------- #
 
 
-LAMBDA = 0.001
-WARM_FRACTION = 0.5
-
-
 def objective(logits_by_env, targets_by_env, step, total_steps, state):
-    """Spectral Decoupling: mean risk plus a penalty on logit magnitude.
-
-    ``L = mean(R_e) + (lambda / 2) * mean(o^2)``, with the penalty held off for
-    the first ``WARM_FRACTION`` of the budget.
-    """
+    """Empirical risk minimisation: the mean per-environment risk."""
     risks = torch.stack([
         F.binary_cross_entropy_with_logits(o, t)
         for o, t in zip(logits_by_env, targets_by_env)
     ])
-    engaged = 0.0 if step < int(WARM_FRACTION * total_steps) else 1.0
-    logits = torch.cat(logits_by_env)
-    return risks.mean() + LAMBDA * engaged * 0.5 * (logits ** 2).mean()
+    return risks.mean()
 
 
 # --------------------------------------------------------------------------- #

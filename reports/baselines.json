@@ -1,5 +1,7 @@
 {
   "S_star": 58.50129181076606,
+  "starter": "ERM",
+  "starter_reason": "SD is weakest at 36.619, but its optimum sits 0.017 from ERM's 36.636 -- within 0.1 -- so it is ERM with a coefficient small enough to be inert, not a distinct weak method.  ERM ships as the starting code.",
   "strongest": "IRM",
   "strongest_config": "lam=1000,warm=0.3",
   "weakest": "SD",
