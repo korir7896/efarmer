@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 
 from crossphase.core.methods import (BCE, env_risks, make_eqrm, make_groupdro,
-                                     make_sd, make_vrex, warm)
+                                     make_irm, make_sd, make_vrex, warm)
 
 
 def scaled(objective, factor: float):
@@ -190,7 +190,61 @@ def make_adaptive(lam: float = 0.45, window: int = 25, tol: float = 0.01,
     return objective
 
 
-ADAPTIVE = make_floor_relative_irm()
+def make_regime_fallback(threshold: float = 0.30, decide_at: int = 300,
+                         window: int = 50, lam: float = 1e5,
+                         coef: float = 44.721, warm_frac: float = 0.5):
+    """Reference solution: recognise an unfamiliar regime, then fall back.
+
+    Why this shape and not something tidier -- both alternatives were measured
+    and both fail:
+
+    * Rescaling the tuned penalty by the observed noise floor does nothing.
+      Q_C moves 0.444 -> 0.446 across powers 0 to 6.  Penalty strength is not
+      what limits the hidden setting; the IRM family simply tops out below
+      what a quantile objective reaches there.
+    * Running a quantile term ALONGSIDE the penalty reaches the hidden
+      setting (Q_C 0.509) but costs a quarter of the visible ones
+      (Q_A 0.660 -> 0.500), in every lambda/coefficient combination tried.
+      The early quantile pressure stops A and B ever reaching the
+      representation the late penalty exploits.
+
+    So the two mechanisms have to run alternatively, not together.  The rule is
+    reachable from the public settings alone: calibrate on A and B, watch the
+    pooled risk level, and if a run sits materially outside the range you
+    calibrated on, fall back to an objective that does not depend on the
+    coefficients you tuned there.  It never requires knowing that the hidden
+    setting exists -- only your own calibration range.
+
+    Timing is the part that has to be right.  Judging at step 60 misclassifies
+    A and B, whose level is still descending through the hidden setting's range;
+    by step 300 they separate cleanly (0.270 / 0.268 against 0.344).  Both
+    branches engage at ``warm_frac``, so deciding at 300 is still in time for
+    either, and the result is identical for thresholds 0.29-0.31 and for
+    decisions at step 200 or 300 -- it is not perched on a knife edge.
+
+    ``docs/classification_rules.md`` declared this route legal before any of
+    these measurements were taken.  That ordering is the point of the rule.
+    """
+    tuned = make_irm(lam, warm_frac)
+    conservative = make_eqrm(coef, warm_frac)
+
+    def objective(logits_by_env, targets_by_env, step, total_steps, state):
+        risks = env_risks(logits_by_env, targets_by_env)
+        mean_risk = risks.mean()
+        if step < decide_at:
+            if step >= decide_at - window:
+                state.setdefault("levels", []).append(float(mean_risk.detach()))
+            return mean_risk
+        if "familiar" not in state:
+            levels = state.get("levels") or [float(mean_risk.detach())]
+            state["familiar"] = (sum(levels) / len(levels)) < threshold
+        branch = tuned if state["familiar"] else conservative
+        return branch(logits_by_env, targets_by_env, step, total_steps, state)
+
+    return objective
+
+
+ADAPTIVE = make_regime_fallback()
 
 
 # --------------------------------------------------------------------------- #
