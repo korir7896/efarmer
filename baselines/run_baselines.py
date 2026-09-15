@@ -49,6 +49,10 @@ from grader.private_specs import (ALL_SETTINGS, OFFICIAL_POOL_SEED,
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+#: Two families whose best scores differ by less than this are not distinct
+#: methods for the purpose of choosing a starting point.
+ERM_EQUIVALENCE_TOLERANCE = 0.10
+
 #: Seeds used for the full-grid official screening.  Deliberately disjoint from
 #: both OFFICIAL_RUN_SEEDS and PUBLIC_RUN_SEEDS: screening on seeds that also
 #: score the finalists fits the selection to the measurement.
@@ -280,8 +284,27 @@ def main(argv=None) -> int:
                              "; ".join(f"{k}x{v}" for k, v in
                                        sorted(row["binding_worlds"].items()))])
 
+    # An intentionally inert coefficient is not a distinct weak method.  If the
+    # weakest family's optimum is indistinguishable from ERM, ERM is the weakest
+    # distinct baseline and is what ships as the starting code.
+    erm_S = next(r["S"] for r in families if r["family"] == "ERM")
+    weakest = families[-1]
+    inert = (weakest["family"] != "ERM"
+             and abs(weakest["S"] - erm_S) < ERM_EQUIVALENCE_TOLERANCE)
+    starter = "ERM" if inert else weakest["family"]
+
     payload = {
         "S_star": families[0]["S"],
+        "starter": starter,
+        "starter_reason": (
+            f"{weakest['family']} is weakest at {weakest['S']:.3f}, but its "
+            f"optimum sits {abs(weakest['S'] - erm_S):.3f} from ERM's "
+            f"{erm_S:.3f} -- within {ERM_EQUIVALENCE_TOLERANCE} -- so it is ERM "
+            f"with a coefficient small enough to be inert, not a distinct weak "
+            f"method.  ERM ships as the starting code."
+            if inert else
+            f"{weakest['family']} is the weakest distinct baseline at "
+            f"{weakest['S']:.3f} and ships as the starting code."),
         "strongest": families[0]["family"],
         "strongest_config": families[0]["best_config"],
         "weakest": families[-1]["family"],
@@ -312,6 +335,7 @@ def main(argv=None) -> int:
         print(f"{row['family']:10s} {row['best_config']:22s} "
               f"{row['Q_A']:6.3f} {row['Q_B']:6.3f} {row['Q_C']:6.3f} "
               f"{row['S']:7.3f} {row['S_if_selected_on_proxy']:13.3f}")
+    print(f"\nstarter: {payload['starter']} -- {payload['starter_reason']}")
     print(f"\nS* = {payload['S_star']:.3f} ({payload['strongest']})   "
           f"weakest = {payload['weakest_S']:.3f} ({payload['weakest']})   "
           f"spread = {payload['spread']:.3f}")

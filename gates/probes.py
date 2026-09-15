@@ -190,9 +190,10 @@ def make_adaptive(lam: float = 0.45, window: int = 25, tol: float = 0.01,
     return objective
 
 
-def make_regime_fallback(threshold: float = 0.30, decide_at: int = 300,
-                         window: int = 50, lam: float = 1e5,
-                         coef: float = 44.721, warm_frac: float = 0.5):
+def make_regime_fallback(threshold: float = 0.30, decide_at: int = 200,
+                         window: int = 50, lam: float = 1e3,
+                         irm_warm: float = 0.3, vrex_lam: float = 1e5,
+                         vrex_warm: float = 0.5):
     """Reference solution: recognise an unfamiliar regime, then fall back.
 
     Why this shape and not something tidier -- both alternatives were measured
@@ -217,16 +218,23 @@ def make_regime_fallback(threshold: float = 0.30, decide_at: int = 300,
 
     Timing is the part that has to be right.  Judging at step 60 misclassifies
     A and B, whose level is still descending through the hidden setting's range;
-    by step 300 they separate cleanly (0.270 / 0.268 against 0.344).  Both
-    branches engage at ``warm_frac``, so deciding at 300 is still in time for
-    either, and the result is identical for thresholds 0.29-0.31 and for
-    decisions at step 200 or 300 -- it is not perched on a knife edge.
+    by step 200 they separate cleanly (~0.275 / ~0.272 against ~0.346).  The
+    decision has to land before the earlier branch engages -- the tuned branch
+    warms up at 0.3, i.e. step 240 -- and the result is identical for thresholds
+    0.29-0.31 and for decisions at step 200 or 300, so it is not perched on a
+    knife edge.
+
+    Both branches are pinned to the configurations the baseline sweep actually
+    selects, so each control returns its own baseline exactly: always-tuned
+    scores 58.501 (IRM) and always-conservative 46.733 (V-REx).  Neither
+    reproduces the combination, 61.539, which is what shows the branch is really
+    branching rather than silently always firing the same way.
 
     ``docs/classification_rules.md`` declared this route legal before any of
     these measurements were taken.  That ordering is the point of the rule.
     """
-    tuned = make_irm(lam, warm_frac)
-    conservative = make_eqrm(coef, warm_frac)
+    tuned = make_irm(lam, irm_warm)
+    conservative = make_vrex(vrex_lam, vrex_warm)
 
     def objective(logits_by_env, targets_by_env, step, total_steps, state):
         risks = env_risks(logits_by_env, targets_by_env)

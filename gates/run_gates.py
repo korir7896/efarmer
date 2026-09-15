@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import dataclasses
 import hashlib
 import json
 import math
@@ -26,7 +27,7 @@ import torch
 
 from crossphase.core.engine import (TRAIN, balanced_accuracy, quality,
                                     run_setting, train_model)
-from crossphase.core.methods import GRIDS, env_risks, erm
+from crossphase.core.methods import GRIDS, all_configs, env_risks, erm
 from crossphase.core.parallel import pmap
 from crossphase.core.settings import (PROXY_SOURCE_N, PROXY_WORLD_N,
                                       PROXY_WORLDS, PUBLIC_POOL_SEED,
@@ -300,6 +301,47 @@ def stage_transition(labels):
 
 
 # --------------------------------------------------------------------------- #
+# Stage: nuisance-free oracle ceiling
+# --------------------------------------------------------------------------- #
+
+def _oracle_spec(spec):
+    """The same setting with its cues carrying no label information at all."""
+    from crossphase.core.generator import Environment
+    return dataclasses.replace(
+        spec, envs=tuple(Environment(0.5, 0.5, e.sigma) for e in spec.envs),
+        source_mix=(0.5, 0.5))
+
+
+def _oracle_job(item):
+    setting, seed = item
+    result = run_setting(_oracle_spec(ALL_SETTINGS[setting]), erm, seed,
+                         OFFICIAL_WORLDS, OFFICIAL_SOURCE_N, OFFICIAL_WORLD_N,
+                         pool_seed=OFFICIAL_POOL_SEED)
+    return setting, quality(result)[0]
+
+
+def stage_oracle():
+    """How much of each setting's gap is reachable at all.
+
+    Part of setting C's low score is irreducible -- it carries more label noise
+    and heavier observation noise than A and B -- so without this number one
+    cannot tell whether an objective's C gain is near the ceiling or leaving most
+    of it unclaimed.
+    """
+
+    def build():
+        rows = pmap(_oracle_job, [(s, sd) for s in ALL_SETTINGS
+                                  for sd in OFFICIAL_RUN_SEEDS])
+        per = collections.defaultdict(list)
+        for setting, q in rows:
+            per[setting].append(q)
+        means = {s: sum(v) / len(v) for s, v in per.items()}
+        return {"Q": means, "S": geo(means.values())}
+
+    return cached("oracle", build)
+
+
+# --------------------------------------------------------------------------- #
 # Gate evaluation
 # --------------------------------------------------------------------------- #
 
@@ -423,6 +465,7 @@ def build_report(workers=None) -> dict:
 
     cue = {name: measure.cue_recovery_accuracy(spec)
            for name, spec in ALL_SETTINGS.items()}
+    oracle = stage_oracle()
 
     gates = {
         "public_tuning_ceiling": {
@@ -451,8 +494,16 @@ def build_report(workers=None) -> dict:
         },
         "transition_separation": {
             "median_step": median_step,
+            "fraction_of_budget": {s: v / TRAIN.steps
+                                   for s, v in median_step.items()},
             "separation_fraction": separation,
             "total_steps": TRAIN.steps,
+            # The trace is sampled every 10 steps, so a measured step carries
+            # +/- 5 steps of resolution -- 0.6% of the budget.  The A-to-C figure
+            # sits close to the 20% requirement, so the resolution is worth
+            # stating rather than leaving implicit.
+            "probe_every_steps": 10,
+            "resolution_fraction": 10 / TRAIN.steps,
             "pass": separation >= 0.20,
         },
         "warmup_anti_transfer": {
@@ -510,6 +561,18 @@ def build_report(workers=None) -> dict:
             "reference_solution_S": rescored["reference|adaptive"]["S"],
             "S_star": s_star,
             "margin": rescored["reference|adaptive"]["S"] - s_star,
+            "oracle_ceiling_S": oracle["S"],
+            "oracle_Q": oracle["Q"],
+            "reference_Q": {s: rescored["reference|adaptive"].get(f"Q_{s}")
+                            for s in ("A", "B", "C")},
+            "fraction_of_reachable_gap_claimed": {
+                s: ((rescored["reference|adaptive"].get(f"Q_{s}", 0.0)
+                     - next(r[f"Q_{s}"] for r in baselines["families"]
+                            if r["family"] == baselines["strongest"]))
+                    / max(oracle["Q"][s]
+                          - next(r[f"Q_{s}"] for r in baselines["families"]
+                                 if r["family"] == baselines["strongest"]), 1e-9))
+                for s in ("A", "B", "C")},
             "pass": rescored["reference|adaptive"]["S"] > s_star,
         },
     }
@@ -550,12 +613,12 @@ def render_markdown(report) -> str:
         f"{g['proxy_correlation']['spearman']:.3f} over "
         f"{g['proxy_correlation']['n']} configurations",
         g["proxy_correlation"]["pass"])
+    frac = g["transition_separation"]["fraction_of_budget"]
     row("Transition separation", "A-to-C differs by >= 20% of budget",
-        f"{g['transition_separation']['separation_fraction']:.0%} "
-        f"(A={g['transition_separation']['median_step']['A']:.0f}, "
-        f"B={g['transition_separation']['median_step']['B']:.0f}, "
-        f"C={g['transition_separation']['median_step']['C']:.0f} of "
-        f"{g['transition_separation']['total_steps']})",
+        f"{g['transition_separation']['separation_fraction']:.0%}; all three differ "
+        + ", ".join(f"{s} {frac[s]:.2f}" for s in ("A", "B", "C"))
+        + f" of budget (+/- {g['transition_separation']['resolution_fraction']:.3f} "
+          f"probe resolution)",
         g["transition_separation"]["pass"])
     row("Warm-up anti-transfer", "A/B-optimal warm-up suboptimal on C",
         f"max Q_C cost {g['warmup_anti_transfer']['max_Q_C_cost']:.4f}; "
@@ -589,7 +652,8 @@ def render_markdown(report) -> str:
         g["fingerprint_policy"]["pass"])
     row("Headroom", "reference solution beats S*",
         f"{g['headroom']['reference_solution_S']:.3f} "
-        f"(+{g['headroom']['margin']:.3f})",
+        f"(+{g['headroom']['margin']:.3f}); nuisance-free ceiling "
+        f"{g['headroom']['oracle_ceiling_S']:.3f}",
         g["headroom"]["pass"])
 
     lines += ["", "## Cue recovery from public data", "",
@@ -621,15 +685,32 @@ def render_markdown(report) -> str:
               "rather than applied.", ""]
 
     combo = report["combination_rule"]
+    wider = ("outer minimum"
+             if combo["outer_minimum_spread"] > combo["geometric_mean_spread"]
+             else "geometric mean")
     lines += ["## Combination rule", "",
               f"Across the {combo['n_competent']} competent configurations, the "
               f"geometric mean spreads scores over "
               f"{combo['geometric_mean_spread']:.3f} points "
               f"(sd {combo['geometric_mean_stdev']:.3f}); an outer minimum over "
               f"settings spreads them over {combo['outer_minimum_spread']:.3f} "
-              f"(sd {combo['outer_minimum_stdev']:.3f}).  The geometric mean is "
-              f"kept because it discriminates between methods better, not because "
-              f"it scores lower.", ""]
+              f"(sd {combo['outer_minimum_stdev']:.3f}).  On raw spread the "
+              f"**{wider} is the wider of the two**, and an earlier draft of this "
+              f"report claimed the opposite while printing these same numbers.",
+              "",
+              "Raw spread is not decisive either way -- it is not normalised by "
+              "the seed-level noise within a configuration, so a wider spread can "
+              "be scale rather than signal.  The geometric mean is kept on a "
+              "different ground, which does not depend on the comparison above: "
+              "an outer minimum over settings reports only the worst setting and "
+              "discards the other two entirely, so an objective that is excellent "
+              "on A and B and mediocre on C scores identically to one that is "
+              "mediocre everywhere.  That is precisely the distinction this task "
+              "exists to make -- the reference solution's whole advantage is "
+              "holding A and B while improving C -- and an outer minimum would be "
+              "blind to it.  It would also compound with the minimum already "
+              "taken inside each `Q` over target worlds, applying a worst-case "
+              "twice.", ""]
     return "\n".join(lines)
 
 
