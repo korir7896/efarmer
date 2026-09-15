@@ -37,7 +37,7 @@ import math
 import time
 from pathlib import Path
 
-from crossphase.core.engine import quality, run_setting
+from crossphase.core.engine import ObjectiveError, quality, run_setting
 from crossphase.core.methods import GRIDS, all_configs, is_expansion
 from crossphase.core.parallel import pmap
 from crossphase.core.settings import (PROXY_SOURCE_N, PROXY_WORLD_N,
@@ -67,18 +67,25 @@ def geo(values) -> float:
 
 
 def _job(item):
-    """A configuration that blows up scores zero, exactly as the grader treats a
-    submission that blows up.  It must not take the sweep down with it."""
+    """An objective that DIVERGES scores zero, exactly as the grader treats a
+    submission that diverges.  It must not take the sweep down with it.
+
+    Only ``ObjectiveError`` is caught, and deliberately so.  A broad
+    ``except Exception`` here previously swallowed a KeyError -- the harness
+    could not construct 29 expansion configurations at all -- and recorded it as
+    29 methods diverging.  A harness fault must be loud; only a numerical result
+    may be scored.
+    """
     try:
         return _run(item)
-    except Exception:  # noqa: BLE001
+    except ObjectiveError:
         kind, family, label, setting, seed = item
-        return kind, family, label, setting, seed, 0.0, "error", 0.0
+        return kind, family, label, setting, seed, 0.0, "diverged", 0.0
 
 
 def _run(item):
     kind, family, label, setting, seed = item
-    objective = GRIDS[family][label]()
+    objective = all_configs()[family][label]()
     if kind == "proxy":
         result = run_setting(ALL_SETTINGS[setting], objective, seed, PROXY_WORLDS,
                              PROXY_SOURCE_N, PROXY_WORLD_N,

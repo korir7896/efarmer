@@ -55,3 +55,13 @@ def test_public_settings_module_hides_the_official_spec():
                  "SETTING_C"):
         assert not hasattr(public, name), f"{name} is reachable from public code"
 
+
+
+def test_every_swept_configuration_is_constructible():
+    """A configuration the harness cannot build must fail loudly, not be recorded
+    as a method that diverged.  29 expansion configurations were silently scored
+    zero for a whole sweep because a broad except-clause caught the KeyError."""
+    from crossphase.core.methods import all_configs
+    for family, grid in all_configs().items():
+        for label, factory in grid.items():
+            assert callable(factory()), f"{family}|{label} is not constructible"
