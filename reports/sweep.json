@@ -1,6 +1,72 @@
 [
   {
     "family": "IRM",
+    "config": "lam=1e+06,warm=0.65",
+    "proxy_score": 69.53961509806447,
+    "proxy_Q_A": 0.6516502339437961,
+    "proxy_Q_B": 0.7420787741793452,
+    "S": 53.737352783548474,
+    "Q_A": 0.6382968064840266,
+    "Q_B": 0.4864466372375259,
+    "Q_C": 0.49977085739600846,
+    "I_A": 0.8478440195322037,
+    "I_B": 0.8620761334896088,
+    "I_C": 0.5007598784577567,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.1, 0.9, 1.0, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
+    "family": "IRM",
+    "config": "lam=10000,warm=0.65",
+    "proxy_score": 69.5871787226179,
+    "proxy_Q_A": 0.6523820745473834,
+    "proxy_Q_B": 0.7422606523842888,
+    "S": 53.7057239337735,
+    "Q_A": 0.6369983806979256,
+    "Q_B": 0.48657800000216384,
+    "Q_C": 0.49977085739600846,
+    "I_A": 0.8480955362319946,
+    "I_B": 0.8640937209129333,
+    "I_C": 0.5007598784577567,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.1, 0.9, 1.0, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
+    "family": "IRM",
+    "config": "lam=100000,warm=0.65",
+    "proxy_score": 69.58901483414932,
+    "proxy_Q_A": 0.6524165022127956,
+    "proxy_Q_B": 0.7422606523842888,
+    "S": 53.705235226272855,
+    "Q_A": 0.6384675307281864,
+    "Q_B": 0.4854451039070157,
+    "Q_C": 0.49977085739600846,
+    "I_A": 0.8478440195322037,
+    "I_B": 0.8615674823522568,
+    "I_C": 0.5007598784577567,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.1, 0.9, 1.0, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
+    "family": "IRM",
     "config": "lam=100000,warm=0.3",
     "proxy_score": 68.73258842935068,
     "proxy_Q_A": 0.6140499966456922,
@@ -19,6 +85,28 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "EQRM",
+    "config": "coef=44.721,warm=0.65",
+    "proxy_score": 49.83653620488618,
+    "proxy_Q_A": 0.4982254762590425,
+    "proxy_Q_B": 0.49850528711414,
+    "S": 52.339198274326726,
+    "Q_A": 0.573881824292265,
+    "Q_B": 0.5,
+    "Q_C": 0.4996762678726965,
+    "I_A": 0.6415940970182419,
+    "I_B": 0.5,
+    "I_C": 0.4997532069683075,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.9, 0.1, 1.0, 1.0)": 1
+    },
+    "expansion": true
   },
   {
     "family": "IRM",
@@ -40,6 +128,27 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "IRM",
+    "config": "lam=1e+06,warm=0.3",
+    "proxy_score": 68.72904314737144,
+    "proxy_Q_A": 0.614051221199129,
+    "proxy_Q_B": 0.7692650399308327,
+    "S": 50.90894869088793,
+    "Q_A": 0.4711334745349829,
+    "Q_B": 0.5146670833868281,
+    "Q_C": 0.5441417268088176,
+    "I_A": 0.8325569778680801,
+    "I_B": 0.8246670961380005,
+    "I_C": 0.7928502410650253,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
   },
   {
     "family": "EQRM",
@@ -131,6 +240,27 @@
   },
   {
     "family": "EQRM",
+    "config": "coef=44.721,warm=0.8",
+    "proxy_score": 50.206069301223074,
+    "proxy_Q_A": 0.5049473623890323,
+    "proxy_Q_B": 0.499190526068577,
+    "S": 50.11421962935426,
+    "Q_A": 0.5009451911575353,
+    "Q_B": 0.5,
+    "Q_C": 0.5024845346374842,
+    "I_A": 0.5027335984632373,
+    "I_B": 0.5,
+    "I_C": 0.505857989192009,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
+  },
+  {
+    "family": "EQRM",
     "config": "coef=31.623,warm=0.1",
     "proxy_score": 50.391580529210366,
     "proxy_Q_A": 0.4994565114032878,
@@ -149,6 +279,50 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "EQRM",
+    "config": "coef=31.623,warm=0",
+    "proxy_score": 49.987940039905986,
+    "proxy_Q_A": 0.4997588298866473,
+    "proxy_Q_B": 0.5,
+    "S": 50.003400630988224,
+    "Q_A": 0.5,
+    "Q_B": 0.5003054846280695,
+    "Q_C": 0.49979666547145496,
+    "I_A": 0.5,
+    "I_B": 0.508901322260499,
+    "I_C": 0.5,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.5, 0.5, 1.5, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.5, 0.5, 1.5, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
+    "family": "EQRM",
+    "config": "coef=44.721,warm=0",
+    "proxy_score": 50.00630236413932,
+    "proxy_Q_A": 0.5,
+    "proxy_Q_B": 0.5001260552267451,
+    "S": 49.999652551239784,
+    "Q_A": 0.5,
+    "Q_B": 0.5,
+    "Q_C": 0.4999895766096257,
+    "I_A": 0.5,
+    "I_B": 0.5,
+    "I_C": 0.5,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.5, 0.5, 1.5, 1.0)": 1
+    },
+    "expansion": true
   },
   {
     "family": "IRM",
@@ -171,6 +345,29 @@
       "(0.1, 0.1, 1.0, 1.0)": 5
     },
     "expansion": false
+  },
+  {
+    "family": "EQRM",
+    "config": "coef=31.623,warm=0.65",
+    "proxy_score": 52.28773821409687,
+    "proxy_Q_A": 0.5095376179675227,
+    "proxy_Q_B": 0.5365663831556767,
+    "S": 49.30110623330384,
+    "Q_A": 0.48037782959144376,
+    "Q_B": 0.49944057124514607,
+    "Q_C": 0.4994628815064219,
+    "I_A": 0.5107973869889975,
+    "I_B": 0.5005001377139706,
+    "I_C": 0.5007143672555685,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 3,
+      "(0.1, 0.9, 1.0, 1.0)": 2,
+      "(0.5, 0.5, 1.5, 1.0)": 1
+    },
+    "expansion": true
   },
   {
     "family": "IRM",
@@ -261,6 +458,53 @@
     "expansion": false
   },
   {
+    "family": "IRM",
+    "config": "lam=100000,warm=0",
+    "proxy_score": 46.89657146654328,
+    "proxy_Q_A": 0.4590449215659233,
+    "proxy_Q_B": 0.47910091409229594,
+    "S": 47.982583092133765,
+    "Q_A": 0.48072899497966715,
+    "Q_B": 0.47339521260314554,
+    "Q_C": 0.4854300901857033,
+    "I_A": 0.500792533159256,
+    "I_B": 0.4865611121058464,
+    "I_C": 0.5191187411546707,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_C": "(0.9, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 1,
+      "(0.9, 0.9, 1.0, 0.45)": 1,
+      "(0.1, 0.9, 1.0, 1.0)": 2,
+      "(0.9, 0.1, 1.0, 1.0)": 2
+    },
+    "expansion": true
+  },
+  {
+    "family": "VREx",
+    "config": "lam=100000,warm=0.65",
+    "proxy_score": 43.887239407683886,
+    "proxy_Q_A": 0.510909117891503,
+    "proxy_Q_B": 0.3769926422092916,
+    "S": 47.98208736947803,
+    "Q_A": 0.40937994430827673,
+    "Q_B": 0.5717076338403577,
+    "Q_C": 0.4719944128231849,
+    "I_A": 0.5529474131762981,
+    "I_B": 0.6287389546632767,
+    "I_C": 0.5772377997636795,
+    "binding_A": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_B": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.9, 0.9, 1.0, 0.45)": 2,
+      "(0.1, 0.9, 1.0, 1.0)": 2,
+      "(0.1, 0.1, 1.0, 1.0)": 2
+    },
+    "expansion": true
+  },
+  {
     "family": "EQRM",
     "config": "coef=14.142,warm=0.5",
     "proxy_score": 58.294584188272935,
@@ -347,6 +591,74 @@
     "expansion": false
   },
   {
+    "family": "IRM",
+    "config": "lam=1e+06,warm=0.5",
+    "proxy_score": 67.90515315240391,
+    "proxy_Q_A": 0.6524296222842754,
+    "proxy_Q_B": 0.7067597281231793,
+    "S": 47.59070380320285,
+    "Q_A": 0.45629377611438826,
+    "Q_B": 0.5778269552194701,
+    "Q_C": 0.40881238088880845,
+    "I_A": 0.8926071375608444,
+    "I_B": 0.8613501787185669,
+    "I_C": 0.6898055747151375,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.9, 0.9, 1.0, 0.45)": 1
+    },
+    "expansion": true
+  },
+  {
+    "family": "VREx",
+    "config": "lam=1e+06,warm=0.5",
+    "proxy_score": 39.21000615199738,
+    "proxy_Q_A": 0.5188762650978207,
+    "proxy_Q_B": 0.2962988839255985,
+    "S": 47.300985277915075,
+    "Q_A": 0.3693312211500458,
+    "Q_B": 0.5372930952867189,
+    "Q_C": 0.5333143629281106,
+    "I_A": 0.48567548394203186,
+    "I_B": 0.6352970898151398,
+    "I_C": 0.5587859451770782,
+    "binding_A": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.9, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.9, 0.9, 1.0, 0.45)": 2,
+      "(0.1, 0.1, 1.0, 1.0)": 3,
+      "(0.9, 0.1, 1.0, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
+    "family": "VREx",
+    "config": "lam=100000,warm=0.8",
+    "proxy_score": 46.89400628040378,
+    "proxy_Q_A": 0.459313532112537,
+    "proxy_Q_B": 0.47876835130730644,
+    "S": 46.842213763275744,
+    "Q_A": 0.5159330099142139,
+    "Q_B": 0.4347044984505122,
+    "Q_C": 0.4582735428172555,
+    "I_A": 0.5913562923669815,
+    "I_B": 0.5315641239285469,
+    "I_C": 0.6601803242228925,
+    "binding_A": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_B": "(0.9, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.9, 0.9, 1.0, 0.45)": 2,
+      "(0.1, 0.1, 1.0, 1.0)": 3,
+      "(0.9, 0.1, 1.0, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
     "family": "EQRM",
     "config": "coef=31.623,warm=0.5",
     "proxy_score": 49.9761716541009,
@@ -387,6 +699,31 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "VREx",
+    "config": "lam=1e+06,warm=0.65",
+    "proxy_score": 40.06393551710584,
+    "proxy_Q_A": 0.47302591871933836,
+    "proxy_Q_B": 0.33933001672814966,
+    "S": 45.55740571266574,
+    "Q_A": 0.3709513495828843,
+    "Q_B": 0.5497579455848308,
+    "Q_C": 0.4636481003074189,
+    "I_A": 0.5596206523478031,
+    "I_B": 0.573582261800766,
+    "I_C": 0.5487849861383438,
+    "binding_A": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_B": "(0.9, 0.9, 1.0, 0.45)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.9, 0.9, 1.0, 0.45)": 2,
+      "(0.9, 0.1, 1.0, 1.0)": 1,
+      "(0.5, 0.5, 1.5, 1.0)": 1,
+      "(0.1, 0.1, 1.0, 1.0)": 1,
+      "(0.1, 0.9, 1.0, 1.0)": 1
+    },
+    "expansion": true
   },
   {
     "family": "VREx",
@@ -474,6 +811,30 @@
   },
   {
     "family": "VREx",
+    "config": "lam=1e+06,warm=0.1",
+    "proxy_score": 48.97101489412516,
+    "proxy_Q_A": 0.5868054946283392,
+    "proxy_Q_B": 0.40868061422627516,
+    "S": 42.8142718305333,
+    "Q_A": 0.4892360174051287,
+    "Q_B": 0.3743113287368279,
+    "Q_C": 0.4285626241861411,
+    "I_A": 0.5912287682294846,
+    "I_B": 0.5329477787017822,
+    "I_C": 0.6033029705286026,
+    "binding_A": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.9, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.9, 1.0, 1.0)": 1,
+      "(0.9, 0.9, 1.0, 0.45)": 1,
+      "(0.1, 0.1, 1.0, 1.0)": 2,
+      "(0.9, 0.1, 1.0, 1.0)": 2
+    },
+    "expansion": true
+  },
+  {
+    "family": "VREx",
     "config": "lam=100,warm=0.1",
     "proxy_score": 58.39666972353289,
     "proxy_Q_A": 0.6657923494509697,
@@ -516,6 +877,28 @@
     "expansion": false
   },
   {
+    "family": "IRM",
+    "config": "lam=100000,warm=0.8",
+    "proxy_score": 65.71554191652001,
+    "proxy_Q_A": 0.6548192273781787,
+    "proxy_Q_B": 0.6594999457595051,
+    "S": 42.349347206158335,
+    "Q_A": 0.43661935849337596,
+    "Q_B": 0.3528990924872042,
+    "Q_C": 0.49293156830440754,
+    "I_A": 0.9007899463176727,
+    "I_B": 0.8961739987134933,
+    "I_C": 0.6034214778337628,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.9, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "(0.1, 0.9, 1.0, 1.0)": 1
+    },
+    "expansion": true
+  },
+  {
     "family": "VREx",
     "config": "lam=1000,warm=0.3",
     "proxy_score": 64.78745449155426,
@@ -556,6 +939,27 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "VREx",
+    "config": "lam=100000,warm=0",
+    "proxy_score": 42.879172755410565,
+    "proxy_Q_A": 0.4571812792420796,
+    "proxy_Q_B": 0.4021650797330187,
+    "S": 41.85374902197438,
+    "Q_A": 0.49984131889614913,
+    "Q_B": 0.362145369089833,
+    "Q_C": 0.4050307603539685,
+    "I_A": 0.8417847901582718,
+    "I_B": 0.8463853597640991,
+    "I_C": 0.7956359684467316,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
   },
   {
     "family": "VREx",
@@ -619,6 +1023,27 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "GroupDRO",
+    "config": "eta=100,warm=0.65",
+    "proxy_score": 58.8348032502392,
+    "proxy_Q_A": 0.6387247773312338,
+    "proxy_Q_B": 0.5419445426804311,
+    "S": 39.385790501538196,
+    "Q_A": 0.3985675376279929,
+    "Q_B": 0.41550452179829667,
+    "Q_C": 0.36892749371187383,
+    "I_A": 0.9056971073150635,
+    "I_B": 0.8873484581708908,
+    "I_C": 0.8479683101177216,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
   },
   {
     "family": "GroupDRO",
@@ -942,6 +1367,27 @@
     "expansion": false
   },
   {
+    "family": "GroupDRO",
+    "config": "eta=100,warm=0.8",
+    "proxy_score": 60.14190026923683,
+    "proxy_Q_A": 0.5962178801631711,
+    "proxy_Q_B": 0.6066654973522306,
+    "S": 37.26043426089202,
+    "Q_A": 0.3992205980433267,
+    "Q_B": 0.37303723365415775,
+    "Q_C": 0.34735904636323034,
+    "I_A": 0.9049485921859741,
+    "I_B": 0.8873059302568436,
+    "I_C": 0.8426554203033447,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
+  },
+  {
     "family": "SD",
     "config": "lam=1,warm=0.5",
     "proxy_score": 47.46552824716245,
@@ -1022,7 +1468,7 @@
     "binding_C": "(0.1, 0.1, 1.0, 1.0)",
     "binding_all": {
       "(0.1, 0.1, 1.0, 1.0)": 5,
-      "error": 1
+      "diverged": 1
     },
     "expansion": false
   },
@@ -1049,6 +1495,27 @@
   },
   {
     "family": "SD",
+    "config": "lam=0.001,warm=0.8",
+    "proxy_score": 46.64047971734683,
+    "proxy_Q_A": 0.4727693095651284,
+    "proxy_Q_B": 0.4601259650854235,
+    "S": 35.80694355596925,
+    "Q_A": 0.37778268283691235,
+    "Q_B": 0.36131373372549214,
+    "Q_C": 0.33633745907948787,
+    "I_A": 0.906978651881218,
+    "I_B": 0.9061676412820816,
+    "I_C": 0.8698740005493164,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
+  },
+  {
+    "family": "SD",
     "config": "lam=1,warm=0.3",
     "proxy_score": 47.836581246552974,
     "proxy_Q_A": 0.49945696222875763,
@@ -1067,6 +1534,27 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "SD",
+    "config": "lam=0.0001,warm=0.3",
+    "proxy_score": 46.5121733915034,
+    "proxy_Q_A": 0.47113636736512693,
+    "proxy_Q_B": 0.4591838846362444,
+    "S": 35.79341579458556,
+    "Q_A": 0.37714894757328077,
+    "Q_B": 0.3603611178569293,
+    "Q_C": 0.3374105134234257,
+    "I_A": 0.9062271118164062,
+    "I_B": 0.9066762924194336,
+    "I_C": 0.8698805123567581,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
   },
   {
     "family": "ERM",
@@ -1088,6 +1576,27 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "SD",
+    "config": "lam=0.001,warm=0.65",
+    "proxy_score": 46.53025994383337,
+    "proxy_Q_A": 0.47103413804360955,
+    "proxy_Q_B": 0.4596408021365656,
+    "S": 35.755183991606756,
+    "Q_A": 0.37674110216093065,
+    "Q_B": 0.36131373372549214,
+    "Q_C": 0.3358068709485329,
+    "I_A": 0.9067301452159882,
+    "I_B": 0.9061676412820816,
+    "I_C": 0.8699000179767609,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
   },
   {
     "family": "SD",
@@ -1154,6 +1663,27 @@
   },
   {
     "family": "SD",
+    "config": "lam=0.0001,warm=0.5",
+    "proxy_score": 46.60520859256118,
+    "proxy_Q_A": 0.47205453131793895,
+    "proxy_Q_B": 0.4601259650854235,
+    "S": 35.7132624560724,
+    "Q_A": 0.3772401855131501,
+    "Q_B": 0.36026714931762155,
+    "Q_C": 0.33515520108445296,
+    "I_A": 0.9067301452159882,
+    "I_B": 0.9061676412820816,
+    "I_C": 0.8693544119596481,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
+  },
+  {
+    "family": "SD",
     "config": "lam=0.01,warm=0.5",
     "proxy_score": 46.42464662505713,
     "proxy_Q_A": 0.47087263143748004,
@@ -1172,6 +1702,27 @@
       "(0.1, 0.1, 1.0, 1.0)": 6
     },
     "expansion": false
+  },
+  {
+    "family": "SD",
+    "config": "lam=0.001,warm=0",
+    "proxy_score": 46.64390114881628,
+    "proxy_Q_A": 0.473496879975807,
+    "proxy_Q_B": 0.45948634645527303,
+    "S": 35.63462833585378,
+    "Q_A": 0.37540308761867197,
+    "Q_B": 0.3608380366068931,
+    "Q_C": 0.3340462103790528,
+    "I_A": 0.9074756503105164,
+    "I_B": 0.906421959400177,
+    "I_C": 0.8663929402828217,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_all": {
+      "(0.1, 0.1, 1.0, 1.0)": 6
+    },
+    "expansion": true
   },
   {
     "family": "SD",
@@ -1300,107 +1851,24 @@
     "expansion": false
   },
   {
-    "family": "EQRM",
-    "config": "coef=44.721,warm=0",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
+    "family": "GroupDRO",
+    "config": "eta=100,warm=0",
+    "proxy_score": 48.71110935380031,
+    "proxy_Q_A": 0.6452072081650403,
+    "proxy_Q_B": 0.3677535130498652,
+    "S": 33.98139181743929,
+    "Q_A": 0.437052718464385,
+    "Q_B": 0.43012915465760443,
+    "Q_C": 0.20873283996780012,
+    "I_A": 0.89423568546772,
+    "I_B": 0.8642405122518539,
+    "I_C": 0.4147973507642746,
+    "binding_A": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_B": "(0.1, 0.1, 1.0, 1.0)",
+    "binding_C": "(0.1, 0.1, 1.0, 1.0)",
     "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "EQRM",
-    "config": "coef=44.721,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "EQRM",
-    "config": "coef=44.721,warm=0.8",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "EQRM",
-    "config": "coef=31.623,warm=0",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "EQRM",
-    "config": "coef=31.623,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
+      "(0.1, 0.1, 1.0, 1.0)": 5,
+      "diverged": 1
     },
     "expansion": true
   },
@@ -1417,11 +1885,11 @@
     "I_A": 0.0,
     "I_B": 0.0,
     "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
+    "binding_A": "diverged",
+    "binding_B": "diverged",
+    "binding_C": "diverged",
     "binding_all": {
-      "error": 6
+      "diverged": 6
     },
     "expansion": true
   },
@@ -1438,11 +1906,11 @@
     "I_A": 0.0,
     "I_B": 0.0,
     "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
+    "binding_A": "diverged",
+    "binding_B": "diverged",
+    "binding_C": "diverged",
     "binding_all": {
-      "error": 6
+      "diverged": 6
     },
     "expansion": true
   },
@@ -1459,452 +1927,11 @@
     "I_A": 0.0,
     "I_B": 0.0,
     "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
+    "binding_A": "diverged",
+    "binding_B": "diverged",
+    "binding_C": "diverged",
     "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "GroupDRO",
-    "config": "eta=100,warm=0",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "GroupDRO",
-    "config": "eta=100,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "GroupDRO",
-    "config": "eta=100,warm=0.8",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=1e+06,warm=0.3",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=1e+06,warm=0.5",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=1e+06,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=100000,warm=0",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=100000,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=100000,warm=0.8",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "IRM",
-    "config": "lam=10000,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "SD",
-    "config": "lam=0.0001,warm=0.3",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "SD",
-    "config": "lam=0.0001,warm=0.5",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "SD",
-    "config": "lam=0.001,warm=0",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "SD",
-    "config": "lam=0.001,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "SD",
-    "config": "lam=0.001,warm=0.8",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "VREx",
-    "config": "lam=1e+06,warm=0.1",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "VREx",
-    "config": "lam=1e+06,warm=0.5",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "VREx",
-    "config": "lam=1e+06,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "VREx",
-    "config": "lam=100000,warm=0",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "VREx",
-    "config": "lam=100000,warm=0.65",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
-    },
-    "expansion": true
-  },
-  {
-    "family": "VREx",
-    "config": "lam=100000,warm=0.8",
-    "proxy_score": 0.0,
-    "proxy_Q_A": 0.0,
-    "proxy_Q_B": 0.0,
-    "S": 0.0,
-    "Q_A": 0.0,
-    "Q_B": 0.0,
-    "Q_C": 0.0,
-    "I_A": 0.0,
-    "I_B": 0.0,
-    "I_C": 0.0,
-    "binding_A": "error",
-    "binding_B": "error",
-    "binding_C": "error",
-    "binding_all": {
-      "error": 6
+      "diverged": 6
     },
     "expansion": true
   }

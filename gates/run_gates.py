@@ -70,7 +70,7 @@ def cached(name, build):
 
 def baseline_objective(label):
     family, config = label.split("|", 1)
-    return GRIDS[family][config]()
+    return all_configs()[family][config]()
 
 
 _PROBES = None
@@ -81,9 +81,9 @@ def probe_objectives():
     if _PROBES is None:
         summary = json.loads((REPORTS / "sweep.json").read_text())
         public = max(summary, key=lambda r: r["proxy_score"])
-        known = GRIDS[public["family"]][
+        known = all_configs()[public["family"]][
             "" if public["config"] == "(none)" else public["config"]]()
-        fallback = GRIDS["ERM"][""]()
+        fallback = all_configs()["ERM"][""]()
         # Threshold sits between the public settings' early risk level and the
         # hidden setting's; it is measured in the fingerprint stage and stored.
         threshold = json.loads((CACHE / "fingerprint.json").read_text())["threshold"]
@@ -240,7 +240,7 @@ def _recon_job(item):
 
 def stage_reconstruction():
     def build():
-        labels = [f"{f}|{c}" for f, g in GRIDS.items() for c in g]
+        labels = [f"{f}|{c}" for f, g in all_configs().items() for c in g]
         labels += [f"probe|{name}" for name in probe_objectives()]
         jobs = [(label, setting, seed) for label in labels
                 for setting in ("A", "B") for seed in RECON_SEEDS]
@@ -393,7 +393,7 @@ def build_report(workers=None) -> dict:
 
     # ---- penalty and warm-up anti-transfer ---------------------------------- #
     anti_transfer = {}
-    for family in GRIDS:
+    for family in all_configs():
         rows = [r for r in sweep if r["family"] == family and r["config"] != "(none)"]
         if not rows:
             continue

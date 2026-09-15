@@ -1,19 +1,23 @@
 {
-  "S_star": 58.50129181076606,
+  "S_star": 59.20922161262625,
   "starter": "ERM",
-  "starter_reason": "SD is weakest at 36.619, but its optimum sits 0.017 from ERM's 36.636 -- within 0.1 -- so it is ERM with a coefficient small enough to be inert, not a distinct weak method.  ERM ships as the starting code.",
+  "starter_reason": "SD is weakest at 36.627, but its optimum sits 0.009 from ERM's 36.636 -- within 0.1 -- so it is ERM with a coefficient small enough to be inert, not a distinct weak method.  ERM ships as the starting code.",
   "strongest": "IRM",
-  "strongest_config": "lam=1000,warm=0.3",
+  "strongest_config": "lam=10000,warm=0.65",
   "weakest": "SD",
-  "weakest_config": "lam=0.001,warm=0.5",
-  "weakest_S": 36.61876189560459,
-  "spread": 21.88252991516147,
-  "S_star_if_selected_on_proxy": 57.140033583021264,
+  "weakest_config": "lam=0.001,warm=0.8",
+  "weakest_S": 36.627199554361454,
+  "spread": 22.582022058264798,
+  "S_star_if_selected_on_proxy": 58.78272524715861,
   "configs_in_grid_above_S_star": 0,
   "grid_size": 90,
   "declared_grid_size": 61,
   "expansion_size": 29,
-  "selections_on_declared_boundary": [],
+  "selections_on_declared_boundary": [
+    "IRM",
+    "GroupDRO",
+    "SD"
+  ],
   "screening_seeds": [
     201,
     202
@@ -32,33 +36,34 @@
   "families": [
     {
       "family": "IRM",
-      "best_config": "lam=1000,warm=0.3",
-      "proxy_selected_config": "lam=100000,warm=0.3",
-      "proxy_score": 66.76606948831424,
-      "Q_A": 0.7260301415605304,
-      "Q_B": 0.6233891066844205,
-      "Q_C": 0.4423667827830302,
-      "S": 58.50129181076606,
-      "S_if_selected_on_proxy": 57.140033583021264,
+      "best_config": "lam=10000,warm=0.65",
+      "proxy_selected_config": "lam=100000,warm=0.65",
+      "proxy_score": 69.5871787226179,
+      "Q_A": 0.738122337907906,
+      "Q_B": 0.7065922342797306,
+      "Q_C": 0.3979887962344901,
+      "S": 59.20922161262625,
+      "S_if_selected_on_proxy": 58.78272524715861,
       "binding_worlds": {
-        "(0.9, 0.1, 1.0, 1.0)": 3,
-        "(0.1, 0.1, 1.0, 1.0)": 12
+        "(0.1, 0.1, 1.0, 1.0)": 14,
+        "(0.9, 0.9, 1.0, 0.45)": 1
       }
     },
     {
       "family": "EQRM",
-      "best_config": "coef=44.721,warm=0.1",
+      "best_config": "coef=44.721,warm=0.5",
       "proxy_selected_config": "coef=4.472,warm=0.3",
-      "proxy_score": 50.6258025545478,
-      "Q_A": 0.5002305765579609,
-      "Q_B": 0.5336387061224739,
-      "Q_C": 0.5065464202278072,
-      "S": 51.32696708083613,
+      "proxy_score": 49.925109287490315,
+      "Q_A": 0.49942967366268015,
+      "Q_B": 0.49992085543567927,
+      "Q_C": 0.5125799152216218,
+      "S": 50.39402658069291,
       "S_if_selected_on_proxy": 39.11010254601305,
       "binding_worlds": {
-        "(0.1, 0.1, 1.0, 1.0)": 12,
-        "(0.9, 0.9, 1.0, 0.45)": 2,
-        "(0.5, 0.5, 1.5, 1.0)": 1
+        "(0.5, 0.5, 1.5, 1.0)": 2,
+        "(0.1, 0.1, 1.0, 1.0)": 9,
+        "(0.9, 0.1, 1.0, 1.0)": 2,
+        "(0.1, 0.9, 1.0, 1.0)": 2
       }
     },
     {
@@ -79,13 +84,13 @@
     },
     {
       "family": "GroupDRO",
-      "best_config": "eta=100,warm=0.5",
+      "best_config": "eta=100,warm=0.65",
       "proxy_selected_config": "eta=10,warm=0.5",
-      "proxy_score": 58.6168104652404,
-      "Q_A": 0.4617406792369431,
-      "Q_B": 0.4109345786814867,
-      "Q_C": 0.3596676993641397,
-      "S": 40.86555678903515,
+      "proxy_score": 58.8348032502392,
+      "Q_A": 0.46613769953024065,
+      "Q_B": 0.4269601034791045,
+      "Q_C": 0.3553903924864704,
+      "S": 41.35573421493524,
       "S_if_selected_on_proxy": 39.468977943462434,
       "binding_worlds": {
         "(0.1, 0.1, 1.0, 1.0)": 15
@@ -107,13 +112,13 @@
     },
     {
       "family": "SD",
-      "best_config": "lam=0.001,warm=0.5",
+      "best_config": "lam=0.001,warm=0.8",
       "proxy_selected_config": "lam=1,warm=0.3",
-      "proxy_score": 46.546567635019166,
-      "Q_A": 0.403805664545529,
-      "Q_B": 0.36657324037660916,
-      "Q_C": 0.3317246953063229,
-      "S": 36.61876189560459,
+      "proxy_score": 46.64047971734683,
+      "Q_A": 0.4031315249172523,
+      "Q_B": 0.36699650849055365,
+      "Q_C": 0.33212567493163275,
+      "S": 36.627199554361454,
       "S_if_selected_on_proxy": 35.73984298067738,
       "binding_worlds": {
         "(0.1, 0.1, 1.0, 1.0)": 15
