@@ -37,7 +37,10 @@ class TrainConfig:
 
 TRAIN = TrainConfig()
 
-# Pools are built once per (setting, size, world, seed) and reused.
+# Pools are built once per (spec, size, world, seed) and reused.  The key is the
+# whole SettingSpec, not its name: author-side sweeps build variant specs that
+# share a name while differing in label noise, amplitude or phase lag, and a
+# name-keyed cache would silently hand every variant the first one's pools.
 _POOL_CACHE: dict = {}
 
 
@@ -46,14 +49,14 @@ def _as_tensors(x: np.ndarray, y: np.ndarray) -> tuple:
 
 
 def get_source_pool(spec: SettingSpec, n: int, seed: int) -> tuple:
-    key = ("src", spec.name, n, seed)
+    key = ("src", spec, n, seed)
     if key not in _POOL_CACHE:
         _POOL_CACHE[key] = _as_tensors(*source_pool(spec, n, seed))
     return _POOL_CACHE[key]
 
 
 def get_world_pool(spec: SettingSpec, n: int, world: tuple, seed: int) -> tuple:
-    key = ("world", spec.name, n, world, seed)
+    key = ("world", spec, n, world, seed)
     if key not in _POOL_CACHE:
         _POOL_CACHE[key] = _as_tensors(*world_pool(spec, n, world, seed))
     return _POOL_CACHE[key]
