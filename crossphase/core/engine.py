@@ -30,7 +30,7 @@ class TrainConfig:
     """
 
     steps: int = 800
-    batch_per_env: int = 48
+    batch_per_env: int = 64
     lr: float = 3e-3
     weight_decay: float = 0.0
 

@@ -33,12 +33,15 @@ from .generator import Environment, SettingSpec
 #: stress the core detector instead, which punishes over-regularisation.  Both
 #: kinds are needed for the minimum to be contested -- see the binding-world audit
 #: in ``reports/``.
+#: Chosen from a ten-world profile across all three settings, not by assumption.
+#: A harder cue-flip at (.05, .05) was measured and dropped: it sits uniformly
+#: below (.10, .10), so it would bind everywhere and leave the rest decorative.
 OFFICIAL_WORLDS = (
     (0.10, 0.10, 1.00, 1.00),   # both cues flipped
     (0.10, 0.90, 1.00, 1.00),   # cue conflict
     (0.90, 0.10, 1.00, 1.00),   # cue conflict, the other way
-    (0.50, 0.50, 1.60, 1.00),   # cues uninformative, noise floor raised 60%
-    (0.90, 0.90, 1.00, 0.42),   # cues aligned, core attenuated to 42%
+    (0.50, 0.50, 1.50, 1.00),   # cues uninformative, noise floor raised 50%
+    (0.90, 0.90, 1.00, 0.45),   # cues aligned, core attenuated to 45%
 )
 
 #: Proxy worlds available to the agent.  Deliberately *not* the official
@@ -49,7 +52,7 @@ PROXY_WORLDS = (
     (0.20, 0.20, 1.00, 1.00),
     (0.20, 0.80, 1.00, 1.00),
     (0.80, 0.20, 1.00, 1.00),
-    (0.65, 0.65, 1.35, 0.60),
+    (0.65, 0.65, 1.30, 0.60),
 )
 
 OFFICIAL_SOURCE_N = 2500
