@@ -6,6 +6,16 @@ and to any additive signal that is common to both channels -- but it requires th
 network to compare the two channels, which makes it strictly harder to acquire
 than either nuisance cue.
 
+Crucially the stable feature is also an IMPERFECT predictor.  A latent class ``c``
+sets the phase lag; the observed label ``y`` is ``c`` flipped with probability
+``label_noise``.  The nuisance cues track ``y``, not ``c``, and they do so at
+per-environment rates that exceed ``1 - label_noise``.  Within any training
+environment the shortcut is therefore the *better* predictor of the label, and
+plain risk minimisation prefers it on the merits rather than merely by
+convenience.  Without this, the core feature is deterministic, empirical risk
+minimisation learns it directly, and no invariance penalty has anything to
+repair -- measured, and the reason this term exists.
+
 Two nuisance cues are correlated with the label during training:
 
   z1 -- the "level" cue.  Additive settings add a DC offset ``kappa1 * z1`` to both
@@ -55,6 +65,7 @@ class SettingSpec:
     a_core: float                 # core amplitude
     delta: float                  # half cross-channel phase lag, radians
     mode: str                     # "additive" | "multiplicative"
+    label_noise: float = 0.0      # P(observed label differs from the latent class)
     kappa1: float = 0.0           # additive DC offset magnitude
     kappa2: float = 0.0           # additive carrier amplitude
     f_band: tuple = (12.0, 18.0)  # carrier frequencies selected by z2
@@ -90,13 +101,18 @@ def sample(spec: SettingSpec, n: int, p1: float, p2: float, sigma: float,
     L = spec.length
     t = np.arange(L, dtype=np.float64) / L
 
-    y = rng.integers(0, 2, size=n)
+    # Latent class -> phase lag; observed label -> the cues.  The cues agree with
+    # the observed label more often than the phase lag does, which is what makes
+    # the shortcut worth taking.
+    latent = rng.integers(0, 2, size=n)
+    flip = rng.random(n) < spec.label_noise
+    y = np.where(flip, 1 - latent, latent)
     s = 2.0 * y - 1.0
     z1 = s * np.where(rng.random(n) < p1, 1.0, -1.0)
     z2 = s * np.where(rng.random(n) < p2, 1.0, -1.0)
 
     phi = rng.uniform(0.0, TWO_PI, size=n)[:, None]
-    lag = spec.delta * s[:, None]
+    lag = spec.delta * (2.0 * latent - 1.0)[:, None]
     base = TWO_PI * spec.f_core * t[None, :]
     amplitude = spec.a_core * core_mult
     core0 = amplitude * np.sin(base + phi)
