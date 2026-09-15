@@ -1,13 +1,13 @@
 {
-  "S_star": 36.63584716312609,
-  "strongest": "ERM",
-  "strongest_config": "(none)",
-  "weakest": "EQRM",
-  "weakest_config": "coef=2,warm=0",
-  "weakest_S": 0.0,
-  "spread": 36.63584716312609,
-  "S_star_if_selected_on_proxy": 49.53398260820791,
-  "configs_in_grid_above_S_star": 60,
+  "S_star": 57.706346287111444,
+  "strongest": "IRM",
+  "strongest_config": "lam=100000,warm=0.5",
+  "weakest": "SD",
+  "weakest_config": "lam=0.001,warm=0.5",
+  "weakest_S": 36.61876189560459,
+  "spread": 21.08758439150685,
+  "S_star_if_selected_on_proxy": 51.10860507007079,
+  "configs_in_grid_above_S_star": 2,
   "official_seeds": [
     11,
     12,
@@ -21,10 +21,74 @@
   ],
   "families": [
     {
+      "family": "IRM",
+      "best_config": "lam=100000,warm=0.5",
+      "proxy_selected_config": "lam=100,warm=0.3",
+      "proxy_score": 68.35097192802336,
+      "Q_A": 0.6596000118616551,
+      "Q_B": 0.6564116376440099,
+      "Q_C": 0.44382708886459055,
+      "S": 57.706346287111444,
+      "S_if_selected_on_proxy": 51.10860507007079,
+      "binding_worlds": {
+        "(0.1, 0.1, 1.0, 1.0)": 12,
+        "(0.9, 0.1, 1.0, 1.0)": 1,
+        "(0.1, 0.9, 1.0, 1.0)": 1,
+        "(0.9, 0.9, 1.0, 0.45)": 1
+      }
+    },
+    {
+      "family": "EQRM",
+      "best_config": "coef=44.721,warm=0.1",
+      "proxy_selected_config": "coef=4.472,warm=0.3",
+      "proxy_score": 50.642734242626105,
+      "Q_A": 0.5002305765579609,
+      "Q_B": 0.5336387061224739,
+      "Q_C": 0.5065464202278072,
+      "S": 51.32696708083613,
+      "S_if_selected_on_proxy": 39.11010254601305,
+      "binding_worlds": {
+        "(0.1, 0.1, 1.0, 1.0)": 12,
+        "(0.9, 0.9, 1.0, 0.45)": 2,
+        "(0.5, 0.5, 1.5, 1.0)": 1
+      }
+    },
+    {
+      "family": "VREx",
+      "best_config": "lam=100000,warm=0.1",
+      "proxy_selected_config": "lam=1000,warm=0.5",
+      "proxy_score": 46.610924039428134,
+      "Q_A": 0.42554646323548784,
+      "Q_B": 0.4938869144017195,
+      "Q_C": 0.4500086786631229,
+      "S": 45.56154732572214,
+      "S_if_selected_on_proxy": 45.56186250613394,
+      "binding_worlds": {
+        "(0.1, 0.9, 1.0, 1.0)": 1,
+        "(0.1, 0.1, 1.0, 1.0)": 10,
+        "(0.9, 0.9, 1.0, 0.45)": 3,
+        "(0.9, 0.1, 1.0, 1.0)": 1
+      }
+    },
+    {
+      "family": "GroupDRO",
+      "best_config": "eta=100,warm=0.5",
+      "proxy_selected_config": "eta=10,warm=0.5",
+      "proxy_score": 64.42626441394574,
+      "Q_A": 0.4617406792369431,
+      "Q_B": 0.4109345786814867,
+      "Q_C": 0.3596676993641397,
+      "S": 40.86555678903515,
+      "S_if_selected_on_proxy": 39.468977943462434,
+      "binding_worlds": {
+        "(0.1, 0.1, 1.0, 1.0)": 15
+      }
+    },
+    {
       "family": "ERM",
       "best_config": "(none)",
       "proxy_selected_config": "(none)",
-      "proxy_score": 87.42161625160746,
+      "proxy_score": 52.51910372733752,
       "Q_A": 0.40333076647071814,
       "Q_B": 0.36732288249633005,
       "Q_C": 0.33190162620911495,
@@ -37,71 +101,15 @@
     {
       "family": "SD",
       "best_config": "lam=0.001,warm=0.5",
-      "proxy_selected_config": "lam=0.001,warm=0",
-      "proxy_score": 87.6259841972334,
+      "proxy_selected_config": "lam=0.001,warm=0.3",
+      "proxy_score": 52.212999956091956,
       "Q_A": 0.403805664545529,
       "Q_B": 0.36657324037660916,
       "Q_C": 0.3317246953063229,
       "S": 36.61876189560459,
-      "S_if_selected_on_proxy": 0.0,
+      "S_if_selected_on_proxy": 36.54602231862593,
       "binding_worlds": {
         "(0.1, 0.1, 1.0, 1.0)": 15
-      }
-    },
-    {
-      "family": "IRM",
-      "best_config": "lam=1,warm=0.5",
-      "proxy_selected_config": "lam=1,warm=0.2",
-      "proxy_score": 87.33330330142715,
-      "Q_A": 0.0,
-      "Q_B": 0.0,
-      "Q_C": 0.0,
-      "S": 0.0,
-      "S_if_selected_on_proxy": 0.0,
-      "binding_worlds": {
-        "error": 15
-      }
-    },
-    {
-      "family": "VREx",
-      "best_config": "lam=10,warm=0.2",
-      "proxy_selected_config": "lam=10,warm=0",
-      "proxy_score": 86.83946824555238,
-      "Q_A": 0.0,
-      "Q_B": 0.0,
-      "Q_C": 0.0,
-      "S": 0.0,
-      "S_if_selected_on_proxy": 0.0,
-      "binding_worlds": {
-        "error": 15
-      }
-    },
-    {
-      "family": "GroupDRO",
-      "best_config": "eta=1,warm=0.2",
-      "proxy_selected_config": "eta=0.1,warm=0",
-      "proxy_score": 86.67836932467823,
-      "Q_A": 0.0,
-      "Q_B": 0.0,
-      "Q_C": 0.0,
-      "S": 0.0,
-      "S_if_selected_on_proxy": 0.0,
-      "binding_worlds": {
-        "error": 15
-      }
-    },
-    {
-      "family": "EQRM",
-      "best_config": "coef=2,warm=0",
-      "proxy_selected_config": "coef=14.142,warm=0.5",
-      "proxy_score": 87.38191382876622,
-      "Q_A": 0.0,
-      "Q_B": 0.0,
-      "Q_C": 0.0,
-      "S": 0.0,
-      "S_if_selected_on_proxy": 49.53398260820791,
-      "binding_worlds": {
-        "error": 15
       }
     }
   ]
