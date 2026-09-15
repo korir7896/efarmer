@@ -35,7 +35,13 @@ RULES
 * The objective is called once per step and must be deterministic given its
   arguments.
 
-The shipped objective is plain ERM, the weakest of the six reproduced baselines.
+THE SHIPPED OBJECTIVE
+--------------------
+EQRM (Eastwood et al., arXiv:2207.09944) at the configuration the public proxy
+diagnostic selects for it: ``coef = sqrt(-2*ln(1-alpha)) = 14.142``, warm-up at
+half the budget.  Of the six reproduced families this is the weakest, which is
+why it is what you start from.  Its official score and every other family's are
+in the README.
 """
 
 from __future__ import annotations
@@ -48,13 +54,23 @@ import torch.nn.functional as F
 # --------------------------------------------------------------------------- #
 
 
+COEF = 14.142      # Phi^-1(alpha) for alpha = 1 - e^-100, the published scale
+WARM_FRACTION = 0.5
+
+
 def objective(logits_by_env, targets_by_env, step, total_steps, state):
-    """Empirical risk minimisation: the mean per-environment risk."""
+    """EQRM: the alpha-quantile of the environment-risk distribution.
+
+    Under a Gaussian fit to the per-environment risks the alpha-quantile is
+    ``mean(R) + Phi^-1(alpha) * std(R)``.  The penalty is held off for the first
+    ``WARM_FRACTION`` of the budget, which is the published anneal-from-ERM phase.
+    """
     risks = torch.stack([
         F.binary_cross_entropy_with_logits(o, t)
         for o, t in zip(logits_by_env, targets_by_env)
     ])
-    return risks.mean()
+    engaged = 0.0 if step < int(WARM_FRACTION * total_steps) else 1.0
+    return risks.mean() + COEF * engaged * risks.std(unbiased=False)
 
 
 # --------------------------------------------------------------------------- #

@@ -17,18 +17,23 @@ REPORTS = REPO_ROOT / "reports"
 
 
 def baseline_table(payload) -> str:
-    lines = ["| Family | Selected configuration | `Q_A` | `Q_B` | `Q_C` | `S` |",
-             "|---|---|---|---|---|---|"]
+    """Combined scores only.
+
+    The per-setting breakdown stays in ``reports/``, which is author and reviewer
+    material: publishing ``Q_C`` per family would hand a solving agent a partial
+    reading of the hidden setting that the task is built to withhold.
+    """
+    lines = ["| Family | Selected configuration | `S` |", "|---|---|---|"]
     for row in payload["families"]:
         config = row["selected_config"] or "--"
-        lines.append(f"| {row['family']} | `{config}` | {row['Q_A']:.3f} | "
-                     f"{row['Q_B']:.3f} | {row['Q_C']:.3f} | **{row['S']:.2f}** |")
+        lines.append(f"| {row['family']} | `{config}` | **{row['S']:.2f}** |")
     lines += ["",
               f"`S*` = **{payload['S_star']:.2f}** ({payload['strongest']}, "
               f"`{payload['strongest_config'] or '--'}`).  The weakest family is "
               f"{payload['weakest']} at {payload['weakest_S']:.2f}, and that is what "
               f"`agent/solution.py` ships with.  Scores are means over "
-              f"{len(payload['official_seeds'])} run seeds."]
+              f"{len(payload['official_seeds'])} run seeds; the spread between "
+              f"weakest and strongest is {payload['spread']:.2f} points."]
     return "\n".join(lines)
 
 

@@ -1,18 +1,28 @@
 """Reproduce every baseline family and establish ``S*``.
 
-Selection protocol -- deliberately the same information a solving agent has:
+Protocol
+--------
+Every configuration in the public grid is scored two ways: by the PROXY
+diagnostic (settings A and B, proxy worlds, proxy pools, public run seeds --
+exactly the information a solving agent has), and OFFICIALLY on A, B and the
+hidden setting C.
 
-  1. Every configuration in the public grid is scored by the PROXY diagnostic
-     (settings A and B, proxy worlds, proxy pools, public run seeds).
-  2. Each family's submitted configuration is the argmax of that proxy score.
-     Every non-ERM family gets the same twelve-configuration budget.
-  3. The submitted configurations are then scored OFFICIALLY on A, B and the
-     hidden setting C.  ``S*`` is the best of those official scores.
+``S*`` is then each family's **best official score**, re-measured on the full
+official seed set, maximised over families.  That is "the strongest reproduced
+method" read strictly: the bar is what the best published objective actually
+achieves here, not what a weak validation signal happens to pick for it.
 
-Every configuration is *also* scored officially, on fewer seeds, because the
-gates in ``gates/`` need the full proxy-to-official mapping, not just the
-selected points.  Those extra numbers are author-side diagnostics and are not
-available to an agent.
+The alternative -- letting the proxy choose each family's configuration -- was
+measured and rejected.  It lowers the bar by about a point, because the proxy
+correlates only weakly with the official score among the competent
+configurations, and at that lower bar a sixth of the published grid clears it
+without any adaptation at all.  Both numbers are reported: ``S_star`` is the
+bar, ``S_selected`` records what proxy selection would have produced, and the
+difference is the measured cost of tuning on what is visible.
+
+Correspondingly, the configuration shipped in ``agent/solution.py`` is the
+WEAKEST family at ITS best official configuration, so that the two ends of the
+table are measured the same way.
 
     python -m baselines.run_baselines [--workers N] [--out reports]
 """
@@ -139,71 +149,90 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workers", type=int, default=None)
     parser.add_argument("--out", default="reports")
+    parser.add_argument("--reuse-sweep", action="store_true",
+                        help="re-summarise from an existing reports/sweep.json "
+                             "instead of repeating the full grid")
     args = parser.parse_args(argv)
 
     out_dir = REPO_ROOT / args.out
     out_dir.mkdir(exist_ok=True)
 
-    jobs = build_jobs(DIAGNOSTIC_SEEDS)
-    print(f"{len(jobs)} training runs")
-    started = time.time()
-    rows = pmap(_job, jobs, workers=args.workers)
-    print(f"sweep finished in {time.time() - started:.0f}s")
+    if args.reuse_sweep and (out_dir / "sweep.json").exists():
+        summary = json.loads((out_dir / "sweep.json").read_text())
+        print(f"reusing {len(summary)} cached grid rows")
+    else:
+        jobs = build_jobs(DIAGNOSTIC_SEEDS)
+        print(f"{len(jobs)} training runs")
+        started = time.time()
+        rows = pmap(_job, jobs, workers=args.workers)
+        print(f"sweep finished in {time.time() - started:.0f}s")
+        summary = summarise(collect(rows))
 
-    table = collect(rows)
-    summary = summarise(table)
+        with (out_dir / "sweep.csv").open("w", newline="") as fh:
+            fields = [k for k in summary[0] if k != "binding_all"]
+            writer = csv.DictWriter(fh, fieldnames=fields)
+            writer.writeheader()
+            for row in summary:
+                writer.writerow({k: v for k, v in row.items() if k != "binding_all"})
 
-    with (out_dir / "sweep.csv").open("w", newline="") as fh:
-        fields = [k for k in summary[0] if k != "binding_all"]
-        writer = csv.DictWriter(fh, fieldnames=fields)
-        writer.writeheader()
-        for row in summary:
-            writer.writerow({k: v for k, v in row.items() if k != "binding_all"})
+    def argmax_per_family(key):
+        out = {}
+        for family in GRIDS:
+            best = max((r for r in summary if r["family"] == family), key=key)
+            out[family] = "" if best["config"] == "(none)" else best["config"]
+        return out
 
-    # Selection on the proxy alone, per family.
-    selected = {}
-    for family in GRIDS:
-        best = max((r for r in summary if r["family"] == family),
-                   key=lambda r: r["proxy_score"])
-        selected[family] = "" if best["config"] == "(none)" else best["config"]
+    # The bar: each family at its best official configuration.
+    best_configs = argmax_per_family(lambda r: r["S"])
+    # The diagnostic: what tuning on the visible proxy would have chosen instead.
+    proxy_configs = argmax_per_family(lambda r: r["proxy_score"])
 
-    official_q, binding = rescore_selected(selected, OFFICIAL_RUN_SEEDS)
+    official_q, binding = rescore_selected(best_configs, OFFICIAL_RUN_SEEDS)
+    proxy_q, _ = rescore_selected(proxy_configs, OFFICIAL_RUN_SEEDS)
+
     families = []
-    for family, label in selected.items():
-        proxy_row = next(r for r in summary if r["family"] == family
-                         and r["config"] == (label or "(none)"))
+    for family, label in best_configs.items():
+        row = next(r for r in summary if r["family"] == family
+                   and r["config"] == (label or "(none)"))
         families.append({
             "family": family,
-            "selected_config": label or "(none)",
-            "proxy_score": proxy_row["proxy_score"],
+            "best_config": label or "(none)",
+            "proxy_selected_config": proxy_configs[family] or "(none)",
+            "proxy_score": row["proxy_score"],
             "Q_A": official_q[family]["A"],
             "Q_B": official_q[family]["B"],
             "Q_C": official_q[family]["C"],
             "S": geo(official_q[family].values()),
+            "S_if_selected_on_proxy": geo(proxy_q[family].values()),
             "binding_worlds": binding[family],
         })
     families.sort(key=lambda r: -r["S"])
 
     with (out_dir / "baselines.csv").open("w", newline="") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["family", "selected_config", "proxy_score", "Q_A", "Q_B",
-                         "Q_C", "S", "binding_world_counts"])
+        writer.writerow(["family", "best_config", "Q_A", "Q_B", "Q_C", "S",
+                         "proxy_selected_config", "S_if_selected_on_proxy",
+                         "binding_world_counts"])
         for row in families:
-            writer.writerow([row["family"], row["selected_config"],
-                             f"{row['proxy_score']:.4f}", f"{row['Q_A']:.4f}",
+            writer.writerow([row["family"], row["best_config"], f"{row['Q_A']:.4f}",
                              f"{row['Q_B']:.4f}", f"{row['Q_C']:.4f}",
-                             f"{row['S']:.4f}",
+                             f"{row['S']:.4f}", row["proxy_selected_config"],
+                             f"{row['S_if_selected_on_proxy']:.4f}",
                              "; ".join(f"{k}x{v}" for k, v in
                                        sorted(row["binding_worlds"].items()))])
 
     payload = {
         "S_star": families[0]["S"],
         "strongest": families[0]["family"],
-        "strongest_config": families[0]["selected_config"],
+        "strongest_config": families[0]["best_config"],
         "weakest": families[-1]["family"],
-        "weakest_config": families[-1]["selected_config"],
+        "weakest_config": families[-1]["best_config"],
         "weakest_S": families[-1]["S"],
         "spread": families[0]["S"] - families[-1]["S"],
+        "S_star_if_selected_on_proxy": max(r["S_if_selected_on_proxy"]
+                                           for r in families),
+        "configs_in_grid_above_S_star": sum(
+            1 for r in summary if r["S"] > families[0]["S"]),
         "official_seeds": list(OFFICIAL_RUN_SEEDS),
         "diagnostic_seeds": list(DIAGNOSTIC_SEEDS),
         "families": families,
@@ -211,15 +240,18 @@ def main(argv=None) -> int:
     (out_dir / "baselines.json").write_text(json.dumps(payload, indent=2))
     (out_dir / "sweep.json").write_text(json.dumps(summary, indent=2))
 
-    print(f"\n{'family':10s} {'config':22s} {'proxy':>7s} {'Q_A':>6s} {'Q_B':>6s} "
-          f"{'Q_C':>6s} {'S':>7s}")
+    print(f"\n{'family':10s} {'best config':22s} {'Q_A':>6s} {'Q_B':>6s} "
+          f"{'Q_C':>6s} {'S':>7s} {'S(proxy-sel)':>13s}")
     for row in families:
-        print(f"{row['family']:10s} {row['selected_config']:22s} "
-              f"{row['proxy_score']:7.2f} {row['Q_A']:6.3f} {row['Q_B']:6.3f} "
-              f"{row['Q_C']:6.3f} {row['S']:7.3f}")
+        print(f"{row['family']:10s} {row['best_config']:22s} "
+              f"{row['Q_A']:6.3f} {row['Q_B']:6.3f} {row['Q_C']:6.3f} "
+              f"{row['S']:7.3f} {row['S_if_selected_on_proxy']:13.3f}")
     print(f"\nS* = {payload['S_star']:.3f} ({payload['strongest']})   "
           f"weakest = {payload['weakest_S']:.3f} ({payload['weakest']})   "
           f"spread = {payload['spread']:.3f}")
+    print(f"proxy selection would have set the bar at "
+          f"{payload['S_star_if_selected_on_proxy']:.3f}; "
+          f"{payload['configs_in_grid_above_S_star']} grid configurations exceed S*")
     return 0
 
 
