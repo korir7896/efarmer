@@ -29,8 +29,8 @@ class TrainConfig:
     an objective could reach with a one-character edit.
     """
 
-    steps: int = 500
-    batch_per_env: int = 64
+    steps: int = 800
+    batch_per_env: int = 48
     lr: float = 3e-3
     weight_decay: float = 0.0
 

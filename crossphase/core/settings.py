@@ -73,42 +73,49 @@ def make_envs(levels, splits, sigmas) -> tuple:
 
 SPLITS = (0.07, -0.05, 0.05, -0.07, 0.03, -0.03)
 
+#: Contamination levels sit near 0.75-0.85 rather than near 0.9.  With label
+#: noise present, the shortcut only has to beat ``1 - label_noise`` to be worth
+#: taking, and pushing the levels higher makes the escape from it bimodal --
+#: measured, and the reason these numbers are where they are.
+
 SETTING_A = SettingSpec(
     name="A",
     length=128,
     f_core=5.0,
-    a_core=0.85,
-    delta=0.20,
+    a_core=1.00,
+    delta=0.45,
     mode="additive",
+    label_noise=0.15,
     kappa1=1.40,
     kappa2=1.10,
     f_band=(12.0, 18.0),
     envs=make_envs(
-        levels=(0.880, 0.850, 0.820, 0.790, 0.865, 0.805),
+        levels=(0.830, 0.800, 0.770, 0.740, 0.815, 0.755),
         splits=SPLITS,
         sigmas=(0.40, 0.44, 0.48, 0.52, 0.42, 0.50),
     ),
     source_sigma=0.46,
-    source_mix=(0.85, 0.85),
+    source_mix=(0.80, 0.80),
 )
 
 SETTING_B = SettingSpec(
     name="B",
     length=128,
     f_core=7.0,
-    a_core=0.88,
-    delta=0.21,
+    a_core=1.05,
+    delta=0.42,
     mode="additive",
+    label_noise=0.18,
     kappa1=0.95,
     kappa2=1.55,
     f_band=(14.0, 22.0),
     envs=make_envs(
-        levels=(0.900, 0.870, 0.840, 0.810, 0.885, 0.825),
+        levels=(0.845, 0.815, 0.785, 0.755, 0.830, 0.770),
         splits=tuple(-s for s in SPLITS),
         sigmas=(0.44, 0.49, 0.54, 0.59, 0.46, 0.57),
     ),
     source_sigma=0.51,
-    source_mix=(0.86, 0.86),
+    source_mix=(0.81, 0.81),
 )
 
 PUBLIC_SETTINGS = {"A": SETTING_A, "B": SETTING_B}

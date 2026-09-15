@@ -36,19 +36,20 @@ SETTING_C = SettingSpec(
     name="C",
     length=160,
     f_core=6.0,
-    a_core=0.85,
-    delta=0.20,
+    a_core=0.95,
+    delta=0.40,
     mode="multiplicative",
+    label_noise=0.22,
     gamma=0.55,
     beta=0.90,
     envs=make_envs(
-        levels=(0.790, 0.820, 0.850, 0.880, 0.805, 0.865),
+        levels=(0.740, 0.770, 0.800, 0.830, 0.755, 0.815),
         splits=(0.07, -0.05, 0.05, -0.07, 0.03, -0.03),
         # Noise rises with contamination here: the inverse of A and B.
         sigmas=(0.55, 0.62, 0.69, 0.76, 0.58, 0.72),
     ),
     source_sigma=0.66,
-    source_mix=(0.85, 0.85),
+    source_mix=(0.80, 0.80),
 )
 
 ALL_SETTINGS = {"A": SETTING_A, "B": SETTING_B, "C": SETTING_C}
