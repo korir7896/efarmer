@@ -12,9 +12,8 @@ from crossphase.core.engine import (ObjectiveError, TRAIN, combine, quality,
 from crossphase.core.generator import sample, training_environments
 from crossphase.core.methods import erm, make_groupdro, make_irm
 from crossphase.core.model import build_model, parameter_count
-from crossphase.core.settings import (OFFICIAL_WORLDS, PROXY_WORLDS, SETTING_A,
-                                      SETTING_B)
-from grader.private_specs import SETTING_C
+from crossphase.core.settings import PROXY_WORLDS, SETTING_A, SETTING_B
+from grader.private_specs import OFFICIAL_WORLDS, SETTING_C
 
 
 def test_generator_is_deterministic():

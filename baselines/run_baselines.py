@@ -38,19 +38,21 @@ import time
 from pathlib import Path
 
 from crossphase.core.engine import quality, run_setting
-from crossphase.core.methods import GRIDS
+from crossphase.core.methods import GRIDS, all_configs, is_expansion
 from crossphase.core.parallel import pmap
-from crossphase.core.settings import (OFFICIAL_SOURCE_N, OFFICIAL_WORLD_N,
-                                      OFFICIAL_WORLDS, PROXY_SOURCE_N,
-                                      PROXY_WORLD_N, PROXY_WORLDS,
-                                      PUBLIC_POOL_SEED, PUBLIC_RUN_SEEDS)
-from grader.private_specs import ALL_SETTINGS, OFFICIAL_POOL_SEED, OFFICIAL_RUN_SEEDS
+from crossphase.core.settings import (PROXY_SOURCE_N, PROXY_WORLD_N,
+                                      PROXY_WORLDS, PUBLIC_POOL_SEED,
+                                      PUBLIC_RUN_SEEDS)
+from grader.private_specs import (ALL_SETTINGS, OFFICIAL_POOL_SEED,
+                                  OFFICIAL_RUN_SEEDS, OFFICIAL_SOURCE_N,
+                                  OFFICIAL_WORLD_N, OFFICIAL_WORLDS)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-#: Seeds used for the full-grid official diagnostic.  The selected configurations
-#: are re-scored on the complete official seed set.
-DIAGNOSTIC_SEEDS = OFFICIAL_RUN_SEEDS[:2]
+#: Seeds used for the full-grid official screening.  Deliberately disjoint from
+#: both OFFICIAL_RUN_SEEDS and PUBLIC_RUN_SEEDS: screening on seeds that also
+#: score the finalists fits the selection to the measurement.
+DIAGNOSTIC_SEEDS = (201, 202)
 
 
 def geo(values) -> float:
@@ -87,7 +89,7 @@ def _run(item):
 
 def build_jobs(official_seeds):
     jobs = []
-    for family, grid in GRIDS.items():
+    for family, grid in all_configs().items():
         for label in grid:
             for seed in PUBLIC_RUN_SEEDS:
                 for setting in ("A", "B"):
@@ -136,6 +138,7 @@ def summarise(table) -> list:
             "binding_C": collections.Counter(cell["binding"]["C"]).most_common(1)[0][0],
             "binding_all": dict(collections.Counter(
                 sum((cell["binding"][s] for s in ("A", "B", "C")), []))),
+            "expansion": is_expansion(family, label),
         })
     out.sort(key=lambda r: (-r["S"], r["family"]))
     return out
@@ -183,9 +186,10 @@ def main(argv=None) -> int:
 
     if args.reuse_sweep and (out_dir / "sweep.json").exists():
         summary = json.loads((out_dir / "sweep.json").read_text())
+        grids = all_configs()
         stale = [r for r in summary
-                 if r["family"] not in GRIDS
-                 or ("" if r["config"] == "(none)" else r["config"]) not in GRIDS[r["family"]]]
+                 if r["family"] not in grids
+                 or ("" if r["config"] == "(none)" else r["config"]) not in grids[r["family"]]]
         if stale:
             raise SystemExit(
                 f"reports/sweep.json holds {len(stale)} configurations that are no "
@@ -212,14 +216,18 @@ def main(argv=None) -> int:
 
     def argmax_per_family(key):
         out = {}
-        for family in GRIDS:
+        for family in all_configs():
             best = max((r for r in summary if r["family"] == family), key=key)
             out[family] = "" if best["config"] == "(none)" else best["config"]
         return out
 
-    def top_k_per_family(key, k=2):
+    # D7: two finalists is too few.  Ranks demonstrably move between the
+    # screening seeds and the official set -- IRM's screening winner lost to its
+    # runner-up by 1.6 points on official seeds -- so a third or fourth candidate
+    # can win and would never have been measured.
+    def top_k_per_family(key, k=4):
         out = []
-        for family in GRIDS:
+        for family in all_configs():
             rows = sorted((r for r in summary if r["family"] == family),
                           key=key, reverse=True)[:k]
             out += [(family, "" if r["config"] == "(none)" else r["config"])
@@ -231,7 +239,7 @@ def main(argv=None) -> int:
     finalists = top_k_per_family(lambda r: r["S"])
     final_q, final_binding = rescore_pairs(finalists, OFFICIAL_RUN_SEEDS)
     best_configs = {}
-    for family in GRIDS:
+    for family in all_configs():
         cands = [(f, c) for f, c in finalists if f == family]
         best_configs[family] = max(cands, key=lambda fc: geo(final_q[fc].values()))[1]
     # The diagnostic: what tuning on the visible proxy would have chosen instead.
@@ -285,6 +293,12 @@ def main(argv=None) -> int:
         "configs_in_grid_above_S_star": sum(
             1 for r in summary if r["S"] > families[0]["S"]),
         "grid_size": len(summary),
+        "declared_grid_size": sum(len(g) for g in GRIDS.values()),
+        "expansion_size": sum(1 for r in summary if r.get("expansion")),
+        "selections_on_declared_boundary": [
+            r["family"] for r in families
+            if is_expansion(r["family"], r["best_config"])],
+        "screening_seeds": list(DIAGNOSTIC_SEEDS),
         "official_seeds": list(OFFICIAL_RUN_SEEDS),
         "diagnostic_seeds": list(DIAGNOSTIC_SEEDS),
         "families": families,

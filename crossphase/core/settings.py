@@ -1,7 +1,15 @@
 """Public setting registry (A and B) plus the public proxy evaluation pools.
 
-Setting C is not defined here.  It lives with the grader and is not visible to a
-solving agent.
+Setting C is not defined here, and neither is the official target-world set.
+Both live with the grader and are not visible to a solving agent.
+
+Withholding the official world COORDINATES (not just the pools) is deliberate.
+The cue-recovery measurement in ``reports/gates.md`` shows both nuisance signs
+are recoverable from public training data at 0.994-1.000 accuracy, so an agent
+holding the exact coordinates could rebuild the official A and B worlds almost
+exactly and evaluate against them directly.  The scoring FORMULA stays public --
+a hidden metric turns research into guessing -- and so does the kind of stress
+each world applies; only the numbers are held back.
 
 Environment parameterisation
 ----------------------------
@@ -33,17 +41,6 @@ from .generator import Environment, SettingSpec
 #: stress the core detector instead, which punishes over-regularisation.  Both
 #: kinds are needed for the minimum to be contested -- see the binding-world audit
 #: in ``reports/``.
-#: Chosen from a ten-world profile across all three settings, not by assumption.
-#: A harder cue-flip at (.05, .05) was measured and dropped: it sits uniformly
-#: below (.10, .10), so it would bind everywhere and leave the rest decorative.
-OFFICIAL_WORLDS = (
-    (0.10, 0.10, 1.00, 1.00),   # both cues flipped
-    (0.10, 0.90, 1.00, 1.00),   # cue conflict
-    (0.90, 0.10, 1.00, 1.00),   # cue conflict, the other way
-    (0.50, 0.50, 1.50, 1.00),   # cues uninformative, noise floor raised 50%
-    (0.90, 0.90, 1.00, 0.45),   # cues aligned, core attenuated to 45%
-)
-
 #: Proxy worlds available to the agent.  Deliberately *not* the official
 #: coordinates: milder disagreement, four worlds rather than five, and an
 #: independent seed, so the world that binds the minimum under the proxy need not
@@ -61,8 +58,6 @@ PROXY_WORLDS = (
     (0.60, 0.60, 1.40, 0.55),
 )
 
-OFFICIAL_SOURCE_N = 2000
-OFFICIAL_WORLD_N = 1200
 PROXY_SOURCE_N = 900
 PROXY_WORLD_N = 700
 

@@ -28,13 +28,12 @@ from crossphase.core.engine import (TRAIN, balanced_accuracy, quality,
                                     run_setting, train_model)
 from crossphase.core.methods import GRIDS, env_risks, erm
 from crossphase.core.parallel import pmap
-from crossphase.core.settings import (OFFICIAL_SOURCE_N, OFFICIAL_WORLD_N,
-                                      OFFICIAL_WORLDS, PROXY_SOURCE_N,
-                                      PROXY_WORLD_N, PROXY_WORLDS,
-                                      PUBLIC_POOL_SEED, PUBLIC_RUN_SEEDS,
-                                      PUBLIC_SETTINGS)
+from crossphase.core.settings import (PROXY_SOURCE_N, PROXY_WORLD_N,
+                                      PROXY_WORLDS, PUBLIC_POOL_SEED,
+                                      PUBLIC_RUN_SEEDS, PUBLIC_SETTINGS)
 from grader.private_specs import (ALL_SETTINGS, OFFICIAL_POOL_SEED,
-                                  OFFICIAL_RUN_SEEDS, SETTING_C)
+                                  OFFICIAL_RUN_SEEDS, OFFICIAL_SOURCE_N,
+                                  OFFICIAL_WORLD_N, OFFICIAL_WORLDS, SETTING_C)
 
 from . import measure, probes
 

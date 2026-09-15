@@ -10,12 +10,26 @@ from __future__ import annotations
 from crossphase.core.generator import SettingSpec
 from crossphase.core.settings import SETTING_A, SETTING_B, make_envs
 
+#: Chosen from a ten-world profile across all three settings, not by assumption.
+#: A harder cue-flip at (.05, .05) was measured and dropped: it sits uniformly
+#: below (.10, .10), so it would bind everywhere and leave the rest decorative.
+OFFICIAL_WORLDS = (
+    (0.10, 0.10, 1.00, 1.00),   # both cues flipped
+    (0.10, 0.90, 1.00, 1.00),   # cue conflict
+    (0.90, 0.10, 1.00, 1.00),   # cue conflict, the other way
+    (0.50, 0.50, 1.50, 1.00),   # cues uninformative, noise floor raised 50%
+    (0.90, 0.90, 1.00, 0.45),   # cues aligned, core attenuated to 45%
+)
+
+OFFICIAL_SOURCE_N = 2000
+OFFICIAL_WORLD_N = 1200
+
 #: Seed used for the official source and target pools.  The public diagnostic
 #: uses a different one, so the agent cannot reconstruct the official pools
 #: exactly even for the settings whose generator it holds.
 OFFICIAL_POOL_SEED = 5501
 
-#: Run seeds for the official measurement.  Three per setting.
+#: Run seeds for the official measurement.  Five per setting.
 OFFICIAL_RUN_SEEDS = (11, 12, 13, 14, 15)
 
 #: The hidden setting.

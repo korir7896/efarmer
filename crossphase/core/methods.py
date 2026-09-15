@@ -162,7 +162,57 @@ GRIDS = {
 }
 
 
+#: Boundary expansions, recorded rather than folded into the declared grid.
+#:
+#: Every family's selected configuration in the first sweep sat on an edge of its
+#: declared range -- six for six -- and an agent is not bound by that range, so an
+#: unexplored edge means ``S*`` may be understated.  The protocol is to expand only
+#: where an optimum sits on a boundary and to record the expansion, which is what
+#: this table is.
+#:
+#: Two edges are expanded in every family regardless: warm-up 0 (the ordinary
+#: no-warm-up form of each method, which the declared grid omitted) and warm-up
+#: 0.65 / 0.8.  The latter matters because the measured shortcut-to-stable
+#: transition in setting A sits at step 520 of 800 -- fraction 0.65 -- i.e. past
+#: the top of the declared warm-up range, which is precisely where this task's own
+#: mechanism says the optimum should be.
+#:
+#: EQRM's coefficient is deliberately NOT expanded upward: 44.721 is
+#: sqrt(-2*ln(1-alpha)) at alpha = 1 - e^-1000, the top of the published sweep.
+#: Going beyond it would leave the reproduced method behind.  See
+#: ``agent/method_references.md``.
+EXPANSIONS = {
+    "IRM": {f"lam={l:g},warm={w:g}": (lambda l=l, w=w: make_irm(l, w))
+            for l, w in [(1e6, 0.3), (1e6, 0.5), (1e6, 0.65),
+                         (1e5, 0.0), (1e5, 0.65), (1e5, 0.8), (1e4, 0.65)]},
+    "VREx": {f"lam={l:g},warm={w:g}": (lambda l=l, w=w: make_vrex(l, w))
+             for l, w in [(1e6, 0.1), (1e6, 0.5), (1e6, 0.65),
+                          (1e5, 0.0), (1e5, 0.65), (1e5, 0.8)]},
+    "GroupDRO": {f"eta={e:g},warm={w:g}": (lambda e=e, w=w: make_groupdro(e, w))
+                 for e, w in [(1e3, 0.5), (1e4, 0.5), (1e3, 0.65),
+                              (100.0, 0.0), (100.0, 0.65), (100.0, 0.8)]},
+    "SD": {f"lam={l:g},warm={w:g}": (lambda l=l, w=w: make_sd(l, w))
+           for l, w in [(1e-4, 0.3), (1e-4, 0.5),
+                        (0.001, 0.0), (0.001, 0.65), (0.001, 0.8)]},
+    "EQRM": {f"coef={c:g},warm={w:g}": (lambda c=c, w=w: make_eqrm(c, w))
+             for c, w in [(44.721, 0.0), (44.721, 0.65), (44.721, 0.8),
+                          (31.623, 0.0), (31.623, 0.65)]},
+}
+
+
+def all_configs() -> dict:
+    """Declared grid plus recorded expansions, as ``{family: {label: factory}}``."""
+    merged = {f: dict(g) for f, g in GRIDS.items()}
+    for family, extra in EXPANSIONS.items():
+        merged[family].update(extra)
+    return merged
+
+
+def is_expansion(family: str, label: str) -> bool:
+    return label in EXPANSIONS.get(family, {})
+
+
 def iter_configs():
-    for family, grid in GRIDS.items():
+    for family, grid in all_configs().items():
         for label, factory in grid.items():
             yield family, label, factory

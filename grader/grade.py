@@ -24,10 +24,8 @@ from pathlib import Path
 
 from crossphase.core.engine import ObjectiveError, combine, quality, run_setting
 from crossphase.core.parallel import pmap
-from crossphase.core.settings import (OFFICIAL_SOURCE_N, OFFICIAL_WORLD_N,
-                                      OFFICIAL_WORLDS)
-
-from .private_specs import ALL_SETTINGS, OFFICIAL_POOL_SEED, OFFICIAL_RUN_SEEDS
+from .private_specs import (ALL_SETTINGS, OFFICIAL_POOL_SEED, OFFICIAL_RUN_SEEDS,
+                            OFFICIAL_SOURCE_N, OFFICIAL_WORLD_N, OFFICIAL_WORLDS)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
