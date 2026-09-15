@@ -25,8 +25,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from crossphase.core.engine import (TRAIN, balanced_accuracy, quality,
-                                    run_setting, train_model)
+from crossphase.core.engine import (TRAIN, ObjectiveError, balanced_accuracy,
+                                    quality, run_setting, train_model)
 from crossphase.core.methods import GRIDS, all_configs, env_risks, erm
 from crossphase.core.parallel import pmap
 from crossphase.core.settings import (PROXY_SOURCE_N, PROXY_WORLD_N,
@@ -161,6 +161,18 @@ def stage_fingerprint():
 # --------------------------------------------------------------------------- #
 
 def _score_job(item):
+    """Score one configuration.  A numerically diverging objective scores zero,
+    exactly as the grader treats it; anything else propagates, because a harness
+    fault recorded as a method property is how the boundary expansion silently
+    failed for a whole sweep."""
+    try:
+        return _score(item)
+    except ObjectiveError:
+        kind, label, setting, seed = item
+        return kind, label, setting, seed, 0.0, "diverged"
+
+
+def _score(item):
     kind, label, setting, seed = item
     objective = objective_for(label)
     if kind == "proxy":
@@ -226,6 +238,13 @@ def reconstructed_pool(spec, world, seed):
 
 
 def _recon_job(item):
+    try:
+        return _recon(item)
+    except ObjectiveError:
+        return item[0], item[1], item[2], 0.0
+
+
+def _recon(item):
     label, setting, seed = item
     spec = PUBLIC_SETTINGS[setting]
     model = train_model(spec, objective_for(label), seed)
@@ -279,8 +298,11 @@ FLIPPED = (0.10, 0.10, 1.00, 1.00)
 
 def _trace_job(item):
     label, setting, seed = item
-    trace = measure.transition_trace(ALL_SETTINGS[setting], objective_for(label),
-                                     seed, FLIPPED)
+    try:
+        trace = measure.transition_trace(ALL_SETTINGS[setting],
+                                         objective_for(label), seed, FLIPPED)
+    except ObjectiveError:
+        return label, setting, seed, None, []
     return label, setting, seed, measure.transition_step(trace), trace
 
 
@@ -292,6 +314,8 @@ def stage_transition(labels):
         table = collections.defaultdict(list)
         traces = {}
         for label, setting, seed, step, trace in rows:
+            if step is None:      # diverged; contributes no timing evidence
+                continue
             table[f"{label}|{setting}"].append(step)
             traces[f"{label}|{setting}|{seed}"] = trace
         return {"steps": {k: statistics.median(v) for k, v in table.items()},
