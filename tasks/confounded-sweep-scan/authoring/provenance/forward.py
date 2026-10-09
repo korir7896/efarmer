@@ -273,12 +273,21 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
     rng = fwdpy11.GSLrng(seed)
     recorder = TrajectoryRecorder(two_n, total_gens, traj_thin)
 
+    # One sweep per stage. Two sweeps sharing an origin generation would have
+    # to establish in the SAME attempt, so the acceptance probability becomes
+    # the product of theirs rather than being conditioned one at a time. A
+    # measured collision between a hard sweep and a soft one turned a stage
+    # that should take about a minute into more than six. Duplicates are
+    # nudged one generation apart, and the nudged value is what is recorded
+    # as the realized origin.
     by_gen: Dict[int, List[SweepPlan]] = {}
-    for p in plans:
+    for p in sorted(plans, key=lambda x: (-x.origin_gens_ago, x.sweep_id)):
         g = total_gens - p.origin_gens_ago
+        while g in by_gen:
+            g += 1
         if not (0 < g < total_gens):
             raise ValueError(f"{p.sweep_id}: origin generation {g} outside (0,{total_gens})")
-        by_gen.setdefault(g, []).append(p)
+        by_gen[g] = [p]
     origins = sorted(by_gen)
 
     t0 = time.time()

@@ -1,0 +1,186 @@
+schema_version = "1.4"
+
+artifacts = ["/app/results.json"]
+
+[task]
+name = "afterquery/confounded-sweep-scan"
+description = "Separate positive selection from demographic and recombination-rate confounds in a whole-genome scan, then classify, date and quantify each sweep."
+authors = [{ name = "", email = "" }]
+keywords = [
+    "population genetics",
+    "selective sweeps",
+    "demographic inference",
+    "site frequency spectrum",
+    "haplotype statistics",
+    "recombination rate variation",
+    "coalescent simulation",
+]
+
+[metadata]
+# ---------------------------------------------------------------------------
+# AUTHOR FACTS -- these five fields are the author's to fill in and are
+# deliberately left blank. The submission pipeline rejects placeholder values,
+# and writing a biography for someone else would be fabricating credentials.
+# ---------------------------------------------------------------------------
+author_name = ""
+author_email = ""
+author_organization = ""
+author_profile = ""
+research_advisor = ""
+referred_by = ""
+conflicts_of_interest = ""
+relevant_experience = ""
+# ---------------------------------------------------------------------------
+
+domain = "life-sciences"
+field = "ecology"
+subfield = "population genetics: selection inference under demographic confounding"
+category = "Science"
+subcategory = "Ecology & Evolutionary Biology"
+tags = [
+    "population genetics",
+    "selective sweeps",
+    "demographic inference",
+    "site frequency spectrum",
+    "haplotype statistics",
+    "recombination cold spots",
+    "coalescent simulation",
+]
+expert_time_estimate_hours = 20
+
+difficulty_explanation = """
+The data are synthetic, and deliberately so: the ground truth here is a list
+of selected sites with known selection coefficients, ages and modes of
+origin, which no real genome provides. They come from a forward simulation in
+fwdpy11 of a four-class sweep zoo, recapitated with msprime under a
+bottleneck-and-expansion history and overlaid with neutral mutations. The
+generator, its seeds and the measurements used to set every threshold are in
+authoring/.
+
+The task is hard because the three things that produce a sweep-like signal in
+a genome scan are all present at once, and only one of them is selection.
+
+A bottleneck lowers diversity and skews the site frequency spectrum
+genome-wide, which is locally what a sweep does. On ten neutral replicates of
+this genome, taking the genome's own 99.9th percentile as a cutoff fires 7 to
+21 times more often inside the recombination cold spots than outside them,
+purely because low recombination means fewer independent genealogies per
+window and therefore heavier tails. The cold spots are given to the agent in
+the recombination map, so applying them is a rule to be inferred rather than
+a secret, but an agent that runs a scan at its defaults will report them.
+Getting this right means inferring the history first, then simulating a null
+under that history on that map, then comparing each window only against null
+windows of comparable local recombination rate.
+
+No single statistic finds all four classes, and each standard choice misses a
+different one. Diversity and Tajima's D find completed sweeps but locate a
+partial sweep poorly, with a measured median error of 360 kb against 20 kb
+for H12. H12 collapses for old sweeps, where recombination has already eroded
+the swept haplotype block: a measured H12 ratio of 3.5 against about 11 for
+recent ones. nSL reads near zero at a completed sweep, because the sweep is
+over and there is no high-frequency young haplotype left to carry a long
+tract, so it finds partial sweeps and nothing else. Hard and soft sweeps are
+separated by H2/H1 and essentially nothing else: their diversity, Tajima's D
+and H12 signatures are the same to within noise, while H2/H1 differs by a
+factor of about forty.
+
+Dating and quantifying the sweeps needs relations an analyst has to derive
+rather than look up. Both are available -- the width of the diversity trough
+scales with s/r, and diversity at the centre recovers in proportion to the
+time since the sweep finished -- but the constants have to be calibrated
+against simulations of the inferred history, and the recovery estimator
+carries a bias that depends on the class.
+
+An expert spends a couple of days on this, mostly on the null calibration and
+on working out which statistic to trust for which class.
+"""
+
+solution_explanation = """
+Fit the history first, then scan against it.
+
+The reference infers the bottleneck-and-expansion history by simulated method
+of moments: propose a history, simulate it with msprime, and compare the
+binned unfolded spectrum and mean diversity with the observed ones, computed
+over windows left after dropping the lowest-diversity decile so that sweeps
+do not get absorbed into the demography. Every proposal reuses one random
+seed, which turns a noisy objective into a deterministic one and lets a
+coarse random search plus local refinement converge.
+
+It then simulates ten neutral replicates under the fitted history using the
+provided recombination map, computes windowed diversity, Tajima's D, H12,
+H2/H1 and the fraction of extreme nSL scores on both the observed genome and
+the null, and converts each observed window to a z-score against null windows
+in the same local-rate bin. The per-window score is the strongest signal
+across statistics, thresholded so the expected number of null windows per
+genome is a fraction of one, and contiguous passing windows are clustered
+into one call each.
+
+Classification follows the measured separation: H2/H1 near its neutral value
+means several frequent haplotypes and so a soft sweep, high residual
+diversity means a sweep still segregating, and a weak H12 ratio among
+completed sweeps means an old one. The selection coefficient comes from the
+width of the diversity trough times the local recombination rate, which
+measurement puts at 0.56 times s across all four classes with about 5%
+scatter. The completion time comes from diversity recovery at the centre,
+2*N_current*pi_min/pi_background, divided by a class-specific bias measured
+on independent replicates.
+"""
+
+verification_explanation = """
+Ground truth is the generator's own configuration plus the realized
+trajectory the forward simulation recorded: the scheduled position of each
+selected site, its selection coefficient, the generation at which the
+beneficial allele passed 98% frequency, its final frequency, and how many
+independent origins of it survived to the present. No solver, reference or
+otherwise, contributes anything to it. The sealed truth file is static JSON
+and the verifier runs no simulation at grading time.
+
+Sweeps are matched to calls greedily by ascending distance, same chromosome,
+within a window set from measured localisation spread rather than from the
+reference's own error. Near-duplicate calls are collapsed first, so recall
+cannot be manufactured by carpeting a region.
+
+The gates are conjunctive: ancestral and current population size within a
+factor, the bottleneck's duration-over-depth within a factor, the expansion
+time within a fraction, a structural check that the reported history really
+contracts and recovers, per-class recall, a cap on calls matching no true
+sweep with cold-spot calls counting against it, class accuracy over matched
+calls, selection coefficients within a factor, and completion time within
+tolerance graded separately inside each completed class.
+
+Two choices are worth naming. The bottleneck's depth and duration are not
+separately identifiable from the spectrum, since the genealogy integrates
+duration over size; the reference overestimates depth 2.4 to 2.6 times on
+every seed tried while recovering the combination to within 6%, so the gate
+is on the combination. And timing is graded per class because in aggregate it
+was satisfiable by a constant: the recent and soft sweeps finish within a few
+hundred generations of each other, so one number covered six of eight
+gradable sweeps. Per class no constant works, because the old sweeps finish
+about five times further back.
+
+Eighteen submissions were run through the real verifier as a check. The
+perfect answer passes and so does the perfect answer plus one false positive.
+Fifteen degenerate ones fail: carpet bombing every 100 kb, a constant class,
+a constant selection coefficient, two different constant timings, all
+timings doubled, every call parked at a chromosome centre, all positions
+shifted 400 kb, a flat constant-size history, submissions missing a class,
+and NaN injection.
+"""
+
+[verifier]
+timeout_sec = 1800.0
+environment_mode = "separate"
+
+[verifier.environment]
+network_mode = "no-network"
+
+[agent]
+timeout_sec = 21600.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 4
+memory_mb = 8192
+storage_mb = 10240
+gpus = 0
+network_mode = "public"

@@ -77,7 +77,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     # --- soft, from standing variation: H12 yes, SFS/H1 weak ---
     ("sw06", 0, 0.86, 0.028,  640, 100, "soft_standing"),
     ("sw07", 1, 0.78, 0.032,  600, 100, "soft_standing"),
-    ("sw08", 2, 0.86, 0.026,  680, 100, "soft_standing"),
+    ("sw08", 2, 0.86, 0.026,  690, 100, "soft_standing"),
     # --- partial / incomplete: never fixes ---
     ("sw09", 1, 0.46, 0.018,  430,  1, "partial"),
     ("sw10", 2, 0.64, 0.022,  390,  1, "partial"),
