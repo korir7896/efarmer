@@ -1,0 +1,177 @@
+"""Grading logic for the confounded sweep scan.
+
+Pure python, no network, no simulation at grade time: the sealed truth is a
+static JSON file and this module compares the agent's submission against it.
+
+Every threshold lives in GATES, so the whole specification of "correct" is
+visible in one place.  The values are set from the measured spread of
+competent methods (see authoring/evidence/), not from the reference
+solution's own error.
+"""
+from __future__ import annotations
+
+import math
+from typing import Any, Dict, List, Optional, Tuple
+
+CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing", "partial")
+COMPLETE_CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing")
+
+GATES: Dict[str, Any] = {
+    # --- matching ---
+    # A call matches a true sweep if it is on the same chromosome within this
+    # many bp.  Set from the localisation spread of correct methods, which is
+    # governed by the sweep footprint (~s/r per sweep), not by how precise the
+    # reference happens to be.
+    "match_window_bp": 150_000,
+    # Two calls closer together than this are collapsed before grading, so an
+    # agent cannot manufacture recall by carpeting a region with calls.
+    "dedupe_bp": 150_000,
+
+    # --- demography (multiplicative tolerance on sizes, absolute on times) ---
+    "N_ancestral_factor": 1.60,
+    "N_bottleneck_factor": 2.20,
+    "N_current_factor": 1.60,
+    "T_bottleneck_start_frac": 0.40,
+    "T_bottleneck_end_frac": 0.40,
+
+    # --- detection ---
+    # Per-class minimum recall, as (numerator, denominator) over the true
+    # sweeps of that class.
+    "min_recall_per_class": {
+        "hard_recent_complete": 3,
+        "soft_standing": 2,
+        "partial": 2,
+        "hard_old_complete": 1,
+    },
+    # Unmatched calls allowed genome-wide. Cold-spot calls count here.
+    "max_false_positives": 1,
+
+    # --- characterisation, over matched calls only ---
+    "min_class_accuracy": 0.70,
+    "s_within_factor": 3.0,
+    "min_s_accuracy": 0.70,
+    # Timing is graded on completed sweeps, where fixation time is the
+    # estimable quantity, and it is graded PER CLASS.  Graded in aggregate it
+    # is satisfiable by a constant: the recent and soft sweeps fix within a
+    # few hundred generations of each other, so one number covers six of the
+    # eight gradable sweeps and clears any aggregate threshold.  Per class, a
+    # constant cannot work, because the old sweeps fix roughly five times
+    # further back than the recent ones while the tolerance is ~50%.
+    "time_rel_tol": 0.50,
+    "time_abs_tol_gens": 150,
+    "min_time_accuracy_per_class": 0.50,
+}
+
+
+class SchemaError(ValueError):
+    pass
+
+
+def _finite(x: Any) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(float(x))
+
+
+def parse_submission(obj: Any, n_chrom: int, chrom_len: int) -> Tuple[Dict, List[Dict]]:
+    """Validate structure and types. Raises SchemaError with a reason."""
+    if not isinstance(obj, dict):
+        raise SchemaError("top level is not a JSON object")
+
+    dem = obj.get("demography")
+    if not isinstance(dem, dict):
+        raise SchemaError("missing or non-object 'demography'")
+    need = ("N_ancestral", "N_bottleneck", "N_current",
+            "T_bottleneck_start_gens_ago", "T_bottleneck_end_gens_ago")
+    for k in need:
+        if k not in dem:
+            raise SchemaError(f"demography missing '{k}'")
+        if not _finite(dem[k]):
+            raise SchemaError(f"demography['{k}'] is not a finite number: {dem[k]!r}")
+        if float(dem[k]) <= 0:
+            raise SchemaError(f"demography['{k}'] must be positive")
+
+    raw = obj.get("sweeps")
+    if not isinstance(raw, list):
+        raise SchemaError("missing or non-list 'sweeps'")
+    if len(raw) > 200:
+        raise SchemaError(f"{len(raw)} calls submitted; limit is 200")
+
+    calls = []
+    for i, c in enumerate(raw):
+        if not isinstance(c, dict):
+            raise SchemaError(f"sweeps[{i}] is not an object")
+        for k in ("chrom", "position", "class", "selection_coefficient"):
+            if k not in c:
+                raise SchemaError(f"sweeps[{i}] missing '{k}'")
+        ch = c["chrom"]
+        if isinstance(ch, str) and ch.lower().startswith("chr"):
+            ch = ch[3:]
+        try:
+            ch = int(ch)
+        except (TypeError, ValueError):
+            raise SchemaError(f"sweeps[{i}]['chrom'] is not a chromosome: {c['chrom']!r}")
+        if not (1 <= ch <= n_chrom):
+            raise SchemaError(f"sweeps[{i}]['chrom']={ch} outside 1..{n_chrom}")
+        if not _finite(c["position"]):
+            raise SchemaError(f"sweeps[{i}]['position'] is not a finite number")
+        p = int(round(float(c["position"])))
+        if not (1 <= p <= chrom_len):
+            raise SchemaError(f"sweeps[{i}]['position']={p} outside 1..{chrom_len}")
+        kl = c["class"]
+        if kl not in CLASSES:
+            raise SchemaError(f"sweeps[{i}]['class']={kl!r} not one of {CLASSES}")
+        if not _finite(c["selection_coefficient"]):
+            raise SchemaError(f"sweeps[{i}]['selection_coefficient'] is not finite")
+        s = float(c["selection_coefficient"])
+        if not (0.0 < s < 1.0):
+            raise SchemaError(f"sweeps[{i}]['selection_coefficient']={s} outside (0,1)")
+        t = c.get("time_gens_ago", None)
+        if t is not None:
+            if not _finite(t):
+                raise SchemaError(f"sweeps[{i}]['time_gens_ago'] is neither null nor finite")
+            t = float(t)
+            if t < 0:
+                raise SchemaError(f"sweeps[{i}]['time_gens_ago'] is negative")
+        calls.append({"i": i, "chrom": ch, "position": p, "class": kl,
+                      "s": s, "time": t})
+    return dem, calls
+
+
+def dedupe(calls: List[Dict], window: int) -> List[Dict]:
+    """Collapse near-duplicate calls, keeping the first on each chromosome."""
+    kept: List[Dict] = []
+    for c in sorted(calls, key=lambda x: (x["chrom"], x["position"], x["i"])):
+        if any(k["chrom"] == c["chrom"] and abs(k["position"] - c["position"]) < window
+               for k in kept):
+            continue
+        kept.append(c)
+    return kept
+
+
+def match(truth_sweeps: List[Dict], calls: List[Dict], window: int
+          ) -> Tuple[List[Tuple[Dict, Dict, int]], List[Dict], List[Dict]]:
+    """Greedy global matching by ascending distance.
+
+    Returns (matched pairs with distance, unmatched truths, unmatched calls).
+    """
+    pairs = []
+    for t in truth_sweeps:
+        for c in calls:
+            if c["chrom"] != t["chrom"]:
+                continue
+            d = abs(c["position"] - t["position_local"])
+            if d <= window:
+                pairs.append((d, t["sweep_id"], c["i"]))
+    pairs.sort(key=lambda x: (x[0], x[1], x[2]))
+
+    tby = {t["sweep_id"]: t for t in truth_sweeps}
+    cby = {c["i"]: c for c in calls}
+    used_t, used_c = set(), set()
+    matched = []
+    for d, tid, ci in pairs:
+        if tid in used_t or ci in used_c:
+            continue
+        used_t.add(tid); used_c.add(ci)
+        matched.append((tby[tid], cby[ci], d))
+    un_t = [t for t in truth_sweeps if t["sweep_id"] not in used_t]
+    un_c = [c for c in calls if c["i"] not in used_c]
+    return matched, un_t, un_c
