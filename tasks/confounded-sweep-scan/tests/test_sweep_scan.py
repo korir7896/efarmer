@@ -62,7 +62,6 @@ def test_submission_is_well_formed(parsed):
 
 @pytest.mark.parametrize("key,gate", [
     ("N_ancestral", "N_ancestral_factor"),
-    ("N_bottleneck", "N_bottleneck_factor"),
     ("N_current", "N_current_factor"),
 ])
 def test_demography_sizes(truth, parsed, key, gate):
@@ -77,7 +76,6 @@ def test_demography_sizes(truth, parsed, key, gate):
 
 
 @pytest.mark.parametrize("key,gate", [
-    ("T_bottleneck_start_gens_ago", "T_bottleneck_start_frac"),
     ("T_bottleneck_end_gens_ago", "T_bottleneck_end_frac"),
 ])
 def test_demography_times(truth, parsed, key, gate):
@@ -89,6 +87,23 @@ def test_demography_times(truth, parsed, key, gate):
     assert abs(got - true_v) <= tol, (
         f"{key}: reported {got:.0f}, true {true_v:.0f}; "
         f"need within {tol:.0f} generations")
+
+
+def test_bottleneck_strength(truth, parsed):
+    """Grade duration/N_bottleneck, the combination the genealogy determines."""
+    dem, _ = parsed
+    td = truth["demography"]
+    true_strength = ((float(td["T_bottleneck_start_gens_ago"])
+                      - float(td["T_bottleneck_end_gens_ago"]))
+                     / float(td["N_bottleneck"]))
+    dur = float(dem["T_bottleneck_start_gens_ago"]) - float(dem["T_bottleneck_end_gens_ago"])
+    if dur <= 0:
+        pytest.fail("reported bottleneck has non-positive duration")
+    got = dur / float(dem["N_bottleneck"])
+    f = GATES["bottleneck_strength_factor"]
+    assert true_strength / f <= got <= true_strength * f, (
+        f"bottleneck strength (duration/N_bottleneck) reported {got:.4g}, "
+        f"true {true_strength:.4g}; need within a factor of {f}")
 
 
 def test_bottleneck_is_a_bottleneck(truth, parsed):

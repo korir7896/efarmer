@@ -1,0 +1,54 @@
+[
+  {
+    "config": {
+      "name": "recent_a",
+      "s": 0.035,
+      "origin": 750,
+      "ndesc": 1
+    },
+    "reps": 10,
+    "n_fixed": 10,
+    "fix_ago": {
+      "min": 259,
+      "p25": 266,
+      "median": 291,
+      "p75": 317,
+      "max": 326
+    },
+    "mean_attempts": 6.7
+  },
+  {
+    "config": {
+      "name": "old_b",
+      "s": 0.024,
+      "origin": 2300,
+      "ndesc": 1
+    },
+    "reps": 10,
+    "n_fixed": 10,
+    "fix_ago": {
+      "min": 1583,
+      "p25": 1652,
+      "median": 1703,
+      "p75": 1726,
+      "max": 1788
+    },
+    "mean_attempts": 30.8
+  },
+  {
+    "config": {
+      "name": "part_a",
+      "s": 0.018,
+      "origin": 600,
+      "ndesc": 1
+    },
+    "reps": 10,
+    "n_fixed": 0,
+    "seg_freq": {
+      "min": 0.899,
+      "median": 0.968,
+      "max": 0.997
+    },
+    "mean_attempts": 28.4
+  }
+]

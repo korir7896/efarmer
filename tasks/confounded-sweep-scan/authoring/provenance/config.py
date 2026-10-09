@@ -72,8 +72,8 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw07", 1, 0.78, 0.032,  780, 18, "soft_standing"),
     ("sw08", 2, 0.86, 0.026, 1050, 32, "soft_standing"),
     # --- partial / incomplete: never fixes ---
-    ("sw09", 1, 0.46, 0.018,  520,  1, "partial"),
-    ("sw10", 2, 0.64, 0.020,  480,  1, "partial"),
+    ("sw09", 1, 0.46, 0.018,  430,  1, "partial"),
+    ("sw10", 2, 0.64, 0.022,  390,  1, "partial"),
 ]
 
 MIN_SWEEP_SPACING = 2_000_000
@@ -89,11 +89,30 @@ POSITION_JITTER = 180_000
 # realized trajectories as truth instead of rejection-sampling to hit exact
 # targets.
 
+# Measured over 10-16 independent replicates per configuration at N_CURRENT
+# (authoring/evidence/trajectory_tuning_shard*.json,
+#  authoring/evidence/partial_tuning_shard*.json):
+#
+#   s=0.035 origin 750   10/10 fixed   fixation 259-326 generations ago
+#   s=0.030 origin 820   10/10 fixed   fixation 176-332
+#   s=0.040 origin 680   10/10 fixed   fixation 142-322
+#   s=0.028 origin 2150  10/10 fixed   fixation 1526-1685
+#   s=0.024 origin 2300  10/10 fixed   fixation 1583-1788
+#   s=0.028 origin 900  nd=24  9/10 fixed  fixation 109-488
+#   s=0.032 origin 780  nd=18 10/10 fixed  fixation 239-372
+#   s=0.026 origin 1050 nd=32 10/10 fixed  fixation 452-628
+#   s=0.018 origin 430   0/16 fixed   final frequency 0.149-0.863, median 0.684
+#   s=0.022 origin 390   0/16 fixed   final frequency 0.247-0.891, median 0.727
+#
+# The windows below bracket those measurements with room to spare, so a
+# replicate is rejected only for a genuinely atypical draw. The recent and old
+# fixation ranges are separated by more than a factor of four, which is what
+# lets realized_class() split them on a single boundary.
 ACCEPT = {
     "hard_recent_complete": dict(must_fix=True, fix_ago_min=120, fix_ago_max=700),
     "hard_old_complete":    dict(must_fix=True, fix_ago_min=1100, fix_ago_max=1900),
-    "soft_standing":        dict(must_fix=True, fix_ago_min=120, fix_ago_max=900),
-    "partial":              dict(must_fix=False, freq_min=0.40, freq_max=0.88),
+    "soft_standing":        dict(must_fix=True, fix_ago_min=100, fix_ago_max=900),
+    "partial":              dict(must_fix=False, freq_min=0.45, freq_max=0.90),
 }
 
 

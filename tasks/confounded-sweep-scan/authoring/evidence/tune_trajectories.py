@@ -56,23 +56,16 @@ if __name__ == "__main__":
     # h=1.0 => additive, per-allele advantage s. Expectations used to pick
     # these: P(fix from one copy) ~ 2s; t_fix ~ (2/s)*ln(4Ns);
     # time to reach frequency f from one copy ~ (1/s)*ln(2N*f/(1-f)).
+    # Second pass: only the partial sweeps needed retuning. Conditioning on
+    # establishment skips the slow stochastic phase, so a conditioned sweep
+    # rises as if it started near 1/(2Ns) rather than at one copy, and the
+    # logistic-from-one-copy estimate of the origin time overshoots badly
+    # (measured medians of 0.92-0.95 where 0.65 was intended).
     GRID = [
-        # complete, recent: want fixation 150-600 generations ago
-        ("recent_a", 0.035,  750, 1),
-        ("recent_b", 0.030,  820, 1),
-        ("recent_c", 0.040,  680, 1),
-        # complete, old: want fixation 1100-1900 generations ago
-        ("old_a",    0.028, 2150, 1),
-        ("old_b",    0.024, 2300, 1),
-        # soft from standing variation: want fixation 150-900 generations ago
-        ("soft_a",   0.028,  900, 24),
-        ("soft_b",   0.032,  780, 18),
-        ("soft_c",   0.026, 1050, 32),
-        # partial: want final frequency ~0.4-0.9 and never fixed
-        ("part_a",   0.018,  600, 1),
-        ("part_b",   0.022,  480, 1),
-        ("part_c",   0.018,  520, 1),
-        ("part_d",   0.015,  620, 1),
+        ("part_s018_t430", 0.018, 430, 1),
+        ("part_s022_t390", 0.022, 390, 1),
+        ("part_s018_t400", 0.018, 400, 1),
+        ("part_s022_t360", 0.022, 360, 1),
     ]
     res = []
     # Only the span from a sweep's origin to the present affects its

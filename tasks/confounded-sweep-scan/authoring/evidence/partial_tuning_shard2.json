@@ -1,0 +1,18 @@
+[
+  {
+    "config": {
+      "name": "part_s018_t400",
+      "s": 0.018,
+      "origin": 400,
+      "ndesc": 1
+    },
+    "reps": 16,
+    "n_fixed": 0,
+    "seg_freq": {
+      "min": 0.101,
+      "median": 0.365,
+      "max": 0.909
+    },
+    "mean_attempts": 30.8
+  }
+]

@@ -27,11 +27,22 @@ GATES: Dict[str, Any] = {
     # agent cannot manufacture recall by carpeting a region with calls.
     "dedupe_bp": 150_000,
 
-    # --- demography (multiplicative tolerance on sizes, absolute on times) ---
+    # --- demography ---
+    # Sizes are graded multiplicatively. N_ancestral and N_current are
+    # identifiable from the site-frequency spectrum given the mutation rate.
     "N_ancestral_factor": 1.60,
-    "N_bottleneck_factor": 2.20,
     "N_current_factor": 1.60,
-    "T_bottleneck_start_frac": 0.40,
+    # The DEPTH and DURATION of a bottleneck are not separately identifiable
+    # from the spectrum: a short severe contraction and a longer milder one
+    # leave almost the same coalescent signature, because what the genealogy
+    # integrates is duration/N_bottleneck.  Grading N_bottleneck on its own
+    # would partly be grading which point of that ridge a fit happened to
+    # land on.  So the gate is on the identifiable combination, and the
+    # reported history must still be a real contraction followed by a
+    # recovery (test_bottleneck_is_a_bottleneck).
+    "bottleneck_strength_factor": 2.50,
+    # The end of the bottleneck -- the expansion -- is the better determined
+    # of the two boundaries, so it is the one graded directly.
     "T_bottleneck_end_frac": 0.40,
 
     # --- detection ---

@@ -1,0 +1,18 @@
+[
+  {
+    "config": {
+      "name": "part_s022_t390",
+      "s": 0.022,
+      "origin": 390,
+      "ndesc": 1
+    },
+    "reps": 16,
+    "n_fixed": 0,
+    "seg_freq": {
+      "min": 0.247,
+      "median": 0.727,
+      "max": 0.891
+    },
+    "mean_attempts": 20.2
+  }
+]
