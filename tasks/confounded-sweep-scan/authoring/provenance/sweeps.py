@@ -43,7 +43,7 @@ def build_plans(cfg: GenomeConfig, seed: int) -> List[SweepPlan]:
     plans: List[SweepPlan] = []
     placed: List[Tuple[int, int]] = []
 
-    for sid, chrom, frac, s, origin, ndesc, klass in C.SWEEP_SPEC:
+    for sid, chrom, frac, s, origin, n_origins, klass in C.SWEEP_SPEC:
         base = cfg.chrom_offset(chrom) + int(frac * cfg.chrom_len)
         for attempt in range(500):
             jitter = int(rng.integers(-C.POSITION_JITTER, C.POSITION_JITTER + 1))
@@ -58,8 +58,15 @@ def build_plans(cfg: GenomeConfig, seed: int) -> List[SweepPlan]:
             raise RuntimeError(f"{sid}: could not place after 500 draws: {bad}")
 
         placed.append((chrom, pos))
-        plans.append(SweepPlan(sweep_id=sid, position=pos, s=s, h=0.5,
-                               origin_gens_ago=origin, ndescendants=ndesc,
+        # h=1.0, NOT 0.5.  fwdpy11's Multiplicative(2.0) assigns genotype
+        # fitnesses 1, 1 + h*s, 1 + 2s.  With h=0.5 that is 1, 1+s/2, 1+2s --
+        # a partially recessive model whose per-allele advantage is not s, so
+        # the s recorded as ground truth would be a number no correct
+        # estimator could return.  h=1.0 gives 1, 1+s, 1+2s: additive, with
+        # per-allele advantage exactly s.  Verified empirically by reading
+        # realized fitness against genotype.
+        plans.append(SweepPlan(sweep_id=sid, position=pos, s=s, h=1.0,
+                               origin_gens_ago=origin, n_origins=n_origins,
                                intended_class=klass))
     return plans
 
@@ -69,10 +76,14 @@ def realized_class(r: SweepRealization) -> str:
 
     This is the definition the verifier grades against, and it is a function
     of the simulation's recorded trajectory -- never of a solver's output.
+
+    Softness is defined as two or more surviving independent origins of the
+    beneficial allele, which is the standard definition of a multiple-origin
+    soft sweep and is exactly what the haplotype statistics respond to.
     """
     if not r.fixed:
         return "partial"
-    if r.ndescendants_at_origin > 1:
+    if r.n_origins_surviving >= 2:
         return "soft_standing"
     boundary = C.ACCEPT["hard_recent_complete"]["fix_ago_max"]
     return "hard_recent_complete" if r.fixation_gens_ago <= boundary else "hard_old_complete"

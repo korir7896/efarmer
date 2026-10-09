@@ -49,8 +49,15 @@ MASTER_SEED = 20_251_009
 # ---------------------------------------------------------------------------
 # sweep zoo
 # ---------------------------------------------------------------------------
-# (sweep_id, chrom, approx_offset_fraction, s, origin_gens_ago, ndescendants,
+# (sweep_id, chrom, approx_offset_fraction, s, origin_gens_ago, n_origins,
 #  intended_class)
+#
+# n_origins is the number of INDEPENDENT introductions of the beneficial
+# allele at that position. One is a hard sweep. Fifty is a soft sweep from
+# recurrent mutation: the allele sits on fifty different haplotype
+# backgrounds, of which a few survive, so the swept region ends up carrying
+# several frequent haplotypes instead of one. See forward.py for why putting
+# the allele on a single node with many descendants does not do this.
 #
 # Positions are jittered off these fractions by the seeded RNG in sweeps.py so
 # that no selected site sits on a round number -- a round coordinate would
@@ -68,9 +75,9 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw04", 2, 0.18, 0.028, 2150,  1, "hard_old_complete"),
     ("sw05", 3, 0.22, 0.024, 2300,  1, "hard_old_complete"),
     # --- soft, from standing variation: H12 yes, SFS/H1 weak ---
-    ("sw06", 0, 0.86, 0.028,  900, 24, "soft_standing"),
-    ("sw07", 1, 0.78, 0.032,  780, 18, "soft_standing"),
-    ("sw08", 2, 0.86, 0.026, 1050, 32, "soft_standing"),
+    ("sw06", 0, 0.86, 0.028, 900, 50, "soft_standing"),
+    ("sw07", 1, 0.78, 0.032, 780, 50, "soft_standing"),
+    ("sw08", 2, 0.86, 0.026, 1050, 50, "soft_standing"),
     # --- partial / incomplete: never fixes ---
     ("sw09", 1, 0.46, 0.018,  430,  1, "partial"),
     ("sw10", 2, 0.64, 0.022,  390,  1, "partial"),

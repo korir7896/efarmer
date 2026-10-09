@@ -32,22 +32,22 @@ WIN, STEP = 50_000, 10_000
 CHROM_LEN = C.CHROM_LEN
 SWEEP_POS = 6_143_879          # a non-round position near the middle
 
-# (label, s, origin_gens_ago, ndescendants)
+# (label, s, origin_gens_ago, n_origins)
 CLASS_CONFIGS = {
     "hard_recent_complete": (0.035, 750, 1),
     "hard_old_complete":    (0.028, 2150, 1),
-    "soft_standing":        (0.032, 780, 18),
+    "soft_standing":        (0.032, 780, 50),
     "partial":              (0.018, 430, 1),
 }
 
 
 def one_replicate(label, seed):
-    s, origin, ndesc = CLASS_CONFIGS[label]
+    s, origin, n_origins = CLASS_CONFIGS[label]
     cfg = GenomeConfig(n_chrom=1, chrom_len=CHROM_LEN,
                        base_rec_rate=C.BASE_REC_RATE, mut_rate=C.MUT_RATE,
                        cold_spots=[])
     demog = C.demography()
-    plans = [SweepPlan("sw", SWEEP_POS, s, 1.0, origin, ndesc, label)]
+    plans = [SweepPlan("sw", SWEEP_POS, s, 1.0, origin, n_origins, label)]
     ts, rec, _ = run_forward(cfg, C.N_CURRENT, C.T_FORWARD, plans,
                              seed=seed, verbose=False)
     r = rec.real["sw"]
@@ -74,6 +74,7 @@ def one_replicate(label, seed):
         "fixation_gens_ago": r.fixation_gens_ago if r.fixed else None,
         "final_freq": float(r.final_freq),
         "s_true": float(r.s),
+        "n_origins_surviving": int(r.n_origins_surviving),
         "origin_gens_ago": int(r.origin_gens_ago),
         "sweep_pos": SWEEP_POS,
         "mid": mids,
@@ -95,8 +96,18 @@ def main():
     ap.add_argument("--n", type=int, default=8)
     ap.add_argument("--seed0", type=int, default=500_000)
     ap.add_argument("--outdir", default=os.path.join(HERE, "training"))
+    ap.add_argument("--s", type=float, default=None, help="override s")
+    ap.add_argument("--origin", type=int, default=None, help="override origin_gens_ago")
+    ap.add_argument("--n-origins", type=int, default=None, help="override n_origins")
+    ap.add_argument("--tag", default="", help="suffix for output filenames")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
+    if a.s is not None or a.origin is not None or a.n_origins is not None:
+        base = CLASS_CONFIGS[a.label]
+        CLASS_CONFIGS[a.label] = (a.s if a.s is not None else base[0],
+                                  a.origin if a.origin is not None else base[1],
+                                  a.n_origins if a.n_origins is not None else base[2])
+        print(f"override {a.label} -> {CLASS_CONFIGS[a.label]}", flush=True)
     for i in range(a.n):
         seed = a.seed0 + 97 * i
         try:
@@ -104,11 +115,20 @@ def main():
         except Exception as e:
             print(f"{a.label} seed {seed}: FAILED {e}", flush=True)
             continue
-        path = os.path.join(a.outdir, f"{a.label}_{seed}.npz")
+        path = os.path.join(a.outdir, f"{a.label}{a.tag}_{seed}.npz")
         np.savez_compressed(path, **{k: v for k, v in r.items() if v is not None})
+        # H2/H1 at the sweep, relative to this replicate's background: the
+        # statistic that is supposed to separate soft sweeps from hard ones.
+        mid = r["mid"]; h21 = r["h2_h1"]
+        near = np.abs(mid - r["sweep_pos"]) <= 200_000
+        import numpy as _np
+        h21_at = float(_np.nanmax(h21[near])) if near.any() else float("nan")
         print(f"{a.label} seed {seed}: realized={r['realized_class']} "
+              f"origins_surviving={r['n_origins_surviving']} "
               f"fix_ago={r['fixation_gens_ago']} freq={r['final_freq']:.3f} "
-              f"-> {os.path.basename(path)}", flush=True)
+              f"h2h1={h21_at:.3f} bg={r['bg_h2h1']:.3f} "
+              f"ratio={h21_at / r['bg_h2h1'] if r['bg_h2h1'] else float('nan'):.3f}",
+              flush=True)
 
 
 if __name__ == "__main__":
