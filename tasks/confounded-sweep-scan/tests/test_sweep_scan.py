@@ -177,7 +177,7 @@ def test_selection_coefficients(matched):
 
 
 def test_timing_of_completed_sweeps(truth, matched):
-    """Fixation time, graded separately within each completed class.
+    """Sweep completion time, graded separately within each completed class.
 
     Grading in aggregate would accept a single constant (see GATES).
     """
@@ -188,7 +188,7 @@ def test_timing_of_completed_sweeps(truth, matched):
 
     by_class = {}
     for t, c, _ in pairs:
-        if t["class"] not in COMPLETE_CLASSES or t["fixation_gens_ago"] is None:
+        if t["class"] not in COMPLETE_CLASSES or t["completion_gens_ago"] is None:
             continue
         by_class.setdefault(t["class"], []).append((t, c))
     if not by_class:
@@ -198,7 +198,7 @@ def test_timing_of_completed_sweeps(truth, matched):
     for klass, items in sorted(by_class.items()):
         ok, bad = 0, []
         for t, c in items:
-            true_t = float(t["fixation_gens_ago"])
+            true_t = float(t["completion_gens_ago"])
             tol = max(abs_tol, rel * true_t)
             if c["time"] is not None and abs(c["time"] - true_t) <= tol:
                 ok += 1
@@ -207,6 +207,6 @@ def test_timing_of_completed_sweeps(truth, matched):
         required = max(1, int(round(need * len(items))))
         if ok < required:
             problems.append(
-                f"{klass}: {ok}/{len(items)} fixation times within tolerance, "
+                f"{klass}: {ok}/{len(items)} completion times within tolerance, "
                 f"need {required}; off (id, true, reported): {bad}")
     assert not problems, "; ".join(problems)

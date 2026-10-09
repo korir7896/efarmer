@@ -34,8 +34,8 @@ def mock_truth():
             "position_global": p.position,
             "position_local": p.position - cfg.chrom_offset(c),
             "selection_coefficient": p.s, "class": p.intended_class,
-            "fixation_gens_ago": r["fix"], "final_frequency": r["freq"],
-            "fixed": r["fix"] is not None,
+            "completion_gens_ago": r["fix"], "final_frequency": r["freq"],
+            "completed": r["fix"] is not None,
         })
     return {
         "genome": {"n_chromosomes": cfg.n_chrom,
@@ -74,7 +74,7 @@ def perfect(truth):
         "sweeps": [{"chrom": s["chrom"], "position": s["position_local"],
                     "class": s["class"],
                     "selection_coefficient": s["selection_coefficient"],
-                    "time_gens_ago": s["fixation_gens_ago"]}
+                    "time_gens_ago": s["completion_gens_ago"]}
                    for s in truth["sweeps"]],
     }
 

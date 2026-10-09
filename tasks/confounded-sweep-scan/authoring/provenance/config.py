@@ -75,9 +75,9 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw04", 2, 0.18, 0.028, 2150,  1, "hard_old_complete"),
     ("sw05", 3, 0.22, 0.024, 2300,  1, "hard_old_complete"),
     # --- soft, from standing variation: H12 yes, SFS/H1 weak ---
-    ("sw06", 0, 0.86, 0.028, 900, 50, "soft_standing"),
-    ("sw07", 1, 0.78, 0.032, 780, 50, "soft_standing"),
-    ("sw08", 2, 0.86, 0.026, 1050, 50, "soft_standing"),
+    ("sw06", 0, 0.86, 0.028,  640, 100, "soft_standing"),
+    ("sw07", 1, 0.78, 0.032,  600, 100, "soft_standing"),
+    ("sw08", 2, 0.86, 0.026,  680, 100, "soft_standing"),
     # --- partial / incomplete: never fixes ---
     ("sw09", 1, 0.46, 0.018,  430,  1, "partial"),
     ("sw10", 2, 0.64, 0.022,  390,  1, "partial"),
@@ -105,9 +105,16 @@ POSITION_JITTER = 180_000
 #   s=0.040 origin 680   10/10 fixed   fixation 142-322
 #   s=0.028 origin 2150  10/10 fixed   fixation 1526-1685
 #   s=0.024 origin 2300  10/10 fixed   fixation 1583-1788
-#   s=0.028 origin 900  nd=24  9/10 fixed  fixation 109-488
-#   s=0.032 origin 780  nd=18 10/10 fixed  fixation 239-372
-#   s=0.026 origin 1050 nd=32 10/10 fixed  fixation 452-628
+#   s=0.028 origin 640  n_origins=100   completion 311-504, soft in 3/4
+#   s=0.032 origin 600  n_origins=100   completion 262-451, soft in 3/4
+#   s=0.026 origin 680  n_origins=100   completion 253-510, soft in 2/4
+#
+# Soft sweeps stay soft only while they are recent. Once a sweep completes,
+# the surviving beneficial haplotypes drift and one takes over, so replicates
+# whose sweep finished around 450-510 generations ago had collapsed to a
+# single origin by the present while those finishing around 260-340 had three
+# to eight. Hence the later origin times and the narrower acceptance window
+# here than for the hard sweeps.
 #   s=0.018 origin 430   0/16 fixed   final frequency 0.149-0.863, median 0.684
 #   s=0.022 origin 390   0/16 fixed   final frequency 0.247-0.891, median 0.727
 #
@@ -118,7 +125,7 @@ POSITION_JITTER = 180_000
 ACCEPT = {
     "hard_recent_complete": dict(must_fix=True, fix_ago_min=120, fix_ago_max=700),
     "hard_old_complete":    dict(must_fix=True, fix_ago_min=1100, fix_ago_max=1900),
-    "soft_standing":        dict(must_fix=True, fix_ago_min=100, fix_ago_max=900),
+    "soft_standing":        dict(must_fix=True, fix_ago_min=150, fix_ago_max=620),
     "partial":              dict(must_fix=False, freq_min=0.45, freq_max=0.90),
 }
 

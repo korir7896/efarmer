@@ -1,0 +1,289 @@
+"""Scan for sweeps against a null simulated under the inferred history.
+
+The whole point of the exercise is that a threshold taken from the genome
+itself is wrong twice over.  The bottleneck depresses diversity and skews the
+spectrum everywhere, so a constant-size null calls sweeps all over the
+genome.  And recombination is not uniform: a cold spot has fewer independent
+genealogies per window, so every statistic has heavier tails there.  Measured
+on neutral replicates of this genome, a genome-wide 99.9th-percentile cut
+fires 7 to 21 times more often inside cold spots than outside.
+
+So the null here is simulated under the fitted history AND with the real
+recombination map, and each window is compared against null windows of
+comparable local recombination rate.
+"""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import allel
+import msprime
+import numpy as np
+import tskit
+
+from . import sweepstats as SS
+
+BOUNDARY_RATE = math.log(2.0)
+
+# Statistics used for DETECTION, with the direction that indicates a sweep.
+# H2/H1 is deliberately excluded: it is near its neutral value at a soft
+# sweep, so including it in the detection score would penalise exactly the
+# class that is hardest to find. It is used for classification instead.
+DETECT_STATS = (("pi", "low"), ("tajima_d", "low"),
+                ("h12", "high"), ("nsl_frac", "high"))
+
+
+# ---------------------------------------------------------------------------
+# recombination map
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RateMap:
+    n_chrom: int
+    chrom_len: int
+    starts: Dict[int, np.ndarray] = field(default_factory=dict)
+    ends: Dict[int, np.ndarray] = field(default_factory=dict)
+    rates: Dict[int, np.ndarray] = field(default_factory=dict)
+
+    def mean_rate(self, chrom: int, lo: int, hi: int) -> float:
+        s, e, r = self.starts[chrom], self.ends[chrom], self.rates[chrom]
+        left = np.maximum(s, lo); right = np.minimum(e, hi)
+        w = np.clip(right - left, 0, None)
+        tot = w.sum()
+        return float((w * r).sum() / tot) if tot else float("nan")
+
+    def median_rate(self) -> float:
+        allr, allw = [], []
+        for c in range(1, self.n_chrom + 1):
+            allr.append(self.rates[c]); allw.append(self.ends[c] - self.starts[c])
+        r = np.concatenate(allr); w = np.concatenate(allw)
+        order = np.argsort(r)
+        r, w = r[order], w[order]
+        cw = np.cumsum(w)
+        return float(r[np.searchsorted(cw, cw[-1] / 2.0)])
+
+    def to_msprime(self) -> msprime.RateMap:
+        """One map over the concatenated genome, with ln(2) at each boundary.
+
+        Under msprime's discrete genome at most one breakpoint falls in a
+        one-base interval, so a rate of ln(2) there gives a breakpoint with
+        probability exactly 0.5: independent chromosomes.
+        """
+        pos = [0.0]; rate = []
+        for c in range(1, self.n_chrom + 1):
+            off = (c - 1) * self.chrom_len
+            s, e, r = self.starts[c], self.ends[c], self.rates[c]
+            for i in range(len(s)):
+                seg_end = off + float(e[i])
+                last_of_chrom = (e[i] == self.chrom_len)
+                if last_of_chrom and c < self.n_chrom:
+                    if seg_end - 1.0 > pos[-1]:
+                        pos.append(seg_end - 1.0); rate.append(float(r[i]))
+                    pos.append(seg_end); rate.append(BOUNDARY_RATE)
+                else:
+                    pos.append(seg_end); rate.append(float(r[i]))
+        return msprime.RateMap(position=np.array(pos), rate=np.array(rate))
+
+
+def load_rate_map(path: str) -> RateMap:
+    rows: Dict[int, List[Tuple[int, int, float]]] = {}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            f = line.split()
+            c = f[0]
+            c = int(c[3:]) if c.lower().startswith("chr") else int(c)
+            rows.setdefault(c, []).append((int(f[1]), int(f[2]), float(f[3])))
+    n_chrom = max(rows)
+    chrom_len = max(e for v in rows.values() for _, e, _ in v)
+    rm = RateMap(n_chrom=n_chrom, chrom_len=chrom_len)
+    for c, v in rows.items():
+        v.sort()
+        rm.starts[c] = np.array([a for a, _, _ in v], dtype=np.int64)
+        rm.ends[c] = np.array([b for _, b, _ in v], dtype=np.int64)
+        rm.rates[c] = np.array([r for _, _, r in v], dtype=float)
+    return rm
+
+
+# ---------------------------------------------------------------------------
+# windowed scan
+# ---------------------------------------------------------------------------
+
+def scan_chrom(cd, chrom_len: int, win: int, step: int) -> Dict[str, np.ndarray]:
+    sfs = SS.windowed_sfs_stats(cd, chrom_len, win, step)
+    gar = SS.garud_scan_bp(cd, chrom_len, win, step, min_snps=20)
+    ns = SS.nsl_scan(cd)
+    nsw = SS.windowed_max_abs(ns["pos"], ns["std"], chrom_len, win, step,
+                              kind="frac_extreme")
+    return {"mid": sfs["mid"], "win": sfs["win"], "pi": sfs["pi"],
+            "tajima_d": sfs["tajima_d"], "h12": gar["h12"],
+            "h2_h1": gar["h2_h1"], "nsl_frac": nsw["value"],
+            "n_snps": gar["n_snps"]}
+
+
+def scan_genome(chroms: Dict[str, object], chrom_len: int, rm: RateMap,
+                win: int, step: int) -> Dict[str, np.ndarray]:
+    cols: Dict[str, List[np.ndarray]] = {}
+    for name, cd in sorted(chroms.items(), key=lambda kv: int(kv[0][3:])):
+        c = int(name[3:])
+        sc = scan_chrom(cd, chrom_len, win, step)
+        sc["chrom"] = np.full(sc["mid"].size, c)
+        sc["rate"] = np.array([rm.mean_rate(c, int(a), int(b))
+                               for a, b in sc["win"]])
+        for k, v in sc.items():
+            if k == "win":
+                continue
+            cols.setdefault(k, []).append(v)
+    return {k: np.concatenate(v) for k, v in cols.items()}
+
+
+def rate_bin(rates: np.ndarray, median: float) -> np.ndarray:
+    """Three bins: strongly suppressed, mildly suppressed, ordinary."""
+    rel = rates / median
+    b = np.full(rel.size, 2, dtype=int)
+    b[rel < 0.70] = 1
+    b[rel < 0.30] = 0
+    return b
+
+
+# ---------------------------------------------------------------------------
+# null
+# ---------------------------------------------------------------------------
+
+def simulate_null_genome(hist, rm: RateMap, mu: float, n_dip: int, seed: int):
+    ts = msprime.sim_ancestry(samples={"pop": n_dip}, demography=hist.to_msprime(),
+                              recombination_rate=rm.to_msprime(),
+                              random_seed=seed)
+    ts = msprime.sim_mutations(ts, rate=mu, model=msprime.JC69(),
+                               discrete_genome=True, random_seed=seed + 1)
+    return ts
+
+
+def ts_to_chroms(ts: tskit.TreeSequence, n_chrom: int, chrom_len: int):
+    pos, gen = [], []
+    for var in ts.variants():
+        p = var.site.position
+        if p != int(p):
+            continue
+        g = var.genotypes
+        u = np.unique(g)
+        if u.size != 2 or len(var.alleles) > 2:
+            continue
+        pos.append(int(p)); gen.append(g.astype(np.int8))
+    pos = np.asarray(pos, dtype=np.int64)
+    G = np.vstack(gen)
+    out = {}
+    for c in range(n_chrom):
+        lo, hi = c * chrom_len, (c + 1) * chrom_len
+        m = (pos >= lo) & (pos < hi)
+        if not m.any():
+            continue
+        sub = G[m]
+        der = sub.sum(axis=1)
+        ac = np.stack([sub.shape[1] - der, der], axis=1)
+        out[f"chr{c + 1}"] = SS.ChromData(name=f"chr{c + 1}",
+                                          pos=(pos[m] - lo + 1).astype(np.int64),
+                                          hap=allel.HaplotypeArray(sub), ac=ac)
+    return out
+
+
+def build_null(hist, rm: RateMap, mu: float, n_dip: int, win: int, step: int,
+               n_reps: int, seed: int = 9_100_001, log=print):
+    reps = []
+    for i in range(n_reps):
+        ts = simulate_null_genome(hist, rm, mu, n_dip, seed + 977 * i)
+        chroms = ts_to_chroms(ts, rm.n_chrom, rm.chrom_len)
+        reps.append(scan_genome(chroms, rm.chrom_len, rm, win, step))
+        log(f"    null replicate {i + 1}/{n_reps}")
+    return {k: np.concatenate([r[k] for r in reps]) for k in reps[0]}
+
+
+# ---------------------------------------------------------------------------
+# scoring and peak calling
+# ---------------------------------------------------------------------------
+
+def sweep_scores(obs: Dict[str, np.ndarray], null: Dict[str, np.ndarray],
+                 median_rate: float) -> np.ndarray:
+    """Per-window sweep evidence: the strongest rate-matched z across statistics."""
+    ob = rate_bin(obs["rate"], median_rate)
+    nb = rate_bin(null["rate"], median_rate)
+    score = np.full(obs["pi"].size, -np.inf)
+    for stat, direction in DETECT_STATS:
+        o = obs[stat].astype(float)
+        z = np.full(o.size, -np.inf)
+        for b in np.unique(ob):
+            nvals = null[stat].astype(float)[nb == b]
+            nvals = nvals[np.isfinite(nvals)]
+            if nvals.size < 50:
+                nvals = null[stat].astype(float)
+                nvals = nvals[np.isfinite(nvals)]
+            mu_ = float(np.mean(nvals)); sd = float(np.std(nvals))
+            if sd <= 0:
+                continue
+            sel = (ob == b) & np.isfinite(o)
+            zz = (o[sel] - mu_) / sd
+            z[sel] = -zz if direction == "low" else zz
+        score = np.maximum(score, z)
+    return score
+
+
+def null_score_threshold(null: Dict[str, np.ndarray], median_rate: float,
+                         n_reps: int, expected_false: float = 0.3) -> float:
+    """Threshold whose expected number of null windows per genome is small."""
+    self_scores = sweep_scores(null, null, median_rate)
+    finite = self_scores[np.isfinite(self_scores)]
+    per_genome = finite.size / max(1, n_reps)
+    q = 1.0 - (expected_false / per_genome)
+    q = min(max(q, 0.5), 1.0 - 1e-9)
+    return float(np.quantile(finite, q))
+
+
+def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
+                 max_gap_windows: int = 3, min_separation: int = 400_000
+                 ) -> List[Dict[str, object]]:
+    """Cluster windows over threshold into regions, one call per region."""
+    regions: List[Dict[str, object]] = []
+    for c in np.unique(obs["chrom"]):
+        sel = np.where(obs["chrom"] == c)[0]
+        order = sel[np.argsort(obs["mid"][sel])]
+        hot = [i for i in order if np.isfinite(score[i]) and score[i] >= thresh]
+        if not hot:
+            continue
+        cluster = [hot[0]]
+        mids = obs["mid"]
+        step = float(np.median(np.diff(np.sort(mids[order])))) if order.size > 1 else 1.0
+        for i in hot[1:]:
+            if (mids[i] - mids[cluster[-1]]) <= (max_gap_windows + 1) * step:
+                cluster.append(i)
+            else:
+                regions.append(_summarize(obs, score, cluster, int(c)))
+                cluster = [i]
+        regions.append(_summarize(obs, score, cluster, int(c)))
+
+    regions.sort(key=lambda r: (r["chrom"], r["position"]))
+    merged: List[Dict[str, object]] = []
+    for r in regions:
+        if merged and merged[-1]["chrom"] == r["chrom"] and \
+                r["position"] - merged[-1]["position"] < min_separation:
+            if r["peak_score"] > merged[-1]["peak_score"]:
+                merged[-1] = r
+            continue
+        merged.append(r)
+    return merged
+
+
+def _summarize(obs, score, idx: Sequence[int], chrom: int) -> Dict[str, object]:
+    idx = list(idx)
+    best = max(idx, key=lambda i: score[i])
+    return {
+        "chrom": chrom,
+        "position": int(round(float(obs["mid"][best]))),
+        "peak_score": float(score[best]),
+        "window_indices": idx,
+        "peak_index": int(best),
+        "span": (float(obs["mid"][min(idx)]), float(obs["mid"][max(idx)])),
+    }

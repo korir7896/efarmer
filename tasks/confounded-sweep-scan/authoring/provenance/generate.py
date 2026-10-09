@@ -163,7 +163,9 @@ def main():
             "n_origins_introduced": r.n_origins_introduced,
             "n_origins_surviving": r.n_origins_surviving,
             "origin_gens_ago": r.origin_gens_ago,
+            "completion_gens_ago": r.completion_gens_ago if r.completed else None,
             "fixation_gens_ago": r.fixation_gens_ago if r.fixed else None,
+            "completed": r.completed,
             "final_frequency": round(r.final_freq, 6),
             "fixed": r.fixed,
         })

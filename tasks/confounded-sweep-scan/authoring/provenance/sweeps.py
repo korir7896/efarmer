@@ -81,12 +81,13 @@ def realized_class(r: SweepRealization) -> str:
     beneficial allele, which is the standard definition of a multiple-origin
     soft sweep and is exactly what the haplotype statistics respond to.
     """
-    if not r.fixed:
+    if not r.completed:
         return "partial"
     if r.n_origins_surviving >= 2:
         return "soft_standing"
     boundary = C.ACCEPT["hard_recent_complete"]["fix_ago_max"]
-    return "hard_recent_complete" if r.fixation_gens_ago <= boundary else "hard_old_complete"
+    return ("hard_recent_complete" if r.completion_gens_ago <= boundary
+            else "hard_old_complete")
 
 
 def check_acceptance(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str]]:
@@ -95,16 +96,25 @@ def check_acceptance(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str
     for sid, r in sorted(reals.items()):
         rule = C.ACCEPT[r.intended_class]
         if rule["must_fix"]:
-            if not r.fixed:
-                problems.append(f"{sid} ({r.intended_class}): did not fix, freq={r.final_freq:.3f}")
-                continue
-            if not (rule["fix_ago_min"] <= r.fixation_gens_ago <= rule["fix_ago_max"]):
+            if not r.completed:
                 problems.append(
-                    f"{sid} ({r.intended_class}): fixed {r.fixation_gens_ago} gens ago, "
-                    f"want [{rule['fix_ago_min']},{rule['fix_ago_max']}]")
+                    f"{sid} ({r.intended_class}): did not complete, freq={r.final_freq:.3f}")
+                continue
+            if not (rule["fix_ago_min"] <= r.completion_gens_ago <= rule["fix_ago_max"]):
+                problems.append(
+                    f"{sid} ({r.intended_class}): completed {r.completion_gens_ago} "
+                    f"gens ago, want [{rule['fix_ago_min']},{rule['fix_ago_max']}]")
+            if r.intended_class == "soft_standing" and r.n_origins_surviving < 2:
+                problems.append(
+                    f"{sid}: only {r.n_origins_surviving} surviving origin(s), "
+                    f"so the sweep is not soft")
+            if r.intended_class != "soft_standing" and r.n_origins_surviving > 1:
+                problems.append(
+                    f"{sid}: {r.n_origins_surviving} surviving origins on a sweep "
+                    f"meant to be hard")
         else:
-            if r.fixed:
-                problems.append(f"{sid} ({r.intended_class}): fixed, wanted partial")
+            if r.completed:
+                problems.append(f"{sid} ({r.intended_class}): completed, wanted partial")
                 continue
             if not (rule["freq_min"] <= r.final_freq <= rule["freq_max"]):
                 problems.append(

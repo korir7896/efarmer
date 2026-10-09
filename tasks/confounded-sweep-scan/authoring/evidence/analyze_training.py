@@ -95,19 +95,19 @@ def main():
             print(f"  {f:<10} median {np.median(e):>6.0f} kb   p90 {np.percentile(e,90):>6.0f} kb"
                   f"   max {e.max():>6.0f} kb")
 
-    print("\n=== fixation time from diversity recovery:  t_hat = 2*N_cur*pi_min/pi_bg ===")
+    print("\n=== completion time from diversity recovery:  t_hat = 2*N_cur*pi_min/pi_bg ===")
     print(f"{'class':<22}{'true':>8}{'t_hat':>9}{'ratio':>8}")
     for lab, reps in sorted(data.items()):
         rows = []
         for d in reps:
-            if d["fixed"].item() is False:
+            if not bool(d["completed"].item()):
                 continue
             _, pimin = extremum(d, "pi", "low")
             bg = float(d["bg_pi"])
             if pimin is None or not bg:
                 continue
             t_hat = 2.0 * C.N_CURRENT * (pimin / bg)
-            rows.append((float(d["fixation_gens_ago"]), t_hat))
+            rows.append((float(d["completion_gens_ago"]), t_hat))
         if rows:
             tr = np.array([r[0] for r in rows]); th = np.array([r[1] for r in rows])
             print(f"{lab:<22}{np.median(tr):>8.0f}{np.median(th):>9.0f}"

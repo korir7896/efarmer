@@ -71,7 +71,8 @@ def one_replicate(label, seed):
         "seed": seed,
         "realized_class": realized_class(r),
         "fixed": bool(r.fixed),
-        "fixation_gens_ago": r.fixation_gens_ago if r.fixed else None,
+        "completed": bool(r.completed),
+        "completion_gens_ago": r.completion_gens_ago if r.completed else None,
         "final_freq": float(r.final_freq),
         "s_true": float(r.s),
         "n_origins_surviving": int(r.n_origins_surviving),
@@ -125,7 +126,7 @@ def main():
         h21_at = float(_np.nanmax(h21[near])) if near.any() else float("nan")
         print(f"{a.label} seed {seed}: realized={r['realized_class']} "
               f"origins_surviving={r['n_origins_surviving']} "
-              f"fix_ago={r['fixation_gens_ago']} freq={r['final_freq']:.3f} "
+              f"done_ago={r['completion_gens_ago']} freq={r['final_freq']:.3f} "
               f"h2h1={h21_at:.3f} bg={r['bg_h2h1']:.3f} "
               f"ratio={h21_at / r['bg_h2h1'] if r['bg_h2h1'] else float('nan'):.3f}",
               flush=True)

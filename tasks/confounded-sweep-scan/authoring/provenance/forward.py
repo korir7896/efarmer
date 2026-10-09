@@ -86,6 +86,9 @@ class SweepRealization:
     fixed: bool = False
     fixation_gen_forward: int = -1
     fixation_gens_ago: int = -1
+    completed: bool = False
+    completion_gen_forward: int = -1
+    completion_gens_ago: int = -1
     final_count: int = 0
     final_freq: float = 0.0
     max_freq: float = 0.0
@@ -104,6 +107,16 @@ class SweepRealization:
 # --------------------------------------------------------------------------
 # trajectory recorder
 # --------------------------------------------------------------------------
+
+# A sweep counts as COMPLETE at this frequency rather than at exact fixation.
+# With many origins, exact fixation requires every ancestral haplotype to be
+# lost, which can lag the sweep by hundreds of generations: a measured
+# 200-origin sweep sat at 0.9999 and so was still formally segregating. No
+# statistic distinguishes 0.9999 from 1.0, and what diversity recovery
+# actually dates is when the sweep finished, so completion is both the
+# robust definition and the estimable one.
+COMPLETION_FREQ = 0.98
+
 
 class TrajectoryRecorder:
     """Tracks each sweep's total frequency and its number of living origins.
@@ -175,6 +188,10 @@ class TrajectoryRecorder:
             r.final_count = self.two_n if r.fixed else total
             r.final_freq = r.final_count / self.two_n
             r.max_freq = max(r.max_freq, r.final_freq)
+            if r.final_freq >= COMPLETION_FREQ and not r.completed:
+                r.completed = True
+                r.completion_gen_forward = gen
+                r.completion_gens_ago = self.total_gens - gen
             if self.traj_thin == 1 or gen % self.traj_thin == 0 or gen == self.total_gens:
                 r.trajectory[gen] = r.final_count
 
@@ -244,7 +261,7 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                 simplification_interval: int = 100,
                 max_attempts: int = 4000,
                 chunk: int = 25,
-                min_soft_origins: int = 2,
+                min_soft_origins: int = 5,
                 traj_thin: int = 1,
                 verbose: bool = True):
     """Run the forward phase in stages, conditioning each sweep on non-loss.
@@ -353,9 +370,11 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                 if not fixed and total < est_threshold(plan.s):
                     accepted = False
                     break
-                # A soft sweep that has already collapsed to one origin by the
-                # end of the establishment window will never be soft, so retry
-                # now rather than discovering it at the end of the replicate.
+                # Require several surviving origins at establishment, not
+                # just two. Origins keep being lost after the sweep completes,
+                # so a sweep holding only two here usually holds one by the
+                # present; demanding five raises the share of replicates that
+                # are still soft at sampling time from roughly 70% to most.
                 if plan.n_origins > 1 and surviving < min_soft_origins:
                     accepted = False
                     break
