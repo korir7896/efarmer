@@ -83,14 +83,27 @@ CONFIGS_HOLDOUT=(
   "soft_partial     0.0450     170         30    _ho_s0450"
 )
 
+# Second holdout pass. The first left only five or six usable replicates in
+# the thinner classes, which is a sample-size handicap rather than a property
+# of the gates, and the comparison it feeds has to be fair.
+CONFIGS_HOLDOUT2=(
+  "hard_partial     0.0240     330          1    _ho_s0240"
+  "hard_partial     0.0120     620          1    _ho_s0120"
+  "soft_complete    0.0220     460        100    _ho_s0220"
+  "soft_complete    0.0400     320        100    _ho_s0400"
+  "soft_partial     0.0200     360         60    _ho_s0200p"
+  "soft_partial     0.0330     220         30    _ho_s0330"
+)
+
 case "${SET:-main}" in
   main)  CONFIGS=("${CONFIGS_MAIN[@]}") ;;
   extra) CONFIGS=("${CONFIGS_EXTRA[@]}") ;;
   extra2) CONFIGS=("${CONFIGS_EXTRA2[@]}") ;;
   holdout) CONFIGS=("${CONFIGS_HOLDOUT[@]}") ;;
+  holdout2) CONFIGS=("${CONFIGS_HOLDOUT2[@]}") ;;
   all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}"
                   "${CONFIGS_EXTRA2[@]}") ;;
-  *) echo "SET must be main, extra, extra2, holdout or all"; exit 1 ;;
+  *) echo "SET must be main, extra, extra2, holdout, holdout2 or all"; exit 1 ;;
 esac
 
 i=0
