@@ -25,9 +25,9 @@ What is deliberately different from solution/pipeline/:
                 with clusters formed at a mild cut and judged by total mass.
                 Three statistics, not six.
 
-  class         a k-nearest-neighbour vote on four features, three of which
-                the reference's rules do not use, against two fitted logistic
-                rules applied in sequence.
+  class         a distance-weighted k-nearest-neighbour vote (k=5) on four
+                features, three of which the reference's rules do not use,
+                against two fitted logistic rules applied in sequence.
 
   s             the width of the Tajima's D trough times the local rate,
                 over one constant per class -- the relation the reference
@@ -545,7 +545,7 @@ def build_knn(cal):
     return (X - mu) / sd, y, mu, sd
 
 
-def knn_classify(f, Z, y, mu, sd, k: int = 3) -> str:
+def knn_classify(f, Z, y, mu, sd, k: int = 5) -> str:
     x = np.array([f.get(c, np.nan) for c in KNN_FEATS], float)
     if not np.all(np.isfinite(x)):
         return "hard_complete"

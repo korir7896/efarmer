@@ -1,1 +1,4 @@
 override soft_partial -> (0.02, 360, 60)
+soft_partial seed 904000: realized=soft_partial origins_surviving=4 done_ago=None freq=0.880 h2h1=0.707 bg=0.821 ratio=0.860
+soft_partial seed 904097: realized=soft_partial origins_surviving=4 done_ago=None freq=0.915 h2h1=0.734 bg=0.775 ratio=0.948
+soft_partial seed 904194: realized=soft_partial origins_surviving=3 done_ago=None freq=0.705 h2h1=0.693 bg=0.816 ratio=0.849
