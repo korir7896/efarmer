@@ -107,6 +107,30 @@ def test_bottleneck_is_a_bottleneck(truth, parsed):
 
 def test_per_class_recall(truth, matched):
     pairs, unmatched_truth, _ = matched
+
+    # Before grading the submission, check the gate is satisfiable at all.
+    # A recall floor above the number of true sweeps of that class, or a
+    # timing floor above the number of dateable ones, makes the task
+    # impossible rather than hard, and it would otherwise show up as a
+    # mysterious failure of every submission including a perfect one. This
+    # is an authoring error, so it is phrased as one.
+    census = {}
+    for t in truth["sweeps"]:
+        census[t["class"]] = census.get(t["class"], 0) + 1
+    impossible = [f"{k}: gate needs {need} but the truth has "
+                  f"{census.get(k, 0)}"
+                  for k, need in GATES["min_recall_per_class"].items()
+                  if census.get(k, 0) < need]
+    n_dateable = sum(1 for t in truth["sweeps"]
+                     if t["class"] in TIMED_CLASSES
+                     and t.get("completion_gens_ago") is not None)
+    if n_dateable < GATES["min_time_correct"]:
+        impossible.append(f"timing gate needs {GATES['min_time_correct']} "
+                          f"dated sweeps but only {n_dateable} are dateable")
+    assert not impossible, ("the gates are not satisfiable against this "
+                            "truth file, which is an authoring error: "
+                            + "; ".join(impossible))
+
     found = {}
     for t, c, d in pairs:
         found[t["class"]] = found.get(t["class"], 0) + 1
