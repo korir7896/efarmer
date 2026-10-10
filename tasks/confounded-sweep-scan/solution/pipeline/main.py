@@ -45,6 +45,11 @@ def main(argv=None):
     ap.add_argument("--form-quantile", type=float, default=0.99,
                     help="null quantile at which clusters are formed")
     ap.add_argument("--seed", type=int, default=20_240_101)
+    ap.add_argument("--dump-scan", default=None,
+                    help="authoring aid: save the windowed scan, the scores "
+                         "and the called regions to this .npz so the "
+                         "characterisation step can be re-derived without "
+                         "re-running the eight-minute pipeline")
     a = ap.parse_args(argv)
 
     t_start = time.time()
@@ -98,6 +103,19 @@ def main(argv=None):
     bins = DET.rate_bin(obs["rate"], med_rate)
     bg = CH.background_levels(obs, regions, bins)
 
+    if a.dump_scan:
+        np.savez_compressed(
+            a.dump_scan,
+            score=score, bins=bins, form_thresh=form_thresh,
+            mass_thresh=mass_thresh,
+            hist=json.dumps(hist.as_dict()),
+            regions=json.dumps([
+                {k: (list(map(int, v)) if k == "window_indices"
+                     else list(v) if k == "span" else v)
+                 for k, v in r.items()} for r in regions]),
+            **{f"obs_{k}": v for k, v in obs.items()})
+        log(f"  scan dumped to {a.dump_scan}")
+
     calls = []
     for r in regions:
         b = int(bins[r["peak_index"]])
@@ -114,8 +132,11 @@ def main(argv=None):
             "class": klass,
             "selection_coefficient": float(s_hat) if np.isfinite(s_hat) else 0.01,
         }
-        # The schema requires a completion time for the classes a submission
-        # calls complete, and ignores it for the partial ones.
+        # A completion time for every call. The schema requires one on the
+        # complete classes and ignores it on the partial ones, and the
+        # verifier grades it against a sweep's TRUE class, so reporting it
+        # everywhere costs nothing and saves the dates of any sweep this
+        # pipeline classifies wrongly.
         if t_hat is not None:
             call["time_gens_ago"] = float(round(t_hat))
         calls.append(call)

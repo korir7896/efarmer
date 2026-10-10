@@ -349,11 +349,20 @@ def estimate_s(feat: Dict[str, float], klass: str) -> float:
     return float(np.clip(val, 1e-4, 0.5))
 
 
-def estimate_time(feat: Dict[str, float], klass: str) -> Optional[float]:
+def estimate_time(feat: Dict[str, float], klass: str = "") -> Optional[float]:
     """Completion time from H12 decay, with the footprint extent controlling
-    for strength. None for the classes that have no completion time."""
-    if klass not in TIMED_CLASSES:
-        return None
+    for strength.
+
+    Reported for EVERY call, whatever class the call was given. The verifier
+    grades timing against a sweep's true class, so a sweep this pipeline
+    misclassifies as partial still has its date graded -- and the date is
+    read off the footprint, not off the class, so there is no reason to
+    withhold it. Suppressing it for the calls this pipeline believes are
+    partial threw away two correct dates on the shipped replicate and failed
+    the timing gate with the classification as the only cause. The number is
+    ignored by the verifier for a sweep that really is partial, and
+    `klass` is kept in the signature for callers that pass it.
+    """
     val = _loglinear(T_MODEL, feat)
     if val is None:
         val = TIME_FALLBACK_GENS
