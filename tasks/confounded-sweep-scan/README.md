@@ -44,37 +44,69 @@ outside:
 The map is given to the agent, so this is a rule to infer, not a secret. But
 a scan run at its defaults will report cold spots as sweeps.
 
-**No single statistic finds all four sweep classes.** Measured in the window
-containing the selected site, against each replicate's own background,
-grouped by what each sweep actually turned out to be:
+**No single statistic finds all four sweep classes, and neither axis of the
+class scheme has a statistic that carries it.** The four classes are the two
+binary properties a scan can be asked to recover, crossed: complete or
+partial (did the beneficial allele pass 0.98), hard or soft (is one
+independent origin of it still present, or several). Measured in the window
+containing the selected site, against each replicate's own background, over
+48 independent single-sweep replicates grouped by what each sweep actually
+turned out to be:
 
 | realized class | diversity | Tajima's D | H12 | H2/H1 | nSL | n |
 | --- | --- | --- | --- | --- | --- | --- |
-| hard, recent, complete | 0.073 | -2.65 | 8.46 | 0.071 | 0.044 | 11 |
-| hard, old, complete | 0.154 | -2.37 | 1.35 | 0.797 | 0.030 | 8 |
-| soft, complete | 0.743 | **+0.89** | 4.52 | 0.436 | 0.016 | 4 |
-| partial, still rising | 0.528 | -1.44 | 7.46 | 0.111 | 0.389 | 8 |
+| hard_complete | 0.119 | -2.44 | 7.409 | 0.084 | +0.01 | 16 |
+| hard_partial | 0.801 | -0.63 | 6.596 | 0.104 | +0.41 | 9 |
+| soft_complete | 0.798 | +0.54 | 4.266 | 0.691 | -0.02 | 15 |
+| soft_partial | 0.775 | -0.23 | 5.374 | 0.575 | +0.22 | 8 |
 
-Diversity and H12 as ratios to background, Tajima's D and nSL as
-differences.
+Diversity, H12 and H2/H1 as ratios to background, Tajima's D and the
+extreme-nSL fraction as differences; median over replicates.
 
-H12 collapses for old sweeps, from about 8.5 down to 1.3, because
-recombination erodes the swept haplotype block. nSL reads near zero at any
-completed sweep, since no high-frequency young haplotype remains to carry a
-long tract, so it responds to partial sweeps and little else. Diversity
-locates a partial sweep to a median 380 kb against 25 kb for H12.
+The medians separate. The distributions do not, and that is the difficulty.
 
-The soft sweeps are the subtlest: their diversity sits at 0.74 of
-background, barely depressed, so a diversity scan does not see them at all
-and only H12 does. What identifies them is that Tajima's D at a soft sweep
-is **positive**, +0.21 to +1.15, where every other class is negative with a
-maximum of -0.25: several frequent haplotypes leave an excess of
-intermediate-frequency variants.
+H2/H1 is the textbook hard-versus-soft discriminator and it does not work
+here, because it is confounded by age: across the hard_complete replicates
+it runs from 0.009 to 1.012 of background, which swallows the 0.025 to 0.861
+the soft completed ones occupy. At a recent hard sweep one haplotype
+dominates and H2/H1 is near zero; at an old one recombination has broken up
+the swept block and H2/H1 has recovered to background. Diversity is the
+obvious complete-versus-partial discriminator and it is confounded by
+softness: 0.011 to 0.719 across hard_complete against 0.383 to 1.167 across
+hard_partial, because a soft completed sweep leaves diversity near
+background exactly as a partial one does.
 
-Worth noting what does NOT work, since it is the obvious choice: H2/H1,
-normally the hard-versus-soft discriminator, fails here. At an old hard
-sweep the block has decayed far enough that H2/H1 recovers to 0.46-0.99,
-overlapping the 0.27-0.62 measured at soft sweeps.
+What does separate the classes is different features on each axis, and for
+softness a different feature depending on completeness. Completeness is
+carried by diversity together with the number of segregating sites in the
+window. Softness among completed sweeps is carried by Tajima's D, which
+several frequent haplotypes push positive where one pushes it negative, with
+the extent of the H12 elevation controlling for the sweep's strength.
+Softness among partial sweeps is carried by H2/H1 after all -- usable there
+precisely because age is not in play, since every partial sweep is still
+rising. Measured leave-one-configuration-out, that gets 81.2% against 72.9%
+for a single nearest-centroid rule over all four classes at once, and 90.3%
+on the softness axis among completed sweeps against 70.6% among partial
+ones.
+
+H12 collapses for old sweeps, because recombination erodes the swept
+haplotype block, so a scan that leans on it misses them. nSL reads near zero
+at any completed sweep, since no high-frequency young haplotype remains to
+carry a long tract: it is the only statistic that responds strongly to
+partial sweeps, +0.41 and +0.22 against +0.01 and -0.02, and it responds to
+almost nothing else.
+
+**And the two quantities asked about each sweep are relations that have to be
+derived and calibrated.** The selection coefficients in the shipped
+replicate span a factor of 9.4 and the ages of the datable sweeps a factor
+of sixteen, so no single plausible number satisfies either requirement. The
+textbook relation for strength, that the footprint extends to about s over
+the local recombination rate, is necessary but not sufficient: fitted as
+trough width times local rate over a per-class constant it put 74% of
+replicates inside a factor of 2.5 and ranked them at only 0.32, because a
+soft sweep leaves no trough whose width can be measured. Taking the swept
+extent from the H12 elevation instead, where diversity is flat, brings that
+to 98% and 0.82.
 
 ## Why shortcuts fail, gate by gate
 
@@ -154,17 +186,39 @@ history, so the history comes first.
    identical procedure to every null replicate, which keeps the
    false-positive budget exact and makes it a budget on clusters, which is
    what a call is.
-4. **Characterisation** by a nearest-centroid rule on four features read at
-   the peak: diversity and H2/H1 as ratios to background, Tajima's D and the
-   extreme-nSL fraction as differences. Calibrated on 32 independent
-   single-sweep replicates, 90.6% leave-one-out accuracy against 69% for the
-   best single feature. Plus two estimators: the selection coefficient from
-   the trough width times the local rate, with the width measured as the
-   contiguous span recovering halfway from the trough's own floor rather
-   than crossing half of background (which the shallow classes never do),
-   meeting a factor-of-three tolerance on 91% of replicates and on all of
-   both hard classes; and the completion time from diversity recovery with a
-   class-specific bias removed, for single-origin completed sweeps only.
+4. **Characterisation** of each called region, calibrated on 48 independent
+   single-sweep replicates simulated under the same history at several
+   strengths per class and grouped by what each sweep actually turned out to
+   be. Every score quoted here is leave-one-CONFIGURATION-out, not
+   leave-one-replicate-out: the shipped sweeps sit at the very (s, age)
+   configurations the replicates were simulated at, so holding out one
+   replicate at a time would reward a rule that had memorised those few
+   pairs.
+
+   **Class** by one rule per axis rather than one rule over four classes:
+   81.2% against 72.9% for a nearest-centroid rule on the same features.
+   Completeness comes from diversity with the number of segregating sites in
+   the window; softness from Tajima's D with the extent of the H12
+   elevation among completed sweeps, and from H2/H1 among partial ones,
+   fitted separately because the axis is much easier among completed sweeps
+   (90.3%) than among those still rising (70.6%).
+
+   **Selection coefficient** from a log-linear fit in two measured features
+   per class: 98% within a factor of 2.5 with a rank correlation of 0.82
+   pooled across classes. The textbook relation, footprint extent times the
+   local rate, is the backbone of it, but on its own, as trough width over a
+   per-class constant, it reached only 74% and ranked at 0.32 -- a soft sweep
+   leaves no trough whose width can be measured. The soft classes take their
+   extent from the H12 elevation instead. All width features are scaled by
+   the local recombination rate, because what strength sets is the genetic
+   length of the footprint, not its length in base pairs.
+
+   **Completion time** from H12 decay with the footprint extent controlling
+   for strength: 15 of 16 inside the verifier's tolerance, rank correlation
+   0.88. Dating by residual diversity at the trough's floor instead, which
+   is the obvious choice, managed 9 of 16. Reported for every sweep called
+   complete, because the schema requires a number there, and graded only
+   where it is estimable.
 
 Validated against four independent neutral replicates with known truth:
 N_ancestral 1.00 to 1.16x, N_current 0.88 to 1.12x, bottleneck severity 1.14
