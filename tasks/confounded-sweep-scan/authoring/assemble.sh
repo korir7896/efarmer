@@ -17,6 +17,7 @@ test -f "$SRC/sealed/truth.json"      || { echo "no truth.json in $SRC/sealed"; 
 echo "=== copying agent-facing data into the environment image ==="
 cp "$SRC/public/variants.vcf.gz"      "$TASK/environment/data/"
 cp "$SRC/public/recombination_map.bed" "$TASK/environment/data/"
+cp "$SRC/public/README_DATA.txt"        "$TASK/environment/data/"
 ls -la "$TASK/environment/data/"
 
 echo
@@ -34,6 +35,10 @@ print("  versions:", p["versions"])
 for k, v in p["sha256"].items():
     print(f"  sha256 {k}: {v}")
 PY
+
+echo
+echo "=== the instance, from the sealed truth ==="
+"$PY" "$TASK/authoring/evidence/doc_facts.py"
 
 echo
 echo "=== leak audit ==="
