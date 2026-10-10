@@ -66,6 +66,10 @@ echo "=== gate feasibility, triviality and the design guarantee ==="
 "$PY" "$TASK/authoring/evidence/gate_feasibility.py"
 
 echo
+echo "=== instruction.md against the graded thresholds ==="
+"$PY" "$TASK/authoring/evidence/instruction_audit.py"
+
+echo
 echo "=== verifier self-test against the shipped truth ==="
 "$PY" "$TASK/authoring/evidence/verifier_selftest.py"
 

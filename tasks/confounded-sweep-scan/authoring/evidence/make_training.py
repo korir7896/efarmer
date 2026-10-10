@@ -23,7 +23,7 @@ import config as C
 import sweepstats as SS
 from export import present_day_individuals, scrub_metadata, subsample
 from forward import SweepPlan, run_forward
-from genome import GenomeConfig
+from genome import ColdSpot, GenomeConfig
 from nullsim import ts_to_chromdata
 from recap import overlay_mutations, recapitate
 from sweeps import realized_class
@@ -46,11 +46,27 @@ CLASS_CONFIGS = {
 }
 
 
-def one_replicate(label, seed):
+# Width of the cold spot used by --coldspot-factor, and how far the sweep
+# sits inside it. Both match the shipped sweep-bearing spots (2.6-3.0 Mb,
+# selected site at least 1 Mb from either edge), because the footprint only
+# stretches while it is still inside the spot: calibrating on a narrow spot
+# would measure a different thing from what the shipped replicate contains.
+COLDSPOT_WIDTH = 2_800_000
+
+
+def one_replicate(label, seed, coldspot_factor=None):
     s, origin, n_origins = CLASS_CONFIGS[label]
+    spots = []
+    if coldspot_factor is not None:
+        # Centre the spot on the sweep so the footprint is stretched
+        # symmetrically, which is the case the shipped replicate contains.
+        half = COLDSPOT_WIDTH // 2
+        spots = [ColdSpot(chrom=0, start=SWEEP_POS - half,
+                          end=SWEEP_POS + half, factor=coldspot_factor,
+                          decoy=False)]
     cfg = GenomeConfig(n_chrom=1, chrom_len=CHROM_LEN,
                        base_rec_rate=C.BASE_REC_RATE, mut_rate=C.MUT_RATE,
-                       cold_spots=[])
+                       cold_spots=spots)
     demog = C.demography()
     plans = [SweepPlan("sw", SWEEP_POS, s, 1.0, origin, n_origins, label)]
     ts, rec, _ = run_forward(cfg, C.N_CURRENT, C.T_FORWARD, plans,
@@ -83,6 +99,9 @@ def one_replicate(label, seed):
         "n_origins_surviving": int(r.n_origins_surviving),
         "origin_gens_ago": int(r.origin_gens_ago),
         "sweep_pos": SWEEP_POS,
+        "local_rate": float(cfg.rate_at(SWEEP_POS)),
+        "coldspot_factor": (float(coldspot_factor)
+                            if coldspot_factor is not None else 1.0),
         "mid": mids,
         "pi": sfs["pi"], "tajima_d": sfs["tajima_d"],
         "h12": gar["h12"], "h2_h1": gar["h2_h1"],
@@ -106,6 +125,12 @@ def main():
     ap.add_argument("--origin", type=int, default=None, help="override origin_gens_ago")
     ap.add_argument("--n-origins", type=int, default=None, help="override n_origins")
     ap.add_argument("--tag", default="", help="suffix for output filenames")
+    ap.add_argument("--coldspot-factor", type=float, default=None,
+                    help="put the sweep inside a cold spot of this rate "
+                         "factor, as the three shipped cold-spot sweeps are. "
+                         "Without it the replicate is at the base rate "
+                         "throughout, which is the only case the earlier "
+                         "calibration covered.")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     if a.s is not None or a.origin is not None or a.n_origins is not None:
@@ -117,7 +142,8 @@ def main():
     for i in range(a.n):
         seed = a.seed0 + 97 * i
         try:
-            r = one_replicate(a.label, seed)
+            r = one_replicate(a.label, seed,
+                              coldspot_factor=a.coldspot_factor)
         except Exception as e:
             print(f"{a.label} seed {seed}: FAILED {e}", flush=True)
             continue
@@ -133,7 +159,8 @@ def main():
               f"origins_surviving={r['n_origins_surviving']} "
               f"done_ago={r['completion_gens_ago']} freq={r['final_freq']:.3f} "
               f"h2h1={h21_at:.3f} bg={r['bg_h2h1']:.3f} "
-              f"ratio={h21_at / r['bg_h2h1'] if r['bg_h2h1'] else float('nan'):.3f}",
+              f"ratio={h21_at / r['bg_h2h1'] if r['bg_h2h1'] else float('nan'):.3f} "
+              f"rate={r['local_rate']:.1e}",
               flush=True)
 
 
