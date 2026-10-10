@@ -42,7 +42,7 @@ mkdir -p "$OUT"
 # in ACCEPT settled on, not the first guesses.
 CONFIGS_SHIPPED=(
   "hard_complete  0.0900   274    1  -  _s0900"
-  "hard_complete  0.0110  1595    1  -  _s0110"
+  "hard_complete  0.0280   770    1  -  _s0280"
   "hard_complete  0.0400  1083    1  -  _s0400"
   "hard_complete  0.0130  2492    1  -  _s0130"
   "hard_complete  0.0550  2722    1  -  _s0550"

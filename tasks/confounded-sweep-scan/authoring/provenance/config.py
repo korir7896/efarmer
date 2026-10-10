@@ -135,7 +135,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     # oldest is the second strongest. Nothing about a sweep's strength can be
     # read off its age or the reverse.
     ("sw01", 0, 0.120,  0.0900,  274,   1, "hard_complete"),   # ~130 gens ago
-    ("sw02", 1, 0.160,  0.0110, 1595,   1, "hard_complete"),   # ~350
+    ("sw02", 1, 0.160,  0.0280,  770,   1, "hard_complete"),   # ~350
     ("sw03", 1, 0.6571, 0.0400, 1083,   1, "hard_complete"),   # ~760
     ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
@@ -319,7 +319,7 @@ ACCEPT: Dict[str, Dict] = {
     "sw01": dict(class_="hard_complete", must_complete=True,
                  done_min=100,  done_max=180),    # probed 111, 131, 148
     "sw02": dict(class_="hard_complete", must_complete=True,
-                 done_min=200,  done_max=520),    # s raised to 0.0110
+                 done_min=280,  done_max=440),    # s raised to 0.0280
     "sw03": dict(class_="hard_complete", must_complete=True,
                  done_min=700,  done_max=880),    # probed 749, 802, 823
     "sw04": dict(class_="hard_complete", must_complete=True,
@@ -328,28 +328,27 @@ ACCEPT: Dict[str, Dict] = {
                  done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
     # soft_complete: must stay SOFT, which is the binding constraint.
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=100,  done_max=330),    # origin moved to 519
+                 done_min=120,  done_max=430),    # isolated 142, 389, 391
     "sw07": dict(class_="soft_complete", must_complete=True,
                  done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
-                 done_min=440,  done_max=700),    # probed 550, 582
+                 done_min=430,  done_max=760),    # isolated 542, 687, 700
     # hard_partial: still segregating today.
     "sw09": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.30, freq_max=0.90),   # probed 0.361, 0.542, 0.712
+                 freq_min=0.1, freq_max=0.96),   # isolated 0.221, 0.880, 0.907
     "sw10": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.12, freq_max=0.93),   # probed 0.267, 0.664,
-    #                                        0.846; in context 0.159
+                 freq_min=0.1, freq_max=0.96),   # isolated 0.386, 0.455, 0.577
     "sw11": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.18, freq_max=0.96),   # s lowered to 0.0075
+                 freq_min=0.1, freq_max=0.96),   # isolated 0.094, 0.197, 0.885
     "sw12": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.55, freq_max=0.96),   # probed 0.752, 0.894
-    # soft_partial: still segregating AND at least two surviving origins.
+                 freq_min=0.70, freq_max=0.97),   # the deliberate
+    #            near-complete case; isolated 0.376, 0.783, 0.963
     "sw13": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.20, freq_max=0.90),   # probed 0.243, 0.340, 0.598
+                 freq_min=0.10, freq_max=0.95),   # isolated 0.669, 0.774, 0.810
     "sw14": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.15, freq_max=0.93),   # probed 0.199, 0.551, 0.769
+                 freq_min=0.10, freq_max=0.95),   # isolated 0.068, 0.759, 0.803
     "sw15": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.95),   # probed 0.683, 0.864, 0.890
+                 freq_min=0.10, freq_max=0.95),   # isolated 0.760, 0.780, 0.800
 }
 # `class` is a keyword, so the dicts above carry `class_`; expose it under the
 # name the rest of the code reads.

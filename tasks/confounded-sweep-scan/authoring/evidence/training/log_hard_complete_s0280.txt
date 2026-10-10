@@ -1,0 +1,1 @@
+override hard_complete -> (0.028, 770, 1)
