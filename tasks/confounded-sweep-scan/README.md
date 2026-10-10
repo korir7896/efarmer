@@ -246,12 +246,21 @@ every check, including that no selected site appears as a variant at all.
 
 **`task.toml` validates** against harbor's own task schema.
 
-Not done here: a full `harbor run` of the oracle and nop inside this sandbox
-needs the environment image, whose apt layer cannot be built because the
-egress policy reaches PyPI but not Debian mirrors, and pip inside a docker
-build needs the proxy CA injected. Neither applies in the real pipeline. The
-pip layer was built and its imports exercised; the apt packages are standard
-bookworm names and are convenience tooling the reference does not use.
+**Both harbor gates pass.** `harbor run -a oracle -e docker` returns reward
+**1.0** and `harbor run -a nop -e docker` returns reward **0.0**, one trial
+each, zero errors, through the real harness: environment image built,
+`solve.sh` run inside it, `/app/results.json` copied out as the declared
+artifact, and the separate verifier container grading it.
+
+Those two runs used a locally patched copy of the bundle, because this
+sandbox's egress policy reaches PyPI but not Debian mirrors and pip inside a
+docker build needs the proxy CA injected. The patch drops the apt layer and
+adds the CA; nothing else differs, and neither change applies in the real
+pipeline, which has open network. The apt packages are standard bookworm
+names and are convenience tooling the reference does not use.
+
+Not run here: `harbor check`, which needs a model API key this session does
+not have.
 
 Eighteen submissions were run through the real verifier
 (`authoring/evidence/verifier_selftest.py`). The perfect answer passes, and so
