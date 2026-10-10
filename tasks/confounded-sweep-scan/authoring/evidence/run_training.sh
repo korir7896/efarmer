@@ -46,7 +46,7 @@ CONFIGS_SHIPPED=(
   "hard_complete  0.0400  1083    1  -  _s0400"
   "hard_complete  0.0130  2492    1  -  _s0130"
   "hard_complete  0.0550  2722    1  -  _s0550"
-  "soft_complete  0.0220   700  300  -  _s0220"
+  "soft_complete  0.0220   700  400  -  _s0220"
   "soft_complete  0.0500   420   80  -  _s0500"
   "soft_complete  0.0095  1500  150  -  _s0095"
   "hard_partial   0.0160   500    1  -  _s0160"
@@ -55,7 +55,7 @@ CONFIGS_SHIPPED=(
   "hard_partial   0.0650   160    1  -  _s0650"
   "soft_partial   0.0120   430  150  -  _s0120"
   "soft_partial   0.0580   130   14  -  _s0580"
-  "soft_partial   0.0300   230   40  -  _s0300"
+  "soft_partial   0.0300   230  100  -  _s0300"
 )
 
 # The three shipped cold-spot sweeps at their own rate factors, plus two more
@@ -66,7 +66,7 @@ CONFIGS_COLDSPOT=(
   "soft_complete  0.0095  1500  150  0.28  _cs_s0095"
   "hard_partial   0.0380   210    1  0.25  _cs_s0380"
   "hard_complete  0.0400  1083    1  0.25  _cs_s0400"
-  "soft_partial   0.0300   230   40  0.22  _cs_s0300"
+  "soft_partial   0.0300   230  100  0.22  _cs_s0300"
 )
 
 CONFIGS_HOLDOUT=(

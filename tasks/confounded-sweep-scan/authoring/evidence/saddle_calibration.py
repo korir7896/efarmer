@@ -35,12 +35,62 @@ from grading import GATES
 from pipeline import detect as DET
 
 
+def selftest() -> int:
+    """Does the saddle rule do what it claims, on cases built to order?
+
+    The real-data measurement below can only show the two populations the
+    shipped replicate happens to contain. This checks the decision itself
+    against four synthetic pairs whose saddle depth is set by hand, all of
+    them 800 kb apart -- inside the merge radius -- so the decision has to be
+    made on the saddle and not on distance.
+    """
+    step = 10_000
+    mid = np.arange(0, 4_000_000, step, dtype=float)
+    chrom = np.zeros(mid.size, dtype=int)
+    frac_default = DET._merge_regions.__defaults__[-1]
+    print(f"saddle rule self-test (saddle_frac = {frac_default})")
+    print(f"  {'case':<50}{'merged':>8}{'expected':>10}  verdict")
+    cases = [("one footprint, shallow dip (saddle 0.80)", 0.80, True),
+             ("one footprint, moderate dip (saddle 0.50)", 0.50, True),
+             ("two sweeps, deep gap (saddle 0.30)", 0.30, False),
+             ("two sweeps, gap to background (saddle 0.10)", 0.10, False)]
+    bad = 0
+    for label, frac, expect in cases:
+        base, peak_h = 5.0, 95.0
+        sc = np.full(mid.size, base)
+        for p_ in (1_400_000, 2_200_000):
+            sc = np.maximum(sc, base + peak_h
+                            * np.exp(-0.5 * ((mid - p_) / 180_000.0) ** 2))
+        # Raise the floor across the WHOLE span between the peaks, not just
+        # a core around the midpoint: the rule looks at the minimum over that
+        # span, so leaving the Gaussian tails near background would make
+        # every case look like a deep gap whatever the core is set to.
+        between = (mid > 1_400_000) & (mid < 2_200_000)
+        sc[between] = np.maximum(sc[between], base + peak_h * frac)
+        obs = {"mid": mid, "chrom": chrom, "h12": sc}
+        left = DET._summarize(obs, sc, list(np.where(
+            np.abs(mid - 1_400_000) < 300_000)[0]), 0)
+        right = DET._summarize(obs, sc, list(np.where(
+            np.abs(mid - 2_200_000) < 300_000)[0]), 0)
+        merged = len(DET._merge_regions(obs, sc, [left, right], 1_500_000)) == 1
+        ok = merged == expect
+        bad += not ok
+        print(f"  {label:<50}{str(merged):>8}{str(expect):>10}  "
+              f"{'ok' if ok else 'WRONG'}")
+    print(f"  {'all four behaved as intended' if not bad else f'{bad} case(s) wrong'}")
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("scan")
+    ap.add_argument("scan", nargs="?")
+    ap.add_argument("--selftest", action="store_true",
+                    help="check the saddle rule on synthetic pairs and exit")
     ap.add_argument("--truth", default=os.path.join(TASK, "tests", "truth.json"))
     ap.add_argument("--radius", type=int, default=1_500_000)
     a = ap.parse_args()
+    if a.selftest or not a.scan:
+        return selftest()
 
     d = np.load(a.scan, allow_pickle=True)
     obs = {k[4:]: d[k] for k in d.files if k.startswith("obs_")}
