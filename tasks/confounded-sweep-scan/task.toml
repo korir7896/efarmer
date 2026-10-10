@@ -98,7 +98,17 @@ time since the sweep finished -- but the constants have to be calibrated
 against simulations of the inferred history, and the recovery estimator
 carries a bias that depends on the class.
 
-An expert spends a couple of days on this, mostly on the null calibration and
+Measured on the shipped replicate, every shortcut fails and each fails on a
+different gate. A genome-wide cut on any single statistic finds one or two of
+the ten sweeps. Running every statistic but calibrating against a
+constant-size null finds all ten and invents four more, so it fails on false
+positives alone, which is the bottleneck confound in one line. Doing
+everything right but pooling the threshold across recombination rates costs
+both old sweeps, because the cut is set by the heavy tail the cold spots
+contribute. Thresholding single windows rather than clusters costs all three
+soft sweeps. Only the full pipeline clears every gate.
+
+An expert spends a couple of days on this
 on working out which statistic to trust for which class.
 """
 

@@ -75,6 +75,36 @@ normally the hard-versus-soft discriminator, fails here. At an old hard
 sweep the block has decayed far enough that H2/H1 recovers to 0.46-0.99,
 overlapping the 0.27-0.62 measured at soft sweeps.
 
+## Why shortcuts fail, gate by gate
+
+Measured on the shipped replicate. Each strategy differs from the reference in
+one respect and is handed the reference's own classification and estimation
+step, so the differences are differences in detection and calibration.
+`authoring/evidence/baselines.py` reproduces the table.
+
+| strategy | calls | false pos | fails on |
+| --- | --- | --- | --- |
+| one statistic, genome-wide cut (diversity) | 2 | 0 | demography, recall |
+| one statistic (Tajima's D) | 2 | 0 | demography, recall |
+| one statistic (H12) | 2 | 0 | demography, recall |
+| one statistic (nSL) | 1 | 0 | demography, recall, timing |
+| all statistics, constant-size null | 14 | 4 | demography, **false positives** |
+| all statistics, correct history, rate-blind threshold | 8 | 1 | **recall** |
+| all statistics, correct null, per-window cut | 7 | 1 | **recall** |
+| the reference | 9 | 0 | **passes** |
+
+Every required piece of work is load-bearing, and each one is enforced by a
+different gate.
+
+A scan run at its defaults on any single statistic finds one or two of the
+ten sweeps. Skipping the demographic inference is the most instructive
+failure: a constant-size null finds **every** sweep, 10 of 10, and invents
+four more, so it fails on false positives alone. That is the bottleneck
+confound in one line. Ignoring the recombination map while otherwise doing
+everything right costs both old sweeps, because a threshold pooled across
+rates is set by the heavy tail the cold spots contribute. And thresholding
+single windows instead of clusters costs all three soft sweeps.
+
 Expert time: around 20 hours, most of it on null calibration and on deciding
 which statistic to trust for which class.
 

@@ -1,0 +1,581 @@
+{
+  "single_statistic_pi": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": false,
+      "demog_is_bottleneck": false,
+      "recall": false,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 2,
+      "_n_false_positives": 0,
+      "_recall_detail": {
+        "hard_recent_complete": "2/3(need 3)",
+        "soft_standing": "0/3(need 2)",
+        "partial": "0/2(need 2)",
+        "hard_old_complete": "0/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 9476.264483065952,
+        "N_bottleneck": 9476.264483065952,
+        "N_current": 9476.264483065952,
+        "T_bottleneck_start_gens_ago": 3000.0,
+        "T_bottleneck_end_gens_ago": 2000.0
+      },
+      "sweeps": [
+        {
+          "chrom": 2,
+          "position": 3175000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048140043763676144,
+          "time_gens_ago": 358.0
+        },
+        {
+          "chrom": 4,
+          "position": 8405000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.03282275711159737,
+          "time_gens_ago": 502.0
+        }
+      ]
+    }
+  },
+  "single_statistic_tajima_d": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": false,
+      "demog_is_bottleneck": false,
+      "recall": false,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 2,
+      "_n_false_positives": 0,
+      "_recall_detail": {
+        "hard_recent_complete": "2/3(need 3)",
+        "soft_standing": "0/3(need 2)",
+        "partial": "0/2(need 2)",
+        "hard_old_complete": "0/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 9476.264483065952,
+        "N_bottleneck": 9476.264483065952,
+        "N_current": 9476.264483065952,
+        "T_bottleneck_start_gens_ago": 3000.0,
+        "T_bottleneck_end_gens_ago": 2000.0
+      },
+      "sweeps": [
+        {
+          "chrom": 2,
+          "position": 3155000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048140043763676144,
+          "time_gens_ago": 358.0
+        },
+        {
+          "chrom": 4,
+          "position": 8445000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.03282275711159737,
+          "time_gens_ago": 502.0
+        }
+      ]
+    }
+  },
+  "single_statistic_h12": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": false,
+      "demog_is_bottleneck": false,
+      "recall": false,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 2,
+      "_n_false_positives": 0,
+      "_recall_detail": {
+        "hard_recent_complete": "2/3(need 3)",
+        "soft_standing": "0/3(need 2)",
+        "partial": "0/2(need 2)",
+        "hard_old_complete": "0/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 9476.264483065952,
+        "N_bottleneck": 9476.264483065952,
+        "N_current": 9476.264483065952,
+        "T_bottleneck_start_gens_ago": 3000.0,
+        "T_bottleneck_end_gens_ago": 2000.0
+      },
+      "sweeps": [
+        {
+          "chrom": 2,
+          "position": 3175000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048140043763676144,
+          "time_gens_ago": 358.0
+        },
+        {
+          "chrom": 4,
+          "position": 8515000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.03282275711159737,
+          "time_gens_ago": 501.0
+        }
+      ]
+    }
+  },
+  "single_statistic_nsl_frac": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": false,
+      "demog_is_bottleneck": false,
+      "recall": false,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": false,
+      "_n_calls": 1,
+      "_n_false_positives": 0,
+      "_recall_detail": {
+        "hard_recent_complete": "0/3(need 3)",
+        "soft_standing": "0/3(need 2)",
+        "partial": "1/2(need 2)",
+        "hard_old_complete": "0/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 9476.264483065952,
+        "N_bottleneck": 9476.264483065952,
+        "N_current": 9476.264483065952,
+        "T_bottleneck_start_gens_ago": 3000.0,
+        "T_bottleneck_end_gens_ago": 2000.0
+      },
+      "sweeps": [
+        {
+          "chrom": 2,
+          "position": 5555000,
+          "class": "partial",
+          "selection_coefficient": 0.03487064116985376,
+          "time_gens_ago": null
+        }
+      ]
+    }
+  },
+  "multi_constant_null": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": false,
+      "demog_is_bottleneck": false,
+      "recall": true,
+      "false_positives": false,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 14,
+      "_n_false_positives": 4,
+      "_recall_detail": {
+        "hard_recent_complete": "3/3(need 3)",
+        "soft_standing": "3/3(need 2)",
+        "partial": "2/2(need 2)",
+        "hard_old_complete": "2/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 9476.264483065952,
+        "N_bottleneck": 9476.264483065952,
+        "N_current": 9476.264483065952,
+        "T_bottleneck_start_gens_ago": 3000.0,
+        "T_bottleneck_end_gens_ago": 2000.0
+      },
+      "sweeps": [
+        {
+          "chrom": 1,
+          "position": 7525000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.025528811086797956,
+          "time_gens_ago": 478.0
+        },
+        {
+          "chrom": 1,
+          "position": 9375000,
+          "class": "partial",
+          "selection_coefficient": 0.013498312710911134,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 1,
+          "position": 10385000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.01574803149606299,
+          "time_gens_ago": 3150.0
+        },
+        {
+          "chrom": 2,
+          "position": 3195000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048869438366156086,
+          "time_gens_ago": 336.0
+        },
+        {
+          "chrom": 2,
+          "position": 4315000,
+          "class": "soft_standing",
+          "selection_coefficient": 0.01,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 2,
+          "position": 5545000,
+          "class": "partial",
+          "selection_coefficient": 0.06636670416197973,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 2,
+          "position": 9275000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.023622047244094484,
+          "time_gens_ago": 4611.0
+        },
+        {
+          "chrom": 3,
+          "position": 2295000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.030621172353455815,
+          "time_gens_ago": 2217.0
+        },
+        {
+          "chrom": 3,
+          "position": 3995000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.023622047244094484,
+          "time_gens_ago": 3194.0
+        },
+        {
+          "chrom": 3,
+          "position": 7735000,
+          "class": "partial",
+          "selection_coefficient": 0.021372328458942626,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 3,
+          "position": 10315000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.02771699489423778,
+          "time_gens_ago": 4417.0
+        },
+        {
+          "chrom": 4,
+          "position": 2635000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.03149606299212598,
+          "time_gens_ago": 1319.0
+        },
+        {
+          "chrom": 4,
+          "position": 8385000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.034281546316557256,
+          "time_gens_ago": 471.0
+        },
+        {
+          "chrom": 4,
+          "position": 9415000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.008748906386701661,
+          "time_gens_ago": 1007.0
+        }
+      ]
+    }
+  },
+  "multi_rate_blind": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": true,
+      "demog_is_bottleneck": true,
+      "recall": false,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 8,
+      "_n_false_positives": 1,
+      "_recall_detail": {
+        "hard_recent_complete": "3/3(need 3)",
+        "soft_standing": "2/3(need 2)",
+        "partial": "2/2(need 2)",
+        "hard_old_complete": "0/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 11752.887644139584,
+        "N_bottleneck": 4959.207146143786,
+        "N_current": 8766.901878179478,
+        "T_bottleneck_start_gens_ago": 4956.080479999539,
+        "T_bottleneck_end_gens_ago": 771.3182492830634
+      },
+      "sweeps": [
+        {
+          "chrom": 1,
+          "position": 7445000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.02479941648431801,
+          "time_gens_ago": 451.0
+        },
+        {
+          "chrom": 1,
+          "position": 10695000,
+          "class": "soft_standing",
+          "selection_coefficient": 0.009333333333333332,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 2,
+          "position": 3175000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048869438366156086,
+          "time_gens_ago": 317.0
+        },
+        {
+          "chrom": 2,
+          "position": 5645000,
+          "class": "partial",
+          "selection_coefficient": 0.06636670416197973,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 2,
+          "position": 9335000,
+          "class": "soft_standing",
+          "selection_coefficient": 0.036,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 3,
+          "position": 7755000,
+          "class": "partial",
+          "selection_coefficient": 0.0202474690663667,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 3,
+          "position": 10365000,
+          "class": "soft_standing",
+          "selection_coefficient": 0.050666666666666665,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 4,
+          "position": 8515000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.033552151714077307,
+          "time_gens_ago": 445.0
+        }
+      ]
+    }
+  },
+  "reference": {
+    "passed": true,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": true,
+      "demog_is_bottleneck": true,
+      "recall": true,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 9,
+      "_n_false_positives": 0,
+      "_recall_detail": {
+        "hard_recent_complete": "3/3(need 3)",
+        "soft_standing": "3/3(need 2)",
+        "partial": "2/2(need 2)",
+        "hard_old_complete": "1/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 11752.887644139584,
+        "N_bottleneck": 4959.207146143786,
+        "N_current": 8766.901878179478,
+        "T_bottleneck_start_gens_ago": 4956.080479999539,
+        "T_bottleneck_end_gens_ago": 771.3182492830634
+      },
+      "sweeps": [
+        {
+          "chrom": 1,
+          "position": 7445000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.025528811086797956,
+          "time_gens_ago": 446.0
+        },
+        {
+          "chrom": 1,
+          "position": 10385000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.01574803149606299,
+          "time_gens_ago": 2937.0
+        },
+        {
+          "chrom": 2,
+          "position": 3195000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048869438366156086,
+          "time_gens_ago": 314.0
+        },
+        {
+          "chrom": 2,
+          "position": 5545000,
+          "class": "partial",
+          "selection_coefficient": 0.06636670416197973,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 2,
+          "position": 9415000,
+          "class": "soft_standing",
+          "selection_coefficient": 0.018666666666666665,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 3,
+          "position": 7745000,
+          "class": "partial",
+          "selection_coefficient": 0.021372328458942626,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 3,
+          "position": 10325000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.02771699489423778,
+          "time_gens_ago": 4119.0
+        },
+        {
+          "chrom": 4,
+          "position": 2525000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.03149606299212598,
+          "time_gens_ago": 1230.0
+        },
+        {
+          "chrom": 4,
+          "position": 8385000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.033552151714077307,
+          "time_gens_ago": 439.0
+        }
+      ]
+    }
+  },
+  "per_window_threshold": {
+    "passed": false,
+    "gates": {
+      "demog_N_ancestral": true,
+      "demog_N_current": true,
+      "demog_bottleneck_strength": true,
+      "demog_is_bottleneck": true,
+      "recall": false,
+      "false_positives": true,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "timing": true,
+      "_n_calls": 7,
+      "_n_false_positives": 1,
+      "_recall_detail": {
+        "hard_recent_complete": "3/3(need 3)",
+        "soft_standing": "0/3(need 2)",
+        "partial": "2/2(need 2)",
+        "hard_old_complete": "1/2(need 1)"
+      }
+    },
+    "submission": {
+      "demography": {
+        "N_ancestral": 11752.887644139584,
+        "N_bottleneck": 4959.207146143786,
+        "N_current": 8766.901878179478,
+        "T_bottleneck_start_gens_ago": 4956.080479999539,
+        "T_bottleneck_end_gens_ago": 771.3182492830634
+      },
+      "sweeps": [
+        {
+          "chrom": 1,
+          "position": 7445000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.02479941648431801,
+          "time_gens_ago": 451.0
+        },
+        {
+          "chrom": 1,
+          "position": 9375000,
+          "class": "partial",
+          "selection_coefficient": 0.013498312710911134,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 2,
+          "position": 3195000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.048869438366156086,
+          "time_gens_ago": 317.0
+        },
+        {
+          "chrom": 2,
+          "position": 5545000,
+          "class": "partial",
+          "selection_coefficient": 0.06636670416197973,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 3,
+          "position": 7745000,
+          "class": "partial",
+          "selection_coefficient": 0.0202474690663667,
+          "time_gens_ago": null
+        },
+        {
+          "chrom": 4,
+          "position": 2525000,
+          "class": "hard_old_complete",
+          "selection_coefficient": 0.03149606299212598,
+          "time_gens_ago": 1245.0
+        },
+        {
+          "chrom": 4,
+          "position": 8385000,
+          "class": "hard_recent_complete",
+          "selection_coefficient": 0.033552151714077307,
+          "time_gens_ago": 445.0
+        }
+      ]
+    }
+  }
+}
