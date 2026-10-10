@@ -14,9 +14,12 @@ This script removes it. It refits the three classification rules, the four
 selection-coefficient models and the completion-time model on
 authoring/evidence/training_holdout/, every configuration of which differs
 from all ten shipped ones in both s and origin, and then grades the shipped
-replicate with those constants by replaying a dumped scan. The feature SETS
-are held fixed, since those are a modelling choice rather than a fitted
-quantity; only the numbers are refitted.
+replicate with those constants by replaying a dumped scan. Both the feature SETS and the coefficients are re-derived: holding the
+feature sets fixed is not enough, because selecting them is itself fitting.
+The first version of this script refitted only the coefficients and still
+regraded at a rank correlation of 0.267, because the pair chosen for
+soft_complete on the shipped configurations carries almost no information
+about s away from them.
 
 Usage:  holdout_calibration.py SCAN.npz
 """
@@ -29,8 +32,9 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(TASK, "solution"))
 sys.path.insert(0, os.path.join(TASK, "tests"))
 
-from fit_classifier import logistic_fit, predict
-from fit_estimators import rows
+from fit_classifier import (axis_all, logistic_fit, predict, standardize,
+                            FEATS as CLS_FEATS)
+from fit_estimators import held_out_loglinear, rows
 from grading import GATES, TIMED_CLASSES, spearman, time_tolerance
 from pipeline import characterize as CH
 from pipeline import detect as DET
@@ -38,7 +42,30 @@ from pipeline import detect as DET
 CLASSES = ["hard_complete", "hard_partial", "soft_complete", "soft_partial"]
 
 
-def refit_rules(data):
+def select_rules(data):
+    """Re-select each axis's feature set on the holdout replicates alone."""
+    import itertools
+    singles = [(k,) for k in CLS_FEATS]
+    pairs = list(itertools.combinations(CLS_FEATS, 2))
+    picks = {}
+    specs = {
+        "complete": (lambda r: r["cls"].endswith("complete"), None),
+        "soft_given_complete": (lambda r: r["cls"].startswith("soft"),
+                                lambda r: r["cls"].endswith("complete")),
+        "soft_given_partial": (lambda r: r["cls"].startswith("soft"),
+                               lambda r: not r["cls"].endswith("complete")),
+    }
+    for name, (label, subset) in specs.items():
+        scored = axis_all(data, label, singles + pairs, subset_fn=subset)
+        scored.sort(key=lambda t: -t[0])
+        picks[name] = scored[0][1] if scored else CH.CLASS_RULES[name]["feats"]
+        if scored:
+            print(f"  {name}: picked {'+'.join(picks[name])} "
+                  f"(held out {scored[0][0]:.3f})")
+    return picks
+
+
+def refit_rules(data, picks):
     """The three logistic rules, on the holdout replicates only."""
     out = {}
     groups = {
@@ -49,7 +76,7 @@ def refit_rules(data):
                                lambda r: r["cls"].startswith("soft")),
     }
     for name, (rs, label) in groups.items():
-        feats = list(CH.CLASS_RULES[name]["feats"])
+        feats = list(picks[name])
         rs = [r for r in rs if all(np.isfinite(r[k]) for k in feats)]
         y = np.array([1.0 if label(r) else 0.0 for r in rs])
         if len(rs) < len(feats) + 3 or len(set(y)) < 2:
@@ -63,6 +90,30 @@ def refit_rules(data):
         print(f"  {name}: n={len(rs)}, in-sample {acc:.3f}")
         out[name] = dict(feats=feats, mean=list(mu), sd=list(sd), weights=list(w))
     return out
+
+
+def _select_loglinear(data, cands, target, cls=None, completed=False):
+    """Pick a feature set by held-out score on the holdout replicates only."""
+    best, best_key = None, None
+    for combo in cands:
+        rs = [r for r in data if (cls is None or r["cls"] == cls)
+              and (not completed or r["completed"])
+              and np.isfinite(r[target]) and r[target] > 0
+              and all(np.isfinite(r[k]) and r[k] > 0 for k in combo)]
+        if len(rs) < len(combo) + 4 or len(set(r["cfg"] for r in rs)) < 3:
+            continue
+        X = np.log(np.array([[r[k] for k in combo] for r in rs], float))
+        y = np.log(np.array([r[target] for r in rs], float))
+        p = held_out_loglinear(X, y, [r["cfg"] for r in rs])
+        ok = np.isfinite(p)
+        if ok.sum() < 3:
+            continue
+        err = np.exp(np.abs(p[ok] - y[ok]))
+        key = (float((err <= GATES["s_within_factor"]).mean()),
+               spearman(list(np.exp(p[ok])), list(np.exp(y[ok]))))
+        if best_key is None or key > best_key:
+            best, best_key = list(combo), key
+    return best
 
 
 def refit_loglinear(data, feats, target, cls=None, completed=False):
@@ -96,25 +147,32 @@ def main():
     for k, v in sorted(by_cfg.items()):
         print(f"  {k:<28}{len(v)} replicate(s), realized {sorted(set(v))}")
 
-    print("\nclassification rules:")
-    CH.CLASS_RULES = refit_rules(data)
+    print("\nclassification rules (features re-selected on holdout only):")
+    picks = select_rules(data)
+    CH.CLASS_RULES = refit_rules(data, picks)
 
-    print("\nselection-coefficient models:")
+    print("\nselection-coefficient models (features re-selected too):")
+    import itertools
+    keys = ["pi_ratio", "pi_min_ratio", "h12_ratio", "snp_ratio",
+            "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15"]
+    cands = [(k,) for k in keys] + list(itertools.combinations(keys, 2))
     for c in CLASSES:
-        feats = list(CH.S_MODEL[c]["feats"])
+        feats = _select_loglinear(data, cands, "s_true", cls=c) \
+            or list(CH.S_MODEL[c]["feats"])
         coef, n = refit_loglinear(data, feats, "s_true", cls=c)
         if coef is None:
             print(f"  ! {c}: only {n} usable replicates, keeping shipped model")
             continue
         CH.S_MODEL[c] = dict(feats=feats, coef=coef)
-        print(f"  {c}: n={n}, coef {[round(v, 4) for v in coef]}")
+        print(f"  {c}: {'+'.join(feats)}, n={n}")
 
-    feats = list(CH.T_MODEL["feats"])
+    feats = _select_loglinear(data, cands, "t_true", cls="hard_complete",
+                              completed=True) or list(CH.T_MODEL["feats"])
     coef, n = refit_loglinear(data, feats, "t_true",
                               cls="hard_complete", completed=True)
     if coef is not None:
         CH.T_MODEL = dict(feats=feats, coef=coef)
-        print(f"\ncompletion-time model: n={n}, coef {[round(v, 4) for v in coef]}")
+        print(f"\ncompletion-time model: {'+'.join(feats)}, n={n}")
     else:
         print(f"\n! completion-time model: only {n} usable replicates, keeping shipped")
 

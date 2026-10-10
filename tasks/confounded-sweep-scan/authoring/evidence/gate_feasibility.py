@@ -71,7 +71,8 @@ def feasibility():
               f"{(err <= GATES['s_within_factor']).mean():>7.0%}")
         print(f"  rank correlation with truth "
               f"{spearman(all_hat, all_true):.3f} over {n} replicates "
-              f"(gate: {GATES['min_s_rank_corr']:.2f})")
+              f"(not gated; reported because an estimator that ranks well "
+              f"is doing more than landing in the right decade)")
         print("  NOTE: fitted on these same replicates. The honest, "
               "leave-one-configuration-out\n"
               "        numbers are in authoring/evidence/fit_estimators.py.")
@@ -106,23 +107,67 @@ def triviality():
     print("\n=== NOT TRIVIAL: the best an answer that estimates nothing can do ===")
 
     f = GATES["s_within_factor"]
-    tru_s = [float(s["selection_coefficient"]) for s in truth["sweeps"]]
-    lo, hi = min(tru_s) / f, max(tru_s) * f
-    best_c, best_n = None, -1
-    for i in range(4001):
-        c = lo * (hi / lo) ** (i / 4000)
-        n = sum(1 for t in tru_s if t / f <= c <= t * f)
-        if n > best_n:
-            best_c, best_n = c, n
     need = GATES["min_s_accuracy"]
-    print(f"s, single constant: best is {best_c:.4f}, inside a factor of {f} "
-          f"on {best_n}/{len(tru_s)} = {best_n/len(tru_s):.0%} "
-          f"(magnitude gate needs {need:.0%})")
-    print(f"s, single constant: rank correlation 0.000 "
-          f"(ordering gate needs {GATES['min_s_rank_corr']:.2f}) -- "
-          f"a constant cannot pass, whatever its value")
+    tru_s = [float(s["selection_coefficient"]) for s in truth["sweeps"]]
     print(f"s, true values span {max(tru_s)/min(tru_s):.2f}x: "
           f"{sorted(round(x, 4) for x in tru_s)}")
+
+    # The worst case is not "all ten sweeps": it is whichever match set the
+    # recall gates permit that a constant covers best. Enumerate them.
+    import itertools
+    by_cls = {}
+    for sw in truth["sweeps"]:
+        by_cls.setdefault(sw["class"], []).append(float(sw["selection_coefficient"]))
+    need_per = GATES["min_recall_per_class"]
+    choices = []
+    for cls, vals in sorted(by_cls.items()):
+        k = need_per.get(cls, 1)
+        subsets = []
+        for size in range(k, len(vals) + 1):
+            subsets += [list(c) for c in itertools.combinations(vals, size)]
+        choices.append(subsets)
+
+    def best_constant(vals):
+        lo, hi = min(vals) / f, max(vals) * f
+        best = 0
+        for i in range(2001):
+            c = lo * (hi / lo) ** (i / 2000)
+            best = max(best, sum(1 for t in vals if t / f <= c <= t * f))
+        return best
+
+    worst_rate, worst_set = 0.0, None
+    for combo in itertools.product(*choices):
+        vals = [v for part in combo for v in part]
+        rate = best_constant(vals) / len(vals)
+        if rate > worst_rate:
+            worst_rate, worst_set = rate, sorted(vals)
+    n_sets = 1
+    for c in choices:
+        n_sets *= len(c)
+    print(f"s, single constant, worst case over all {n_sets} match sets the "
+          f"recall gates permit, by factor:")
+    for ff in (1.4, 1.5, 1.6, 1.8, 2.0, 2.5):
+        w = 0.0
+        for combo in itertools.product(*choices):
+            vals = [v for part in combo for v in part]
+            lo, hi = min(vals) / ff, max(vals) * ff
+            b = 0
+            for i in range(1201):
+                c = lo * (hi / lo) ** (i / 1200)
+                b = max(b, sum(1 for t in vals if t / ff <= c <= t * ff))
+            w = max(w, b / len(vals))
+        mark = "  <- gate" if abs(ff - f) < 1e-9 else ""
+        print(f"    factor {ff}: best constant reaches {w:.3f}{mark}")
+    print(f"    so the magnitude gate alone does NOT exclude a constant at "
+          f"factor {f}; the spread and ordering gates do.")
+    print(f"s, single constant: spread 1.00 against a gate of "
+          f"{GATES['min_s_spread']:.2f}, and rank correlation 0.000 against "
+          f"{GATES['min_s_rank_corr']:.2f} -- excluded with certainty by "
+          f"both, on any match set.")
+    print(f"s, constant plus noise: passes magnitude and spread; caught only "
+          f"by the ordering gate, which at nine matched calls a random answer "
+          f"clears about one time in five. That is the honest limit of what "
+          f"ten instances support.")
 
     dated = [s for s in truth["sweeps"] if s["class"] in TIMED_CLASSES
              and s.get("completion_gens_ago") is not None]
@@ -152,6 +197,21 @@ def triviality():
         print(f"time, one constant for class {k}: best covers {bn}/{len(v)}")
     print(f"time, one constant per class: {total}/{len(times)} in total "
           f"(gate needs {GATES['min_time_correct']})")
+
+    # Two constants, which is the limit of this gate and worth stating.
+    best2, pair = 0, None
+    grid = list(range(20, 3001, 20))
+    for a_ in grid:
+        for b_ in grid:
+            n = sum(1 for tt in times
+                    if min(abs(a_ - tt), abs(b_ - tt)) <= time_tolerance(tt))
+            if n > best2:
+                best2, pair = n, (a_, b_)
+    print(f"time, TWO constants: best pair {pair} dates {best2}/{len(times)}. "
+          f"With only four dateable sweeps no count-based gate can exclude\n"
+          f"    that: a submission reporting two well-chosen numbers passes "
+          f"the timing gate without dating anything. The gate excludes one\n"
+          f"    constant, which is what it claims, and nothing stronger.")
     print(f"time, true values: {sorted(int(t) for t in times)}")
 
 

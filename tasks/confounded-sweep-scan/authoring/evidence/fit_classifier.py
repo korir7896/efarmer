@@ -214,32 +214,32 @@ def joint_conditional(data, combo_c, combo_soft_complete, combo_soft_partial,
 
 
 CHOSEN = {
-    # Chosen by a joint search over the top six feature sets per axis, 216
-    # triples, scored FOUR-WAY and held out by configuration. Scoring each
-    # axis on its own is the wrong objective: the softness rules are fitted
-    # inside a completeness group and applied to the PREDICTED group, so the
-    # axes interact and a rule that is better on its own axis can feed the
-    # next stage replicates it handles worse. Diversity with the SNP count
-    # scores 0.941 on completeness against 0.961 for the extreme-nSL
-    # fraction with the SNP count, and the triples built on them come out at
-    # 0.745 and 0.745 four-way, where this one reaches 0.824. Nothing in the
-    # search beats 0.824.
+    # Chosen by a joint search over the top six feature sets per axis, scored
+    # FOUR-WAY and held out by configuration over all 33 calibration
+    # configurations, 16 of which the shipped replicate does not use.
+    # Scoring each axis on its own is the wrong objective: the softness rules
+    # are fitted inside a completeness group and applied to the PREDICTED
+    # group, so the axes interact and a rule that is better on its own axis
+    # can hand the next stage replicates it handles worse.
     #
-    # completeness: Tajima's D with the number of segregating sites in the
-    # window. A completed sweep removed variation and left the spectrum
-    # skewed toward rare variants; one still rising did neither as strongly.
-    "complete": ("tajd_delta", "snp_ratio"),
-    # softness among COMPLETED sweeps: how deep the diversity trough got,
-    # with the widths at two recovery levels. One frequent haplotype drives
-    # diversity to nothing in a narrow core; several leave it shallow and
-    # broad, so the shape of the trough carries the axis where its depth
-    # alone does not.
-    "soft_given_complete": ("pi_min_ratio", "w_pi_50", "w_pi_75"),
-    # softness among PARTIAL sweeps: H2/H1, the textbook discriminator,
-    # which works here only because age is not in play -- every partial
-    # sweep is still rising. Pooled over completed sweeps of all ages it is
-    # confounded, which is why it does not appear above.
-    "soft_given_partial": ("h2h1_ratio",),
+    # Selecting over the ten shipped configurations alone picked
+    # (tajd_delta, snp_ratio) / (pi_min_ratio, w_pi_50, w_pi_75) /
+    # (h2h1_ratio) and scored 0.824. On the wider space that triple scores
+    # well below this one: the earlier figure was optimistic because every
+    # configuration it was validated against was one of the ten being graded.
+    #
+    # completeness: the floor of the diversity trough, the H12 elevation and
+    #   the extreme-nSL fraction. Only a sweep still rising carries a long
+    #   young high-frequency haplotype, which is what nSL responds to.
+    "complete": ("pi_min_ratio", "h12_ratio", "nsl_delta"),
+    # softness among COMPLETED sweeps: the trough floor with Tajima's D and
+    #   H2/H1. One frequent haplotype drives diversity to nothing and D far
+    #   negative; several leave both milder and H2/H1 high.
+    "soft_given_complete": ("pi_min_ratio", "tajd_delta", "h2h1_ratio"),
+    # softness among PARTIAL sweeps: the extent of the H12 elevation with
+    #   H2/H1 -- the textbook discriminator, usable here only because age is
+    #   not in play, since every partial sweep is still rising.
+    "soft_given_partial": ("w_h12_15", "h2h1_ratio"),
 }
 
 

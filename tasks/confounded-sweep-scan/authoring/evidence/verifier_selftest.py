@@ -17,7 +17,7 @@ selection coefficient and the single completion time that satisfy the most
 instances. Reporting the best a constant can do is the only way to show the
 gate is not merely strict but unsatisfiable without doing the work.
 """
-import argparse, json, os, subprocess, sys, tempfile, shutil
+import argparse, json, math, os, subprocess, sys, tempfile, shutil
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TASK = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -186,6 +186,18 @@ def main():
             s["selection_coefficient"] = val
         cases.append((f"constant {label}", False, const_s))
 
+    # a constant with noise on it: passes magnitude and spread, and is caught
+    # only by the ordering gate. Reported rather than asserted, because at
+    # nine matched calls that gate escapes roughly one time in five and the
+    # bundle says so (see GATES in tests/grading.py).
+    import random
+    rng = random.Random(20251010)
+    jit = perfect(truth)
+    for s_ in jit["sweeps"]:
+        s_["selection_coefficient"] = round(0.0245 * math.exp(
+            rng.uniform(-0.9, 0.9)), 5)
+    cases.append(("constant s with noise (see note)", False, jit))
+
     # magnitudes right, ordering destroyed: the rank gate alone must catch it
     shuffled = perfect(truth)
     tru_s = [float(s["selection_coefficient"]) for s in truth["sweeps"]]
@@ -282,10 +294,12 @@ def main():
     tmp = tempfile.mkdtemp()
     try:
         print(f"grading against: {which}")
+        print("a constant s is excluded by the spread gate with certainty; "
+              "the magnitude test alone does not exclude it.")
         print(f"best constant s = {bs:.4f} satisfies the magnitude test on "
               f"{bs_n}/{bs_tot} sweeps (needs "
-              f"{GATES['min_s_accuracy']:.2f} of matched, and the ordering "
-              f"test as well)")
+              f"{GATES['min_s_accuracy']:.2f} of matched, plus the spread "
+              f"and ordering tests)")
         print(f"best constant time = {bt:.0f} satisfies "
               f"{bt_n}/{bt_tot} of the dated sweeps "
               f"(needs {GATES['min_time_correct']})")

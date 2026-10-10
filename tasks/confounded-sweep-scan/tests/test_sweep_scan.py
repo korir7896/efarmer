@@ -163,12 +163,31 @@ def test_selection_coefficient_magnitudes(matched):
         f"need {need:.2f}; off: {bad}")
 
 
+def test_selection_coefficients_vary(matched):
+    """The reported coefficients must span a factor, not be one number.
+
+    A constant spans 1.0 and fails this with certainty, on any match set and
+    whatever its value. That is what this test is for; the magnitude test
+    above is satisfiable by a well-chosen constant (see GATES).
+    """
+    pairs, _, _ = matched
+    assert pairs, "nothing matched, so the spread of s is undefined"
+    got = [c["s"] for t, c, _ in pairs]
+    need = GATES["min_s_spread"]
+    spread = max(got) / min(got) if min(got) > 0 else float("inf")
+    assert spread >= need, (
+        f"reported selection coefficients span a factor of {spread:.2f} "
+        f"across {len(pairs)} matched calls, need {need:.2f}; "
+        f"reported {sorted(round(v, 4) for v in got)}")
+
+
 def test_selection_coefficients_are_ordered(matched):
     """Reported s must rank the matched sweeps the way the truth ranks them.
 
-    The true coefficients span a factor of 9.4, so this asks whether the
-    submission measured strength at all.  A constant, or any value not
-    derived from the data, gives no ordering and scores zero.
+    A weak requirement by design: at nine matched calls a rank correlation
+    has a null standard deviation of about 0.35, so this threshold is a floor
+    that a constant fails with certainty rather than a strong test of
+    ordering. See GATES for why the deterministic alternative was rejected.
     """
     pairs, _, _ = matched
     need_n = GATES["min_matched_for_rank"]

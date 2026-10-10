@@ -105,22 +105,35 @@ GATES: Dict[str, Any] = {
 
     # --- characterisation, over matched calls only ---
     "min_class_accuracy": 0.70,
-    # Selection coefficients are graded two ways, and both must hold.
+    # Selection coefficients are graded three ways, and all three must hold.
     #
-    # MAGNITUDE: within a multiplicative factor. The true coefficients in the
-    # shipped replicate span a factor of 9.4, so a factor-of-2.5 window
-    # (a span of 6.25) cannot contain all of them, but it can contain most,
-    # which is why the magnitude test alone is not enough.
+    # MAGNITUDE: at least this fraction within a multiplicative factor.
+    # SPREAD: the reported coefficients must themselves span this factor
+    #   across the matched calls. A single constant spans 1.0 and fails with
+    #   certainty, whatever its value and whatever the match set.
+    # ORDER: Spearman rank correlation against the truth. A constant is all
+    #   ties, which scores zero by the convention in grading.spearman().
     #
-    # ORDER: Spearman rank correlation between the reported and true
-    # coefficients over matched calls. A single constant, or any answer that
-    # does not actually measure strength, produces no usable ordering: all
-    # ties give a correlation of zero by the convention below. This is the
-    # gate that makes the s estimates discriminate rather than merely land in
-    # the right decade.
+    # The honest limit of these three is worth stating, because nine matched
+    # calls is not many. A constant is excluded with certainty, by two of the
+    # three. A constant with noise added to it passes magnitude and spread,
+    # and is caught only by the rank gate, which at nine points has a null
+    # standard deviation of 0.35 -- so it escapes roughly one time in five.
+    #
+    # The deterministic alternative was measured and rejected. Tightening the
+    # factor until no constant can pass the magnitude test needs f <= 1.5:
+    # gate_feasibility.py enumerates all 135 match sets the recall gates
+    # permit and the best any constant achieves is 0.667 at f = 1.5 but 1.000
+    # at f = 1.8, because the recall gates allow a match set whose true
+    # coefficients span only 3.2 (0.025 to 0.080). At f = 1.5 the reference
+    # scores 0.778, one error from failing, and a second independent
+    # implementation scores 0.286. A gate that only one method can clear, by
+    # one instance, is worse than one that a noisy cheat escapes one time in
+    # five.
     "s_within_factor": 2.50,
     "min_s_accuracy": 0.70,
-    "min_s_rank_corr": 0.50,
+    "min_s_spread": 2.00,
+    "min_s_rank_corr": 0.30,
     "min_matched_for_rank": 5,
     # Timing is graded only over sweeps whose TRUE class is hard_complete --
     # grading against the true class, not the reported one, so a

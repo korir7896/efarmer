@@ -1,6 +1,6 @@
 """Classify each detected sweep and estimate its strength and age.
 
-Everything here is calibrated on 51 independent single-sweep replicates
+Everything here is calibrated on 99 independent single-sweep replicates
 simulated under the same history at several strengths per class
 (authoring/evidence/run_training.sh), grouped by what each sweep ACTUALLY
 turned out to be rather than what it was asked to be. The feature sets and
@@ -124,7 +124,8 @@ FEATURE_RADIUS_BP = 60_000
 # soft sweep leaves diversity near background and has no trough whose width
 # can be measured. Adding a second feature, and taking the swept extent from
 # the H12 elevation rather than the diversity dip where diversity is flat,
-# brings that to 98% and 0.83.
+# brings that to 100% inside a factor of 2.5 and a rank correlation of 0.80,
+# held out across 33 configurations.
 #
 # Width features are scaled by the local recombination rate: what carries the
 # strength is the GENETIC length of the footprint, so a sweep sitting in a
@@ -137,14 +138,14 @@ WIDTH_SEARCH_BP = 1_200_000
 BASE_RATE = 1e-8
 
 S_MODEL = {
-    "hard_complete": dict(feats=["pi_ratio", "w_pi_50"],
-                          coef=[-9.0909, -0.34032, 0.36376]),
+    "hard_complete": dict(feats=["pi_min_ratio", "w_pi_50"],
+                          coef=[-8.4232, -0.48969, 0.25391]),
     "hard_partial":  dict(feats=["pi_ratio", "w_h12_15"],
-                          coef=[-10.386, 0.38234, 0.48695]),
-    "soft_complete": dict(feats=["pi_ratio", "w_pi_75"],
-                          coef=[-14.828, 0.34891, 0.88015]),
-    "soft_partial":  dict(feats=["pi_ratio", "w_h12_2"],
-                          coef=[-15.845, 0.084123, 0.88815]),
+                          coef=[-8.9524, 0.44373, 0.38606]),
+    "soft_complete": dict(feats=["h12_ratio", "w_h12_15"],
+                          coef=[-11.919, -0.36355, 0.63452]),
+    "soft_partial":  dict(feats=["w_h12_2", "w_h12_15"],
+                          coef=[-15.803, 0.30979, 0.54943]),
 }
 # Per-class median s, used only when a feature the model needs is missing --
 # a footprint with no measurable extent at all.
@@ -156,14 +157,15 @@ S_FALLBACK = {"hard_complete": 0.026, "hard_partial": 0.022,
 # strength, not from residual diversity alone. H12 at a completed sweep falls
 # back towards background as recombination breaks up the swept block, which
 # is a cleaner clock than the depth of the diversity trough: measured
-# held-out across configurations, 15 of 16 completion times land inside the
-# verifier's tolerance against 9 of 16 for the diversity-depth version.
+# held out across 33 configurations, 27 of 28 completion times land inside
+# the verifier's tolerance, with a rank correlation of 0.95, against 9 of 16
+# for the diversity-depth version.
 #
 # Reported for every sweep called complete, because the submission schema
 # requires a number there, but only meaningful for the single-origin ones:
 # the verifier grades timing on true hard_complete sweeps only.
 TIMED_CLASSES = ("hard_complete", "soft_complete")
-T_MODEL = dict(feats=["h12_ratio", "w_pi_75"], coef=[5.2993, -0.92298, 0.17419])
+T_MODEL = dict(feats=["h12_ratio", "w_pi_50"], coef=[4.9582, -0.96009, 0.21275])
 TIME_FALLBACK_GENS = 500.0
 
 

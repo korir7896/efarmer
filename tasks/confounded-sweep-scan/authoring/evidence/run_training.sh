@@ -95,12 +95,24 @@ CONFIGS_HOLDOUT2=(
   "soft_partial     0.0330     220         30    _ho_s0330"
 )
 
+# Third holdout pass: more hard_complete configurations, because the timing
+# model is fitted on that class alone and ten replicates against the
+# shipped model's twenty-eight is a sample-size handicap, not a property of
+# the gate.
+CONFIGS_HOLDOUT3=(
+  "hard_complete    0.0650     320          1    _ho_s0650"
+  "hard_complete    0.0170    1300          1    _ho_s0170"
+  "hard_complete    0.0100    2100          1    _ho_s0100"
+  "hard_complete    0.0350     900          1    _ho_s0350h"
+)
+
 case "${SET:-main}" in
   main)  CONFIGS=("${CONFIGS_MAIN[@]}") ;;
   extra) CONFIGS=("${CONFIGS_EXTRA[@]}") ;;
   extra2) CONFIGS=("${CONFIGS_EXTRA2[@]}") ;;
   holdout) CONFIGS=("${CONFIGS_HOLDOUT[@]}") ;;
   holdout2) CONFIGS=("${CONFIGS_HOLDOUT2[@]}") ;;
+  holdout3) CONFIGS=("${CONFIGS_HOLDOUT3[@]}") ;;
   all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}"
                   "${CONFIGS_EXTRA2[@]}") ;;
   *) echo "SET must be main, extra, extra2, holdout, holdout2 or all"; exit 1 ;;

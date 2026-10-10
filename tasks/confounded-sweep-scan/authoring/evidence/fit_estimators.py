@@ -235,13 +235,20 @@ def score_t(cands, data):
               f"rho {rho:+.2f}  (n={n_ok})")
 
 
+# Selected by leave-one-configuration-out score over all 33 calibration
+# configurations, 16 of which the shipped replicate does not use, preferring
+# predictors that are defined on every replicate so the estimator never has
+# to fall back. Selecting over the ten shipped configurations alone picked
+# (pi_ratio, w_pi_75) for soft_complete, which scores a rank correlation of
+# 0.10-0.29 on the wider set: it was chosen on noise, and refitting it away
+# from those ten points returns an almost flat model.
 CHOSEN_S = {
-    "hard_complete": ("pi_ratio", "w_pi_50"),
-    "hard_partial":  ("pi_ratio", "w_h12_15"),
-    "soft_complete": ("pi_ratio", "w_pi_75"),
-    "soft_partial":  ("pi_ratio", "w_h12_2"),
+    "hard_complete": ("pi_min_ratio", "w_pi_50"),    # rho 0.85, n=28/28
+    "hard_partial":  ("pi_ratio", "w_h12_15"),       # rho 0.65, n=19/21
+    "soft_complete": ("h12_ratio", "w_h12_15"),      # rho 0.40, n=26/26
+    "soft_partial":  ("w_h12_2", "w_h12_15"),        # rho 0.87, n=24/24
 }
-CHOSEN_T = ("h12_ratio", "w_pi_75")
+CHOSEN_T = ("h12_ratio", "w_pi_50")
 
 
 def fit(data, combo, target, cls=None, completed=False):
@@ -295,9 +302,17 @@ def emit(data):
           f"{inside.mean():.2f}, rank correlation {spearman(list(th), list(tt)):+.3f}")
 
 
+ALL_DIRS = ("training", "training_holdout")
+
 if __name__ == "__main__":
-    data = rows()
-    print(f"{len(data)} replicates")
+    dirs = "training" if "--shipped-only" in sys.argv else ALL_DIRS
+    data = rows(dirs)
+    if "--holdout-only" in sys.argv:
+        data = [r for r in data if not r["shipped_cfg"]]
+    print(f"calibration set: {len(data)} replicates, "
+          f"{len(set(r['cfg'] for r in data))} configurations, "
+          f"{len(set(r['cfg'] for r in data if not r['shipped_cfg']))} not "
+          f"used by the shipped replicate")
     keys = ["pi_ratio", "pi_min_ratio", "h12_ratio", "snp_ratio",
             "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "w_snp_50"]
     singles = [(k,) for k in keys]
