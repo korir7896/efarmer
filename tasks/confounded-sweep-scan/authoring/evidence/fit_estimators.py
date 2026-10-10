@@ -119,6 +119,12 @@ def rows(subdir="training"):
         tajd = d["tajima_d"].astype(float); bgtajd = float(d["bg_tajd"])
         nsnp = d["n_snps"].astype(float)
         far = np.abs(mid - centre) > 2_500_000
+        # local_rate is written by make_training.py; replicates produced
+        # before cold-spot calibration existed do not carry it and were all
+        # at the base rate.
+        local_rate = float(d["local_rate"]) if "local_rate" in d.files \
+            else float(C.BASE_REC_RATE)
+        rate_scale = local_rate / float(C.BASE_REC_RATE)
 
         def med(v, m):
             x = v[m & np.isfinite(v)]
@@ -139,11 +145,21 @@ def rows(subdir="training"):
             nsl_delta=med(nsl, near) - bgnsl,
             tajd_delta=med(tajd, near) - bgtajd,
             snp_ratio=med(nsnp, near) / med(nsnp, far) if med(nsnp, far) else np.nan,
-            w_pi_50=contiguous_width(mid, pi, bgpi, centre, 0.50),
-            w_pi_75=contiguous_width(mid, pi, bgpi, centre, 0.75),
-            w_h12_2=high_width(mid, h12, bgh12, centre, 2.0),
-            w_h12_15=high_width(mid, h12, bgh12, centre, 1.5),
-            w_snp_50=contiguous_width(mid, nsnp, med(nsnp, far), centre, 0.50),
+            # Widths are scaled by the LOCAL recombination rate, exactly as
+            # characterize.shape_features() does at run time. What selection
+            # strength sets is the genetic length of the footprint, so a
+            # sweep in a cold spot leaves a physically wider one at the same
+            # s. Leaving this out was harmless while every calibration
+            # replicate sat at the base rate -- the factor was 1 -- but the
+            # calibration set now contains cold-spot replicates on purpose,
+            # and fitting raw base pairs against a pipeline that scales them
+            # would put the constants on the wrong footing.
+            w_pi_50=contiguous_width(mid, pi, bgpi, centre, 0.50) * rate_scale,
+            w_pi_75=contiguous_width(mid, pi, bgpi, centre, 0.75) * rate_scale,
+            w_h12_2=high_width(mid, h12, bgh12, centre, 2.0) * rate_scale,
+            w_h12_15=high_width(mid, h12, bgh12, centre, 1.5) * rate_scale,
+            w_snp_50=contiguous_width(mid, nsnp, med(nsnp, far), centre,
+                                      0.50) * rate_scale,
         )
         out.append(r)
     return out
