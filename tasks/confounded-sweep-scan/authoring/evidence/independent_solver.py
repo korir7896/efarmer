@@ -68,6 +68,7 @@ from pipeline import sweepstats as SS   # measurement only
 
 WIN, STEP = 50_000, 10_000
 MACRO_BP = 600_000
+EDGE_BP = 300_000
 CLASSES = ("hard_complete", "hard_partial", "soft_complete", "soft_partial")
 
 
@@ -381,12 +382,19 @@ def call_sweeps(obs, null, med: float, n_reps: int, expected_false: float = 1.0,
     log(f"    macro cut {cut:.4f} ({expected_false} expected false call(s) "
         f"per genome, from {len(pooled)} null peaks)")
 
+    # Windows within EDGE_BP of a chromosome end are dropped. Their 50 kb
+    # support is truncated and their statistics are computed from fewer SNPs,
+    # so they sit in the tail of every distribution for a reason that has
+    # nothing to do with selection. One of this solver's false positives was
+    # 35 kb from the start of chromosome 1.
     calls = []
     for c in np.unique(obs["chrom"]):
         idx = np.where(obs["chrom"] == c)[0]
         order = idx[np.argsort(obs["mid"][idx])]
         s = obs_s[order]
-        above = np.isfinite(s) & (s >= cut)
+        m = obs["mid"][order]
+        inner = (m >= EDGE_BP) & (m <= m.max() - EDGE_BP)
+        above = np.isfinite(s) & (s >= cut) & inner
         i = 0
         while i < above.size:
             if not above[i]:
