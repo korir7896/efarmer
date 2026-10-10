@@ -118,16 +118,23 @@ one respect and is handed the reference's own classification and estimation
 step, so the differences are differences in detection and calibration.
 `authoring/evidence/baselines.py` reproduces the table.
 
-| strategy | calls | false pos | fails on |
+| strategy | calls | false pos | gates failed |
 | --- | --- | --- | --- |
-| one statistic, genome-wide cut (diversity) | 1 | 0 | demography, recall, class, s, s ordering, timing |
-| one statistic (Tajima's D) | 2 | 0 | demography, recall, s ordering, timing |
-| one statistic (H12) | 1 | 0 | demography, recall, class, s, s ordering, timing |
-| one statistic (nSL) | 2 | 0 | demography, recall, s ordering, timing |
-| all statistics, constant-size null | 12 | 4 | demography, **false positives**, class, s ordering |
-| all statistics, correct history, rate-blind threshold | 9 | 1 | **recall**, timing |
-| all statistics, correct null, per-window cut | 6 | 1 | **recall**, class, s ordering, timing |
-| the reference | 8 | 0 | **passes** |
+| one statistic, genome-wide cut (diversity) | 1 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
+| one statistic (Tajima's D) | 2 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
+| one statistic (H12) | 1 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
+| one statistic (nSL) | 2 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
+| all six tests, constant-size null | 12 | 4 | both demography, **false positives**, class |
+| all six tests, correct history, rate-blind threshold | 9 | 1 | **recall**, class, timing |
+| all six tests, correct null, per-window cut | 6 | 1 | **recall**, timing |
+| the reference | 9 | 0 | **passes all twelve** |
+
+The gate names are the verifier's own, printed by `baselines.py` from the
+same `GATES` dict the tests import; "both demography" is
+`demog_bottleneck_strength` and `demog_is_bottleneck`. The reference row runs
+at the shipped false-positive budget, which `detect.EXPECTED_FALSE` now
+supplies to both the pipeline and this script so the row cannot drift away
+from what is shipped.
 
 Every required piece of work is load-bearing, and each one is enforced by a
 different gate.
@@ -147,8 +154,10 @@ against a constant-size population sees signal everywhere.
 Ignoring the recombination map while otherwise doing everything right finds
 nine regions and still loses two of the four hard_complete sweeps, because a
 threshold pooled across rates is set by the heavy tail the cold spots
-contribute. And thresholding single windows instead of clusters costs both
-soft completed sweeps outright.
+contribute: it spends its calls in the cold spots instead. And thresholding
+single windows instead of clusters costs both soft completed sweeps
+outright, which is the clearest single result here -- a soft sweep's
+footprint is broad and shallow, so it has mass but no peak.
 
 The pipeline's one free parameter is its false-positive budget, the expected
 number of spurious CLUSTERS per genome, which sets the cluster-mass cut. It
