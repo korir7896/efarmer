@@ -42,6 +42,8 @@ def main(argv=None):
     ap.add_argument("--mu", type=float, default=2.0e-8)
     ap.add_argument("--n-null", type=int, default=10)
     ap.add_argument("--expected-false", type=float, default=0.3)
+    ap.add_argument("--form-quantile", type=float, default=0.99,
+                    help="null quantile at which clusters are formed")
     ap.add_argument("--seed", type=int, default=20_240_101)
     a = ap.parse_args(argv)
 
@@ -79,11 +81,18 @@ def main(argv=None):
 
     log("scoring windows against rate-matched null")
     score = DET.sweep_scores(obs, null, med_rate)
-    thresh = DET.null_score_threshold(null, med_rate, a.n_null,
-                                      expected_false=a.expected_false)
-    log(f"  threshold {thresh:.3f} (expected {a.expected_false} null windows per genome)")
+    null_score = DET.sweep_scores(null, null, med_rate)
+    fin = null_score[np.isfinite(null_score)]
+    form_thresh = float(np.quantile(fin, a.form_quantile))
+    log(f"  cluster-forming threshold {form_thresh:.2f} "
+        f"(null quantile {a.form_quantile})")
 
-    regions = DET.call_regions(obs, score, thresh)
+    mass_thresh = DET.calibrate_clusters(null, null_score, form_thresh,
+                                         a.n_null, a.expected_false)
+    log(f"  cluster-mass threshold {mass_thresh:.1f} "
+        f"(expected {a.expected_false} null clusters per genome)")
+
+    regions = DET.call_clusters(obs, score, form_thresh, mass_thresh)
     log(f"  {len(regions)} candidate region(s)")
 
     bins = DET.rate_bin(obs["rate"], med_rate)

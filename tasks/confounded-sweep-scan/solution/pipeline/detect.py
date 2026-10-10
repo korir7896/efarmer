@@ -210,7 +210,11 @@ def build_null(hist, rm: RateMap, mu: float, n_dip: int, win: int, step: int,
     for i in range(n_reps):
         ts = simulate_null_genome(hist, rm, mu, n_dip, seed + 977 * i)
         chroms = ts_to_chroms(ts, rm.n_chrom, rm.chrom_len)
-        reps.append(scan_genome(chroms, rm.chrom_len, rm, win, step))
+        sc = scan_genome(chroms, rm.chrom_len, rm, win, step)
+        # replicate id, so clusters can be formed within a replicate rather
+        # than across the concatenation of all of them
+        sc["rep"] = np.full(sc["pi"].size, i)
+        reps.append(sc)
         log(f"    null replicate {i + 1}/{n_reps}")
     return {k: np.concatenate([r[k] for r in reps]) for k in reps[0]}
 
@@ -299,6 +303,108 @@ def null_score_threshold(null: Dict[str, np.ndarray], median_rate: float,
     q = 1.0 - (expected_false / per_genome)
     q = min(max(q, 0.5), 1.0 - 1e-9)
     return float(np.quantile(finite, q))
+
+
+# ---------------------------------------------------------------------------
+# cluster-level inference
+# ---------------------------------------------------------------------------
+#
+# Thresholding single windows is the wrong test for this signal. A sweep
+# footprint here spans one to two megabases, which is a hundred to two
+# hundred windows at a 10 kb step, each moderately elevated. Asking any one
+# of them to clear a cut set for 0.3 expected false windows per genome puts
+# that cut at the 99.993rd percentile of the null, and measured on the
+# shipped replicate the three soft sweeps scored 49.3, 55.4 and 55.9 against
+# a threshold of 56.44 -- real signal, two of them missing by a single point,
+# against a genome-wide median of 12.7.
+#
+# So clusters are formed at a mild per-window threshold and judged by their
+# total mass, the summed excess over that threshold. A broad, consistently
+# elevated footprint accumulates far more mass than the short runs that noise
+# produces. The mass cut is calibrated by applying the identical procedure to
+# each null replicate, so the false-positive budget stays exact and is now
+# a budget on CLUSTERS, which is what a call actually is.
+
+
+def cluster_runs(chrom: np.ndarray, mid: np.ndarray, score: np.ndarray,
+                 form_thresh: float, max_gap_windows: int = 10
+                 ) -> List[np.ndarray]:
+    """Contiguous runs of windows above the cluster-forming threshold."""
+    runs: List[np.ndarray] = []
+    for c in np.unique(chrom):
+        sel = np.where(chrom == c)[0]
+        order = sel[np.argsort(mid[sel])]
+        if order.size == 0:
+            continue
+        steps = np.diff(np.sort(mid[order]))
+        step = float(np.median(steps)) if steps.size else 1.0
+        hot = [i for i in order if np.isfinite(score[i]) and score[i] >= form_thresh]
+        if not hot:
+            continue
+        cur = [hot[0]]
+        for i in hot[1:]:
+            if (mid[i] - mid[cur[-1]]) <= (max_gap_windows + 1) * step:
+                cur.append(i)
+            else:
+                runs.append(np.array(cur)); cur = [i]
+        runs.append(np.array(cur))
+    return runs
+
+
+def cluster_mass(score: np.ndarray, idx: np.ndarray, form_thresh: float) -> float:
+    v = score[idx]
+    v = v[np.isfinite(v)]
+    return float(np.sum(v - form_thresh)) if v.size else 0.0
+
+
+def calibrate_clusters(null: Dict[str, np.ndarray], null_score: np.ndarray,
+                       form_thresh: float, n_reps: int,
+                       expected_false: float = 0.3,
+                       max_gap_windows: int = 10) -> float:
+    """Cluster-mass cut whose expected count per genome is `expected_false`."""
+    masses: List[float] = []
+    reps = null.get("rep")
+    rep_ids = np.unique(reps) if reps is not None else np.array([0])
+    for r in rep_ids:
+        m = (reps == r) if reps is not None else np.ones(null_score.size, bool)
+        idx_map = np.where(m)[0]
+        runs = cluster_runs(null["chrom"][m], null["mid"][m], null_score[m],
+                            form_thresh, max_gap_windows)
+        for run in runs:
+            masses.append(cluster_mass(null_score, idx_map[run], form_thresh))
+    if not masses:
+        return 0.0
+    masses = np.sort(np.array(masses))[::-1]
+    k = int(round(expected_false * len(rep_ids)))
+    if k <= 0:
+        return float(masses[0] * 1.000001)
+    if k >= masses.size:
+        return 0.0
+    return float(masses[k - 1])
+
+
+def call_clusters(obs: Dict[str, np.ndarray], score: np.ndarray,
+                  form_thresh: float, mass_thresh: float,
+                  max_gap_windows: int = 10, min_separation: int = 1_000_000
+                  ) -> List[Dict[str, object]]:
+    """Clusters whose mass clears the calibrated cut, one call each."""
+    regions: List[Dict[str, object]] = []
+    for run in cluster_runs(obs["chrom"], obs["mid"], score, form_thresh,
+                            max_gap_windows):
+        if cluster_mass(score, run, form_thresh) < mass_thresh:
+            continue
+        regions.append(_summarize(obs, score, list(run),
+                                  int(obs["chrom"][run[0]])))
+    regions.sort(key=lambda r: (r["chrom"], r["position"]))
+    merged: List[Dict[str, object]] = []
+    for r in regions:
+        if merged and merged[-1]["chrom"] == r["chrom"] and \
+                r["position"] - merged[-1]["position"] < min_separation:
+            if r["peak_score"] > merged[-1]["peak_score"]:
+                merged[-1] = r
+            continue
+        merged.append(r)
+    return merged
 
 
 def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
