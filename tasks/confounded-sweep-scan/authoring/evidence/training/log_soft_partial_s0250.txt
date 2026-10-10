@@ -1,0 +1,1 @@
+override soft_partial -> (0.025, 260, 12)

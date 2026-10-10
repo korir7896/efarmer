@@ -5,7 +5,8 @@ and only one of them is selection. The agent is given phased genotypes for 50
 diploids across four 12 Mb chromosomes and a non-uniform recombination map,
 and has to report the population's demographic history together with every
 positively selected site: where it is, which of four modes of sweep it was,
-how strong the selection was, and when the sweep finished.
+how strong the selection was, and, for the completed single-origin ones, how
+long ago it finished.
 
 ## Difficulty
 
