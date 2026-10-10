@@ -385,7 +385,7 @@ def calibrate_clusters(null: Dict[str, np.ndarray], null_score: np.ndarray,
 
 def call_clusters(obs: Dict[str, np.ndarray], score: np.ndarray,
                   form_thresh: float, mass_thresh: float,
-                  max_gap_windows: int = 10, min_separation: int = 1_000_000
+                  max_gap_windows: int = 10, min_separation: int = 1_500_000
                   ) -> List[Dict[str, object]]:
     """Clusters whose mass clears the calibrated cut, one call each."""
     regions: List[Dict[str, object]] = []
@@ -395,20 +395,11 @@ def call_clusters(obs: Dict[str, np.ndarray], score: np.ndarray,
             continue
         regions.append(_summarize(obs, score, list(run),
                                   int(obs["chrom"][run[0]])))
-    regions.sort(key=lambda r: (r["chrom"], r["position"]))
-    merged: List[Dict[str, object]] = []
-    for r in regions:
-        if merged and merged[-1]["chrom"] == r["chrom"] and \
-                r["position"] - merged[-1]["position"] < min_separation:
-            if r["peak_score"] > merged[-1]["peak_score"]:
-                merged[-1] = r
-            continue
-        merged.append(r)
-    return merged
+    return _merge_regions(obs, score, regions, min_separation)
 
 
 def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
-                 max_gap_windows: int = 10, min_separation: int = 1_000_000
+                 max_gap_windows: int = 10, min_separation: int = 1_500_000
                  ) -> List[Dict[str, object]]:
     """Cluster windows over threshold into regions, one call per region.
 
@@ -437,26 +428,67 @@ def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
                 cluster = [i]
         regions.append(_summarize(obs, score, cluster, int(c)))
 
-    regions.sort(key=lambda r: (r["chrom"], r["position"]))
-    merged: List[Dict[str, object]] = []
-    for r in regions:
-        if merged and merged[-1]["chrom"] == r["chrom"] and \
-                r["position"] - merged[-1]["position"] < min_separation:
-            if r["peak_score"] > merged[-1]["peak_score"]:
-                merged[-1] = r
-            continue
-        merged.append(r)
-    return merged
+    return _merge_regions(obs, score, regions, min_separation)
 
 
 def _summarize(obs, score, idx: Sequence[int], chrom: int) -> Dict[str, object]:
+    """One call from a cluster of windows.
+
+    The reported position is the window of maximum H12 inside the cluster,
+    not the window of maximum combined score. Measured on the calibration
+    replicates, the H12 maximum is the only locator that is good for every
+    class: 105 kb from the true site for a completed hard sweep, 59 kb for a
+    partial one, 50 kb for a soft completed one and 66 kb for a soft partial
+    one, all medians. Diversity is better than that for completed hard
+    sweeps, at 19 kb, and useless for the rest -- 4.7 Mb for the partial
+    classes, whose diversity is barely depressed so its minimum lands
+    anywhere. The combined score's peak is worse than either: on the shipped
+    replicate it put the strongest sweep 307 kb from its true site, outside
+    the verifier's 250 kb window, because a sweep at s=0.08 has a footprint
+    well over a megabase and the score is broad and flat across it.
+    """
     idx = list(idx)
-    best = max(idx, key=lambda i: score[i])
+    best_score = max(idx, key=lambda i: score[i])
+    h12 = obs.get("h12")
+    best = best_score
+    if h12 is not None:
+        finite = [i for i in idx if np.isfinite(h12[i])]
+        if finite:
+            best = max(finite, key=lambda i: h12[i])
     return {
         "chrom": chrom,
         "position": int(round(float(obs["mid"][best]))),
-        "peak_score": float(score[best]),
+        "peak_score": float(score[best_score]),
         "window_indices": idx,
         "peak_index": int(best),
         "span": (float(obs["mid"][min(idx)]), float(obs["mid"][max(idx)])),
     }
+
+
+def _merge_regions(obs, score, regions: List[Dict[str, object]],
+                   min_separation: int) -> List[Dict[str, object]]:
+    """Fuse calls on one chromosome that are closer together than a footprint.
+
+    Fusing means taking the UNION of their windows and re-deriving the
+    position from that, rather than keeping whichever had the higher score
+    and throwing the other away. A footprint interrupted by a dip in the
+    score produces two clusters whose separate positions can both sit far
+    from the selected site: on the shipped replicate the soft partial sweep
+    on chromosome 4 came out as calls 1.3 Mb either side of it, so it was
+    missed and both halves counted as false positives. The union's H12
+    maximum is the sweep.
+
+    The radius stays below the minimum spacing between true selected sites,
+    so two genuinely distinct sweeps cannot be fused into one.
+    """
+    regions = sorted(regions, key=lambda r: (r["chrom"], r["position"]))
+    out: List[Dict[str, object]] = []
+    for r in regions:
+        if out and out[-1]["chrom"] == r["chrom"] and \
+                r["position"] - out[-1]["position"] < min_separation:
+            union = sorted(set(list(out[-1]["window_indices"])
+                               + list(r["window_indices"])))
+            out[-1] = _summarize(obs, score, union, int(r["chrom"]))
+            continue
+        out.append(r)
+    return out
