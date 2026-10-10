@@ -140,11 +140,11 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
     # --- soft, complete: many origins, recent enough that several survive --
-    ("sw06", 1, 0.600,  0.0220,  519, 400, "soft_complete"),
+    ("sw06", 1, 0.8857, 0.0220,  519, 400, "soft_complete"),
     ("sw07", 3, 0.460,  0.0500,  420,  80, "soft_complete"),
     ("sw08", 4, 0.3429, 0.0095, 1500, 150, "soft_complete"),   # COLD, weakest
     # --- hard, partial: one origin, still segregating ---------------------
-    ("sw09", 1, 0.8857, 0.0160,  500,   1, "hard_partial"),
+    ("sw09", 1, 0.600,  0.0160,  500,   1, "hard_partial"),
     ("sw10", 0, 0.7143, 0.0380,  210,   1, "hard_partial"),    # COLD
     ("sw11", 3, 0.520,  0.0075,  850,   1, "hard_partial"),
     ("sw12", 4, 0.6786, 0.0650,  160,   1, "hard_partial"),
@@ -165,10 +165,27 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
 # Asserted against the map in sweeps.build_plans(), not just declared.
 SWEEPS_IN_COLDSPOT = ("sw05", "sw08", "sw10")
 
-# Two pairs sit 800 and 840 kb apart, which is above the verifier's 250 kb
+# Two pairs sit 725 and 753 kb apart, which is above the verifier's 250 kb
 # dedupe radius -- so they must be reported as two calls -- but close enough
 # that a scan on megabase windows merges them and loses one.
-CLOSE_PAIRS = (("sw06", "sw03"), ("sw07", "sw11"))
+#
+# Both pairs are deliberately HARD plus HARD or HARD plus SOFT-with-the-soft-
+# one-older, and that constraint came out of a failed generation run rather
+# than from theory. The first layout paired sw03 (hard_complete, originating
+# 1083 generations ago and fixing around 770) with sw06 (soft_complete,
+# originating 519) 753 kb away -- that is, sw06 introduced its 400 origins
+# onto a region sw03 had homogenised 250 generations earlier. There was no
+# haplotype diversity left for those origins to be distinguishable on, so
+# they collapsed to one surviving lineage and sw06 realized HARD no matter
+# how many copies were introduced. A soft sweep cannot be soft in the
+# haplotype sense if it arises in the footprint of a hard sweep that has just
+# finished. sw06 and sw09 therefore swapped positions: the pair is now
+# sw03 with sw09 (hard_partial), which has one origin to begin with and so
+# has no softness to lose. The other pair survives the same test for the
+# opposite reason: sw11 originates 850 generations ago and sw07 only 420,
+# so the soft sweep is the YOUNGER of the two and its origins land on a
+# background the weak partial sweep beside it has barely touched.
+CLOSE_PAIRS = (("sw09", "sw03"), ("sw07", "sw11"))
 
 MIN_SWEEP_SPACING = 600_000
 MIN_DIST_FROM_COLDSPOT = 900_000   # decoy spots only

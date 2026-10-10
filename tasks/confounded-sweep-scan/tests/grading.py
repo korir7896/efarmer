@@ -52,8 +52,8 @@ GATES: Dict[str, Any] = {
     # are the loose ones at 31 kb median and 211 kb worst, because their
     # diversity dip is shallow and only H12 locates them at all.
     #
-    # The window cannot be ambiguous even though two sweep PAIRS now sit 753
-    # and 826 kb apart: half of the smaller separation is 376 kb, so a call
+    # The window cannot be ambiguous even though two sweep PAIRS now sit 725
+    # and 753 kb apart: half of the smaller separation is 362 kb, so a call
     # within 250 kb of one of them is outside the window of the other, and
     # match() assigns greedily by ascending distance with each true sweep
     # taken at most once. Widening it cannot let a sloppy answer through
@@ -62,7 +62,7 @@ GATES: Dict[str, Any] = {
     "match_window_bp": 250_000,
     # Two calls closer together than this are collapsed before grading, so an
     # agent cannot manufacture recall by carpeting a region with calls. It is
-    # deliberately equal to the match window and well under the 753 kb
+    # deliberately equal to the match window and well under the 725 kb
     # minimum separation of the close pairs, so resolving a pair is possible
     # but requires actually resolving it.
     "dedupe_bp": 250_000,

@@ -495,7 +495,7 @@ def _merge_regions(obs, score, regions: List[Dict[str, object]],
     maximum is the sweep.
 
     Distance alone is NOT enough to decide, and on this genome it is wrong:
-    two selected sites sit 750 and 830 kb apart, well inside any radius wide
+    two selected sites sit 725 and 753 kb apart, well inside any radius wide
     enough to repair a split footprint, so a radius-only rule fuses a real
     pair into one call and loses a sweep. What separates the two cases is the
     SADDLE between the peaks. One footprint broken by noise dips a little and

@@ -3,7 +3,7 @@
 
 Two clusters close together are either one footprint broken by noise, which
 should be fused, or two sweeps, which must not be. Distance cannot tell them
-apart here: two selected sites sit 753 and 826 kb apart, and a merge radius
+apart here: two selected sites sit 725 and 753 kb apart, and a merge radius
 narrow enough to keep them separate is too narrow to repair a split
 footprint, which can throw clusters more than a megabase either side of the
 sweep.
