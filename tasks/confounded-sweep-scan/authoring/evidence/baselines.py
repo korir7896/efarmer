@@ -40,6 +40,23 @@ import grading as G
 WIN, STEP = 50_000, 10_000
 MU = 2.0e-8
 
+# Fail at import if the verifier's gate set has moved, rather than part-way
+# through a ten-minute run. A removed gate once took this script down after
+# the demography fit and ten null replicates.
+_REQUIRED_GATES = ("match_window_bp", "dedupe_bp", "N_ancestral_factor",
+                   "N_current_factor", "bottleneck_strength_factor",
+                   "min_recall_per_class", "max_false_positives",
+                   "min_class_accuracy", "s_within_factor", "min_s_accuracy",
+                   "time_rel_tol", "time_abs_tol_gens",
+                   "min_time_accuracy_per_class")
+_missing = [k for k in _REQUIRED_GATES if k not in G.GATES]
+_extra = [k for k in G.GATES if k not in _REQUIRED_GATES]
+if _missing:
+    raise SystemExit(f"verifier gates this script expects are gone: {_missing}")
+if _extra:
+    raise SystemExit(f"verifier has gates this script does not grade: {_extra}; "
+                     f"update _REQUIRED_GATES and grade() together")
+
 
 def naive_constant_size(obs_pi, mu):
     """N from mean diversity alone: pi = 4*N*mu."""
@@ -128,9 +145,6 @@ def grade(truth, submission):
     got_str = dur / float(dem["N_bottleneck"]) if dur > 0 else -1
     fs = G.GATES["bottleneck_strength_factor"]
     res["demog_bottleneck_strength"] = (true_str / fs <= got_str <= true_str * fs)
-    tf = G.GATES["T_bottleneck_end_frac"]
-    res["demog_T_end"] = abs(float(dem["T_bottleneck_end_gens_ago"])
-                             - float(td["T_bottleneck_end_gens_ago"])) <= tf * float(td["T_bottleneck_end_gens_ago"])
     res["demog_is_bottleneck"] = (float(dem["N_bottleneck"]) < min(float(dem["N_ancestral"]),
                                                                    float(dem["N_current"])))
 

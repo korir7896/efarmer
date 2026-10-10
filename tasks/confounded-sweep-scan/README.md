@@ -193,6 +193,36 @@ cleared any aggregate threshold. Per class no constant works, because the old
 sweeps finish roughly five times further back while the tolerance is about
 half.
 
+## Validation performed
+
+Run with `authoring/assemble.sh` and `authoring/validate.sh`.
+
+**The oracle reaches reward 1.** Nine calls on the shipped replicate, zero
+false positives, recall 3/3 recent hard, 1/2 old, 3/3 soft, 2/2 partial,
+class accuracy 7 of 9, selection coefficients within a factor of three on 8
+of 9, and all four graded completion times inside tolerance.
+
+**It is deterministic.** Two independent runs produce byte-identical
+submissions and identical calibrated thresholds, a cluster-forming cut of
+31.56 and a mass cut of 97.3.
+
+**The verifier container behaves.** Built from `tests/Dockerfile` and run
+against the real images: the oracle's own output scores `reward=1` with a
+CTRF report written, a perfect submission scores 1, an empty `/app` scores 0,
+a malformed `results.json` scores 0, and the container has no network.
+
+**The data carries no shortcut.** `authoring/evidence/leak_audit.py` passes
+every check, including that no selected site appears as a variant at all.
+
+**`task.toml` validates** against harbor's own task schema.
+
+Not done here: a full `harbor run` of the oracle and nop inside this sandbox
+needs the environment image, whose apt layer cannot be built because the
+egress policy reaches PyPI but not Debian mirrors, and pip inside a docker
+build needs the proxy CA injected. Neither applies in the real pipeline. The
+pip layer was built and its imports exercised; the apt packages are standard
+bookworm names and are convenience tooling the reference does not use.
+
 Eighteen submissions were run through the real verifier
 (`authoring/evidence/verifier_selftest.py`). The perfect answer passes, and so
 does the perfect answer plus one false positive, confirming the false-positive
