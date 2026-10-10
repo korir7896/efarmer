@@ -276,7 +276,16 @@ def triviality():
 
 
 def design_guarantee():
-    """Can a constant EVER date three hard_complete sweeps, for any draw?
+    """Can a constant EVER date as many sweeps as the gate requires?
+
+    The question is not whether a constant can date three -- it is whether it
+    can reach GATES["min_time_correct"], which is what would make the gate
+    satisfiable without dating anything. Over the acceptance windows a
+    constant CAN reach three of the five here, at the corners where the three
+    oldest sweeps sit closest together (880, 1420 and 2400 generations, all
+    covered by a constant at 1200). Three is below the gate, so the guarantee
+    holds with one sweep to spare; claiming it cannot reach three would be
+    false.
 
     The check above uses the realized completion times of one replicate. This
     one uses the acceptance WINDOWS, so it holds for every replicate the

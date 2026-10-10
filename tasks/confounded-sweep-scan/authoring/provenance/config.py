@@ -135,18 +135,18 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     # oldest is the second strongest. Nothing about a sweep's strength can be
     # read off its age or the reverse.
     ("sw01", 0, 0.120,  0.0900,  274,   1, "hard_complete"),   # ~130 gens ago
-    ("sw02", 1, 0.160,  0.0075, 1569,   1, "hard_complete"),   # ~320
+    ("sw02", 1, 0.160,  0.0110, 1595,   1, "hard_complete"),   # ~350
     ("sw03", 1, 0.6571, 0.0400, 1083,   1, "hard_complete"),   # ~760
     ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
     # --- soft, complete: many origins, recent enough that several survive --
-    ("sw06", 1, 0.600,  0.0220,  700, 400, "soft_complete"),
+    ("sw06", 1, 0.600,  0.0220,  519, 400, "soft_complete"),
     ("sw07", 3, 0.460,  0.0500,  420,  80, "soft_complete"),
     ("sw08", 4, 0.3429, 0.0095, 1500, 150, "soft_complete"),   # COLD, weakest
     # --- hard, partial: one origin, still segregating ---------------------
     ("sw09", 1, 0.8857, 0.0160,  500,   1, "hard_partial"),
     ("sw10", 0, 0.7143, 0.0380,  210,   1, "hard_partial"),    # COLD
-    ("sw11", 3, 0.520,  0.0085,  850,   1, "hard_partial"),
+    ("sw11", 3, 0.520,  0.0075,  850,   1, "hard_partial"),
     ("sw12", 4, 0.6786, 0.0650,  160,   1, "hard_partial"),
     # --- soft, partial: the weakest cell. Origin counts scale as 1/(2s),
     #     because a founding lineage escapes drift with probability ~2s, so
@@ -319,8 +319,7 @@ ACCEPT: Dict[str, Dict] = {
     "sw01": dict(class_="hard_complete", must_complete=True,
                  done_min=100,  done_max=180),    # probed 111, 131, 148
     "sw02": dict(class_="hard_complete", must_complete=True,
-                 done_min=220,  done_max=430),    # probed 283, 357, 404;
-    #                                               in context 239
+                 done_min=200,  done_max=520),    # s raised to 0.0110
     "sw03": dict(class_="hard_complete", must_complete=True,
                  done_min=700,  done_max=880),    # probed 749, 802, 823
     "sw04": dict(class_="hard_complete", must_complete=True,
@@ -329,8 +328,7 @@ ACCEPT: Dict[str, Dict] = {
                  done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
     # soft_complete: must stay SOFT, which is the binding constraint.
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=200,  done_max=430),    # probed 350 (11 origins),
-    #                                        in context 347 (7) and 510 (1)
+                 done_min=100,  done_max=330),    # origin moved to 519
     "sw07": dict(class_="soft_complete", must_complete=True,
                  done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
@@ -342,8 +340,7 @@ ACCEPT: Dict[str, Dict] = {
                  freq_min=0.12, freq_max=0.93),   # probed 0.267, 0.664,
     #                                        0.846; in context 0.159
     "sw11": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.25, freq_max=0.96),   # probed 0.762, 0.909,
-    #                                   0.938; in context 0.261 and 0.684
+                 freq_min=0.18, freq_max=0.96),   # s lowered to 0.0075
     "sw12": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.55, freq_max=0.96),   # probed 0.752, 0.894
     # soft_partial: still segregating AND at least two surviving origins.
