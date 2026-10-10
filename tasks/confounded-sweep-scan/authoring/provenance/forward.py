@@ -431,17 +431,27 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
             if failed_at is not None:
                 break
 
-            # 2. judge every unconfirmed sweep: gone now, or short at its
-            #    own deadline.
+            # 2. judge the sweeps: lost now, or short at their own deadline.
+            #
+            # The LOSS check runs on every tracked sweep, confirmed or not.
+            # Confirmation means a sweep cleared its establishment threshold,
+            # not that it can no longer be lost, and on a backtrack every
+            # stage before the restart point is marked confirmed and replayed.
+            # Skipping those meant a sweep whose allele died during the replay
+            # went unnoticed until replicate acceptance, hundreds of
+            # generations later: that is how sw09, a weak sweep sitting just
+            # before two sweeps that need many establishment attempts, kept
+            # arriving at the present with a frequency of zero after having
+            # been established in an earlier pass.
             snap_counts = recorder.snapshot(pop)
             for sid in list(recorder.tracked):
-                if confirmed.get(sid):
-                    continue
                 st = stages[stage_of[sid]]
                 total, done, surviving = snap_counts[sid]
                 if total == 0 and not done:
                     failed_at = stage_of[sid]
                     break
+                if confirmed.get(sid):
+                    continue
                 if pop.generation >= st.deadline:
                     strong = done or total >= est_threshold(st.plan.s)
                     # How many origins must still be present at the
@@ -525,9 +535,17 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                             f"{stages[k].plan.sweep_id} never met its acceptance "
                             f"criteria in {max_attempts_per_stage} attempts")
                     if verbose:
+                        live = recorder.snapshot(pop)
+                        detail = ", ".join(
+                            f"{sid}: live total={live[sid][0]} "
+                            f"fixed={live[sid][1]} origins={live[sid][2]} "
+                            f"vs recorded count={recorder.real[sid].final_count} "
+                            f"origins={recorder.real[sid].n_origins_surviving}"
+                            for sid in failing if sid in live)
                         print(f"  backtracking to {stages[k].plan.sweep_id} "
                               f"(restart {total_restarts}, attempt "
-                              f"{attempts[k]}): " + "; ".join(problems),
+                              f"{attempts[k]}, gen {pop.generation}): "
+                              + "; ".join(problems) + "  [" + detail + "]",
                               flush=True)
                     backtrack_to(k)
                     continue
