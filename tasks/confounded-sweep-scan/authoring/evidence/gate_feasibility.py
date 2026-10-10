@@ -241,20 +241,37 @@ def triviality():
     print(f"time, one constant per class: {total}/{len(times)} in total "
           f"(gate needs {GATES['min_time_correct']})")
 
-    # Two constants, which is the limit of this gate and worth stating.
-    best2, pair = 0, None
-    grid = list(range(20, 3001, 20))
-    for a_ in grid:
-        for b_ in grid:
+    # Two and three constants, which is where the limit of this gate sits.
+    # Reported rather than glossed, because "the gate excludes a constant" is
+    # only worth saying alongside what it does not exclude.
+    grid = list(range(20, 3501, 20))
+    best_k = {}
+    for k in (2, 3):
+        best, pick = 0, None
+        for combo in itertools.combinations(grid, k):
             n = sum(1 for tt in times
-                    if min(abs(a_ - tt), abs(b_ - tt)) <= time_tolerance(tt))
-            if n > best2:
-                best2, pair = n, (a_, b_)
-    print(f"time, TWO constants: best pair {pair} dates {best2}/{len(times)}. "
-          f"With only four dateable sweeps no count-based gate can exclude\n"
-          f"    that: a submission reporting two well-chosen numbers passes "
-          f"the timing gate without dating anything. The gate excludes one\n"
-          f"    constant, which is what it claims, and nothing stronger.")
+                    if min(abs(c - tt) for c in combo) <= time_tolerance(tt))
+            if n > best:
+                best, pick = n, combo
+                if best == len(times):
+                    break
+        best_k[k] = (best, pick)
+    need = GATES["min_time_correct"]
+    for k in (2, 3):
+        best, pick = best_k[k]
+        verdict = "PASSES" if best >= need else "fails"
+        print(f"time, {k} constants: best set {pick} dates {best}/{len(times)}"
+              f" -- {verdict} a gate needing {need}")
+    print(f"    One constant is excluded with certainty. Two are NOT, and "
+          f"that is the honest limit of this gate: with a tolerance that\n"
+          f"    grows with age, each constant can cover at most two of five "
+          f"ages spaced this way, so two cover four and reach a gate of\n"
+          f"    four with no margin. No count-based gate over five dateable "
+          f"sweeps can exclude a two-constant answer without demanding all\n"
+          f"    five, which no measured method clears. What the cheat still "
+          f"needs is knowledge of WHICH sweeps are old, in order to point\n"
+          f"    each constant at the right pair -- and recovering that is the "
+          f"work the gate is asking for.")
     print(f"time, true values: {sorted(int(t) for t in times)}")
 
 
