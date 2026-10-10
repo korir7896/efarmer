@@ -64,7 +64,8 @@ def main() -> int:
         rate = cfg.rate_at(cfg.chrom_offset(s["chrom"] - 1) + s["position_local"])
         cold = "" if rate >= cfg.base_rec_rate * 0.9 else "  COLD"
         done = s.get("completion_gens_ago")
-        print(f"  {s['sweep_id']:<6}chr{s['chrom']:<4}{s['position_local']:>12,}"
+        print(f"  {s['sweep_id']:<6}chr{int(s['chrom']):<4}"
+              f"{int(s['position_local']):>12,}"
               f"{s['class']:<15}{s['selection_coefficient']:>8.4f}"
               f"{(round(done) if done else '-'):>7}"
               f"{s.get('final_frequency', 0):>7.3f}"
@@ -98,7 +99,8 @@ def main() -> int:
         pb = next(s for s in sweeps if s["sweep_id"] == b)
         gap = abs(pa["position_local"] - pb["position_local"])
         print(f"  {a} ({pa['class']}) and {b} ({pb['class']}) on "
-              f"chr{pa['chrom']}: {gap:,} bp apart, against a dedupe radius "
+              f"chr{int(pa['chrom'])}: {int(gap):,} bp apart, against a "
+              f"dedupe radius "
               f"of {GATES['dedupe_bp']:,}")
 
     print("\n=== sweeps inside a cold spot ===")

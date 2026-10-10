@@ -496,7 +496,18 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
         for half in SEARCH_HALF_WIDTHS:
             idx = _insert(pop_, st, planned - half + 0.5, planned + half + 0.5)
             if idx is not None:
-                return idx, float(pop_.mutations[idx].pos), half
+                # Rounded to a whole base pair. fwdpy11 keeps mutation
+                # positions on a continuous coordinate and picks one inside
+                # the window itself, so the raw value comes back fractional
+                # -- 1,682,654.147 for the first sweep. Recording that would
+                # put a fractional coordinate in the sealed truth and, since
+                # the chromosome index is derived from it by division, make
+                # that fractional too. Every coordinate the agent ever sees
+                # is an integer base pair, so the truth names the base pair
+                # containing the site. Nothing passed to the simulator
+                # changes, so this does not alter the trajectories or the
+                # data: it is only what gets written down.
+                return idx, float(round(pop_.mutations[idx].pos)), half
         return None, planned, None
 
     def add_stage(pop_, st: _Stage):

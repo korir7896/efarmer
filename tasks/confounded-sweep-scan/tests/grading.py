@@ -25,7 +25,19 @@ generations, which made the age of a sweep partly a function of its class and
 so let a class-conditional constant satisfy the timing gate without dating
 anything.  Age is now graded only as a continuous quantity, over sweeps whose
 true class is hard_complete, whose true completion times in the shipped
-replicate are 133, 292, 1214 and 2097 generations ago, a factor of 15.8.
+replicate are 116, 323, 789, 1724 and 2529 generations ago, a factor of 21.8.
+
+The shipped zoo is fifteen sweeps: five hard_complete, three soft_complete,
+four hard_partial and three soft_partial.  Their selection coefficients span
+a factor of 12.0, from 0.0075 to 0.0900, and s is NON-MONOTONE in age -- by
+ascending completion age the coefficients run 0.090, 0.028, 0.040, 0.013,
+0.055 -- so neither graded quantity can be read off the other.  Three sweeps
+sit inside wide recombination cold spots and two pairs sit 725 kb and 753 kb
+apart, both above the dedupe radius so each member has to be called
+separately.  Every threshold below was measured against the composition of
+THAT zoo rather than against a calibration average; the tables in the
+comments are those measurements, and authoring/evidence/s_gate_design.py and
+fit_classifier.py --shipped-composition reproduce them.
 """
 from __future__ import annotations
 

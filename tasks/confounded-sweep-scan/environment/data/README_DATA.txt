@@ -5,18 +5,18 @@ Files in this directory
 -----------------------
 
 variants.vcf.gz
-    Phased, biallelic single-nucleotide variants for 50 diploid individuals
-    (100 haplotypes), named IND001 .. IND050.
+    Phased, biallelic single-nucleotide variants for 40 diploid individuals
+    (80 haplotypes), named IND001 .. IND040.
 
-    Four chromosomes, chr1 .. chr4, each 12,000,000 bp. Positions are 1-based
-    within their chromosome.
+    Five chromosomes, chr1 .. chr5, each 14,000,000 bp. Positions are
+    1-based within their chromosome.
 
     REF is the ANCESTRAL allele and ALT the DERIVED allele at every site; the
     INFO field repeats the ancestral allele as AA. Allele 1 in the genotype
     column is therefore always the derived allele, and the unfolded site
     frequency spectrum can be read directly without further polarization.
 
-    Only sites that are biallelic and segregating within these 50 individuals
+    Only sites that are biallelic and segregating within these 40 individuals
     are present. Sites that are monomorphic in the sample are not listed.
     There are no missing genotypes.
 
@@ -54,7 +54,7 @@ Selection
 Ploidy and mating
     Diploid, randomly mating, one panmictic population throughout. No
     population structure, no migration, no admixture, no inbreeding, no
-    selfing, and no sex chromosomes: all four chromosomes are autosomes.
+    selfing, and no sex chromosomes: all five chromosomes are autosomes.
 
 Generation time
     Irrelevant. Report every time in generations before the present, where
