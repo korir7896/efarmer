@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TASK = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(TASK, "tests"))
 
-from grading import GATES
+from grading import CLASSES, GATES
 
 WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
          "seven": 7, "eight": 8, "nine": 9, "ten": 10}
@@ -31,8 +31,17 @@ def _num(tok: str) -> float:
     return float(WORDS[tok]) if tok in WORDS else float(tok)
 
 
+# Every threshold this script has checked, so the summary line counts them
+# instead of asserting a number. A hardcoded count is a coverage claim that
+# goes stale the first time a gate is split in two, which is exactly what
+# happened when N_ancestral and N_current stopped sharing one factor: the
+# script checked seventeen thresholds and still reported fifteen.
+CHECKED: list = []
+
+
 def _one(text: str, pattern: str, label: str, expected: float,
          errors: list) -> None:
+    CHECKED.append(label)
     m = re.search(pattern, text, re.I)
     if not m:
         errors.append(f"{label}: instruction.md has no text matching "
@@ -49,8 +58,15 @@ def main() -> int:
     errors: list = []
     rc = GATES["min_recall_per_class"]
 
-    _one(text, r"N_ancestral and N_current must each be within a factor of\s+([\d.]+)",
-         "population-size factor", GATES["N_ancestral_factor"], errors)
+    # Two separate factors, because the measured spread of the reference's
+    # own fit is not the same for the two sizes: N_current is recovered less
+    # well than N_ancestral here, so grading them to one number would mean
+    # either a gate the reference fails or a gate that asks nothing of
+    # N_ancestral.
+    _one(text, r"N_ancestral must be within a factor of\s+([\d.]+)",
+         "N_ancestral factor", GATES["N_ancestral_factor"], errors)
+    _one(text, r"N_current within a factor of\s+([\d.]+)",
+         "N_current factor", GATES["N_current_factor"], errors)
     _one(text, r"/ N_bottleneck within a factor of\s+([\d.]+)",
          "bottleneck severity factor", GATES["bottleneck_strength_factor"], errors)
     _one(text, r"reported sweeps closer together than\s+([\d]+)\s*kb",
@@ -99,8 +115,9 @@ def main() -> int:
         for e in errors:
             print(f"  - {e}")
         return 1
-    print(f"instruction.md agrees with grading.GATES on all 15 thresholds "
-          f"and all four class names")
+    print(f"instruction.md agrees with grading.GATES on all "
+          f"{len(CHECKED)} thresholds it states and all "
+          f"{len(CLASSES)} class names")
     return 0
 
 

@@ -80,15 +80,38 @@ GATES: Dict[str, Any] = {
     "dedupe_bp": 250_000,
 
     # --- demography ---
-    # Sizes are graded multiplicatively. N_ancestral and N_current are
-    # identifiable from the site-frequency spectrum given the mutation rate.
-    # Tightened from 1.60: two independent agent transcripts recovered both
-    # sizes to within 8% and 24% respectively, so 1.60 was not measuring
-    # anything. The sample is 40 diploids rather than 50, which costs the fit
-    # some precision, so this is not tightened as far as those transcripts
-    # alone would allow.
+    # Sizes are graded multiplicatively, and all three numbers come from the
+    # measured spread of the reference's own fit rather than from how tight
+    # they sound. The fit is a stochastic search against a simulated
+    # spectrum, so the spread that matters is across search seeds; run at
+    # five on the shipped replicate it gives:
+    #
+    #     seed       N_ancestral   N_current   bottleneck strength
+    #     12345          1.009       1.107            2.946
+    #     20240101       1.086       1.303            1.927
+    #     555            1.166       1.275            1.211
+    #     7              1.184       1.322            1.223
+    #     99             1.006       1.144            1.327
+    #
+    # I had N_ancestral and N_current at 1.50 and the strength at 2.20, from
+    # two agent transcripts on the PREVIOUS instance that recovered both
+    # sizes to within 8% and 24%. That instance had 50 diploids and 48 Mb;
+    # this one has 40 diploids, 70 Mb and fifteen sweeps rather than ten, and
+    # those numbers do not survive the change. N_ancestral at 1.50 does --
+    # the worst seed is 1.184 -- but N_current goes to 1.322 and the strength
+    # to 2.946, so both of those are loosened to sit clear of the measured
+    # worst case rather than just inside it.
+    #
+    # Why the fit cannot do better is worth stating, because it is the task's
+    # own premise rather than a weakness in the reference. The TRUE history
+    # is not the optimum of this objective: scored against the observed
+    # spectrum it reaches 0.10 to 0.16 where the fitted history reaches
+    # 0.009, because fifteen sweeps have skewed the observed spectrum towards
+    # rare alleles and the best-fitting NEUTRAL history is the one that
+    # mimics that skew. No amount of search fixes that, and it is exactly
+    # what the task asks an agent to work around.
     "N_ancestral_factor": 1.50,
-    "N_current_factor": 1.50,
+    "N_current_factor": 1.60,
     # The DEPTH and DURATION of a bottleneck are not separately identifiable
     # from the spectrum: a short severe contraction and a longer milder one
     # leave almost the same coalescent signature, because what the genealogy
@@ -96,8 +119,12 @@ GATES: Dict[str, Any] = {
     # would partly be grading which point of that ridge a fit happened to
     # land on.  So the gate is on the identifiable combination, and the
     # reported history must still be a real contraction followed by a
-    # recovery (test_bottleneck_is_a_bottleneck).
-    "bottleneck_strength_factor": 2.20,
+    # recovery (test_bottleneck_is_a_bottleneck). Even the combination is
+    # only recovered to within a factor of three here, which is why the gate
+    # is 3.50 and not something that sounds stricter: a constant-size answer
+    # reports a strength of zero and fails it outright, which is the thing
+    # it is there to catch.
+    "bottleneck_strength_factor": 3.50,
     # The bottleneck's TIMING is not graded at all.  Measured on four
     # independent neutral replicates with known truth, a competent
     # spectrum-based fit recovered the expansion time at 0.64, 0.68, 1.31 and
