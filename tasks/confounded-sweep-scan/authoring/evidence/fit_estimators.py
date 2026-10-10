@@ -145,21 +145,15 @@ def rows(subdir="training"):
             nsl_delta=med(nsl, near) - bgnsl,
             tajd_delta=med(tajd, near) - bgtajd,
             snp_ratio=med(nsnp, near) / med(nsnp, far) if med(nsnp, far) else np.nan,
-            # Widths are scaled by the LOCAL recombination rate, exactly as
-            # characterize.shape_features() does at run time. What selection
-            # strength sets is the genetic length of the footprint, so a
-            # sweep in a cold spot leaves a physically wider one at the same
-            # s. Leaving this out was harmless while every calibration
-            # replicate sat at the base rate -- the factor was 1 -- but the
-            # calibration set now contains cold-spot replicates on purpose,
-            # and fitting raw base pairs against a pipeline that scales them
-            # would put the constants on the wrong footing.
-            w_pi_50=contiguous_width(mid, pi, bgpi, centre, 0.50) * rate_scale,
-            w_pi_75=contiguous_width(mid, pi, bgpi, centre, 0.75) * rate_scale,
-            w_h12_2=high_width(mid, h12, bgh12, centre, 2.0) * rate_scale,
-            w_h12_15=high_width(mid, h12, bgh12, centre, 1.5) * rate_scale,
-            w_snp_50=contiguous_width(mid, nsnp, med(nsnp, far), centre,
-                                      0.50) * rate_scale,
+            # Widths in BASE PAIRS, with the local rate beside them as its
+            # own feature. See characterize.shape_features for why dividing
+            # by the rate ratio over-corrects on a finite cold spot.
+            w_pi_50=contiguous_width(mid, pi, bgpi, centre, 0.50),
+            w_pi_75=contiguous_width(mid, pi, bgpi, centre, 0.75),
+            w_h12_2=high_width(mid, h12, bgh12, centre, 2.0),
+            w_h12_15=high_width(mid, h12, bgh12, centre, 1.5),
+            w_snp_50=contiguous_width(mid, nsnp, med(nsnp, far), centre, 0.50),
+            rate_ratio=rate_scale,
         )
         out.append(r)
     return out
@@ -329,13 +323,25 @@ if __name__ == "__main__":
           f"{len(set(r['cfg'] for r in data))} configurations, "
           f"{len(set(r['cfg'] for r in data if not r['shipped_cfg']))} not "
           f"used by the shipped replicate")
+    # rate_ratio is a candidate here and NOT in fit_classifier: strength is
+    # read off footprint geometry, which depends on the local recombination
+    # rate, while class is read off haplotype structure, which does not.
+    # Offering it to the classifier would let it learn "cold spot implies
+    # this class" from the five cold-spot configurations.
     keys = ["pi_ratio", "pi_min_ratio", "h12_ratio", "snp_ratio",
-            "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "w_snp_50"]
+            "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "w_snp_50",
+            "rate_ratio"]
     singles = [(k,) for k in keys]
     pairs = [c for c in itertools.combinations(keys, 2)]
+    # Triples that include rate_ratio only: a (level, width, rate) model is
+    # the shape the cold-spot geometry calls for, and the full triple space
+    # would be 120 combinations per class with no reason behind most of them.
+    triples = [c + ("rate_ratio",)
+               for c in itertools.combinations(
+                   [k for k in keys if k != "rate_ratio"], 2)]
     if "--emit" in sys.argv:
         emit(data)
     else:
-        score_s(singles + pairs, data)
-        score_t(singles + pairs, data)
+        score_s(singles + pairs + triples, data)
+        score_t(singles + pairs + triples, data)
         emit(data)

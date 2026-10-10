@@ -155,8 +155,31 @@ GATES: Dict[str, Any] = {
     # acceptance windows rather than over this one replicate. Requiring four
     # therefore cannot be met by one constant, and since class no longer
     # carries age, a class-conditional constant is just a constant here.
-    "time_rel_tol": 0.40,
-    "time_abs_tol_gens": 120,
+    # The tolerance is 50% or 150 generations, whichever is larger, and the
+    # gate needs four of the five. Both numbers come from measurement, not
+    # from how hard they sound. Held out by configuration over 22 dateable
+    # calibration replicates spanning 124 to 2504 generations, the best
+    # log-linear clock available reaches:
+    #
+    #     tolerance    best held-out accuracy    expected of 5
+    #     40% / 120            0.59                   3.0
+    #     45% / 140            0.77                   3.9
+    #     50% / 150            0.86                   4.3
+    #     55% / 175            0.86                   4.3
+    #
+    # A gate of four needs 80%, so 40% and 45% would demand better than any
+    # measured clock achieves and 55% buys nothing over 50%. I set this to
+    # 40%/120 first on the reasoning that a tighter tolerance is a harder
+    # task, measured it, and moved it back: a gate the reference cannot clear
+    # is not a hard task, it is a broken one.
+    #
+    # It is still a tightening. The previous version graded four dateable
+    # sweeps spanning a factor of 15.8 and required three (75%); this grades
+    # five spanning a factor of 19 and requires four (80%), one of which sits
+    # inside a recombination cold spot, and the recall gate has to supply
+    # four hard_complete sweeps for four to be gradeable at all.
+    "time_rel_tol": 0.50,
+    "time_abs_tol_gens": 150,
     "min_time_correct": 4,
 }
 

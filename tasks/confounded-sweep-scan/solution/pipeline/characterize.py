@@ -341,31 +341,53 @@ def contiguous_high_width(mid: np.ndarray, v: np.ndarray, bg: float,
 
 def shape_features(obs: Dict[str, np.ndarray], region: Dict,
                    bg: Dict[str, float], local_rate: float) -> Dict[str, float]:
-    """Footprint extents the estimators are fitted on, in genetic units.
+    """Footprint extents the estimators are fitted on, plus the local rate.
 
-    Each width is multiplied by the local recombination rate over the base
-    rate, because what a sweep's strength sets is the genetic length of its
-    footprint; the same sweep inside a cold spot covers more base pairs.
+    Widths are returned in BASE PAIRS, unscaled, and the local rate relative
+    to the base rate is returned beside them as `rate_ratio` so the fitted
+    model can use it.
+
+    The obvious thing is to divide each width by the rate ratio, on the
+    reasoning that a sweep's strength sets the GENETIC length of its
+    footprint, so the same sweep in a cold spot covers proportionally more
+    base pairs. That reasoning is right in an infinite cold spot and wrong
+    here, and the calibration replicates say by how much: at s = 0.040 in a
+    0.25x spot the measured footprint is 1,335 kb against 650 kb at the base
+    rate -- a factor of 2.05, not the factor of 4 the rate ratio implies,
+    because the spot is 2.8 Mb wide and the footprint runs out of it into
+    base-rate flanks. Dividing by 4 would over-correct by about two, which
+    is worse than not correcting at all.
+
+    So the exponent is fitted rather than assumed. `rate_ratio` is a
+    candidate feature for the strength and age models, which are log-linear,
+    so the fit learns what power of it the data actually wants. It is
+    deliberately NOT offered to the classifier: a sweep's class is read off
+    haplotype structure, which does not depend on the recombination rate,
+    and with five cold-spot configurations in the calibration set a
+    classifier would be free to learn "cold spot implies this class" from
+    the handful of shipped sweeps that happen to sit in one.
     """
     same = obs["chrom"] == region["chrom"]
     idx = np.where(same)[0]
     out = {k: 0.0 for k in ("w_pi_50", "w_pi_75", "w_h12_15", "w_h12_2")}
+    out["rate_ratio"] = 1.0
     if idx.size == 0:
         return out
     mid = obs["mid"][idx]
     centre = float(obs["mid"][int(region["peak_index"])])
-    scale = (float(local_rate) / BASE_RATE
-             if np.isfinite(local_rate) and local_rate > 0 else 1.0)
+    out["rate_ratio"] = (float(local_rate) / BASE_RATE
+                         if np.isfinite(local_rate) and local_rate > 0
+                         else 1.0)
     pi = obs["pi"][idx]
     h12 = obs["h12"][idx]
     out["w_pi_50"] = contiguous_low_width(mid, pi, bg.get("pi", np.nan),
-                                          centre, 0.50) * scale
+                                          centre, 0.50)
     out["w_pi_75"] = contiguous_low_width(mid, pi, bg.get("pi", np.nan),
-                                          centre, 0.75) * scale
+                                          centre, 0.75)
     out["w_h12_15"] = contiguous_high_width(mid, h12, bg.get("h12", np.nan),
-                                            centre, 1.5) * scale
+                                            centre, 1.5)
     out["w_h12_2"] = contiguous_high_width(mid, h12, bg.get("h12", np.nan),
-                                           centre, 2.0) * scale
+                                           centre, 2.0)
     return out
 
 
