@@ -25,7 +25,7 @@ generations, which made the age of a sweep partly a function of its class and
 so let a class-conditional constant satisfy the timing gate without dating
 anything.  Age is now graded only as a continuous quantity, over sweeps whose
 true class is hard_complete, whose true completion times in the shipped
-replicate span a factor of twenty.
+replicate are 133, 292, 1214 and 2097 generations ago, a factor of 15.8.
 """
 from __future__ import annotations
 

@@ -38,12 +38,13 @@ BOUNDARY_RATE = math.log(2.0)
 # and contributes nothing from it, so the pair behaves as a two-sided test.
 #
 # With only four one-sided statistics, soft sweeps contributed to exactly one
-# of them: diversity at a soft sweep is 0.80 of background, barely
-# depressed; nSL reads zero because the sweep has finished; and Tajima's D
-# pointed the wrong way. Two of the three soft sweeps in the shipped
-# replicate were missed. H2/H1 is reduced at soft sweeps as well, to about
-# 0.6 of background against a null first percentile of 0.48, so it
-# contributes too.
+# of them: diversity at a soft completed sweep is 0.79 of background, barely
+# depressed; nSL reads about zero because the sweep has finished; and
+# Tajima's D pointed the wrong way, at +0.53 where a hard sweep gives -2.44.
+# Measured on an earlier replicate of this task, built to the same history
+# and the same map, that cost two of its three soft sweeps. H2/H1 is reduced
+# at soft sweeps as well, to about 0.6 of background against a null first
+# percentile of 0.48, so it contributes too.
 DETECT_STATS = (("pi", "low"), ("tajima_d", "low"), ("tajima_d", "high"),
                 ("h12", "high"), ("h2_h1", "low"), ("nsl_frac", "high"))
 
@@ -313,10 +314,13 @@ def null_score_threshold(null: Dict[str, np.ndarray], median_rate: float,
 # footprint here spans one to two megabases, which is a hundred to two
 # hundred windows at a 10 kb step, each moderately elevated. Asking any one
 # of them to clear a cut set for 0.3 expected false windows per genome puts
-# that cut at the 99.993rd percentile of the null, and measured on the
-# shipped replicate the three soft sweeps scored 49.3, 55.4 and 55.9 against
-# a threshold of 56.44 -- real signal, two of them missing by a single point,
-# against a genome-wide median of 12.7.
+# that cut at the 99.993rd percentile of the null. On an earlier replicate
+# of this task the three soft sweeps scored 49.3, 55.4 and 55.9 against such
+# a threshold of 56.44, with a genome-wide median of 12.7: real signal, two
+# of them missing by a single point. On the shipped replicate the same
+# substitution, everything else held fixed, loses BOTH soft completed sweeps
+# and still reports a false positive
+# (authoring/evidence/baselines_result.json, per_window_threshold).
 #
 # So clusters are formed at a mild per-window threshold and judged by their
 # total mass, the summed excess over that threshold. A broad, consistently

@@ -21,7 +21,8 @@ boundary, which put age inside the class label: a submission could then
 satisfy the timing gate with one constant per class without dating anything,
 and the review of that version said so. Age is now graded only as a
 continuous quantity, over the hard_complete sweeps, whose completion times
-here span a factor of about sixteen.
+in the shipped replicate span a factor of 15.8: 133, 292, 1214 and 2097
+generations ago.
 
 Two spreads do the work of making the graded quantities discriminating:
 

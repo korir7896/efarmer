@@ -89,7 +89,7 @@ for a single nearest-centroid rule over all four classes at once, and 90.6%
 on the softness axis among completed sweeps against 73.7% among partial
 ones.
 
-H12 collapses for old sweeps, because recombination erodes the swept
+H12 collapses for the oldest sweeps, because recombination erodes the swept
 haplotype block, so a scan that leans on it misses them. nSL reads near zero
 at any completed sweep, since no high-frequency young haplotype remains to
 carry a long tract: it is the only statistic that responds strongly to
@@ -99,7 +99,7 @@ almost nothing else.
 **And the two quantities asked about each sweep are relations that have to be
 derived and calibrated.** The selection coefficients in the shipped
 replicate span a factor of 9.4 and the ages of the datable sweeps a factor
-of eighteen, so no single plausible number satisfies either requirement. The
+of 15.8, so no single plausible number satisfies either requirement. The
 textbook relation for strength, that the footprint extends to about s over
 the local recombination rate, is necessary but not sufficient: fitted as
 trough width times local rate over a per-class constant it put 74% of
@@ -170,7 +170,9 @@ history, so the history comes first.
    -2 sum log p. Rank-based rather than a z-score because these statistics
    are strongly skewed, so a z is not on a calibrated scale: thresholding a
    max-z for a fixed false-positive budget put the cut at z = 10 and missed
-   both old sweeps despite their diversity sitting at 0.21 of background.
+   the two oldest sweeps despite their diversity sitting at 0.21 of
+   background. That was measured on an earlier replicate of this task, built
+   to the same history and the same map.
 
    The six are diversity (low), Tajima's D in **both** directions, H12
    (high), H2/H1 (low) and extreme-nSL fraction (high). Including both
@@ -178,17 +180,20 @@ history, so the history comes first.
    a window extreme in one tail has a p near one in the other and
    contributes nothing from it, so the pair acts as a two-sided test. It is
    there because soft sweeps push Tajima's D the opposite way from hard
-   ones. With only the one-sided set, soft sweeps contributed to a single
-   statistic and two of three were missed.
+   ones, +0.53 against -2.44 at the sweep. With only the one-sided set, soft
+   sweeps contributed to a single statistic and two of the three in an
+   earlier replicate were missed.
 
    Calls are made at the level of CLUSTERS, not single windows. A footprint
    here spans one to two megabases, a hundred to two hundred windows at a
    10 kb step, each moderately elevated. Requiring any one window to clear a
    cut set for 0.3 expected false windows per genome puts that cut at the
-   99.993rd percentile of the null, and measured on the shipped replicate
-   the three soft sweeps peaked at 49.3, 55.4 and 55.9 against a threshold of
-   56.44, with a genome-wide median of 12.7: real signal, two of them short
-   by a single point. So clusters are formed at the null's 99th percentile
+   99.993rd percentile of the null. On an earlier replicate the three soft
+   sweeps peaked at 49.3, 55.4 and 55.9 against such a threshold of 56.44,
+   with a genome-wide median of 12.7: real signal, two of them short by a
+   single point. On the shipped replicate that substitution, everything else
+   held fixed, loses both soft completed sweeps and still reports a false
+   positive. So clusters are formed at the null's 99th percentile
    and judged by total mass, the summed excess over that threshold. A broad,
    consistently elevated footprint accumulates far more mass than the short
    runs noise produces, and the mass cut is calibrated by applying the
