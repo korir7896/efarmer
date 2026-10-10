@@ -61,27 +61,37 @@ import numpy as np
 # had time to become frequent, while a partial sweep's are still a minority
 # of the sample however many of them there are.
 #
+# The three feature sets are chosen by a joint search over the top six
+# candidates per axis, 216 triples, scored FOUR-WAY. Scoring each axis on its
+# own is the wrong objective: the softness rules are fitted inside a
+# completeness group and applied to the PREDICTED group, so the axes
+# interact. Diversity with the SNP count scores 0.941 on completeness and
+# the extreme-nSL fraction with the SNP count 0.961, yet the triples built
+# on either come out at 0.745 four-way where this one reaches 0.824.
+#
 # What carries each axis:
-#   completeness -- diversity and the number of segregating sites in the
-#     window. A completed sweep removed variation; one still rising did not.
-#   softness, completed -- Tajima's D, which several frequent haplotypes push
-#     positive where one pushes it negative, with the extent of the H12
-#     elevation controlling for the sweep's strength.
+#   completeness -- Tajima's D with the number of segregating sites in the
+#     window. A completed sweep removed variation and left the spectrum
+#     skewed toward rare variants; one still rising did neither as strongly.
+#   softness, completed -- how deep the diversity trough got, with its
+#     widths at two recovery levels. One frequent haplotype drives diversity
+#     to nothing in a narrow core; several leave it shallow and broad, so the
+#     SHAPE of the trough carries the axis where its depth alone does not.
 #   softness, partial -- H2/H1, the textbook hard-versus-soft discriminator,
 #     which is usable here only because age is not in play: every partial
 #     sweep is still rising. Pooled over completed sweeps of all ages it is
 #     confounded, which is why it does not appear in the rule above.
 CLASS_RULES = {
     "complete": dict(
-        feats=["pi_ratio", "snp_ratio"],
-        mean=[0.553882, 0.648399],
-        sd=[0.3673, 0.27194],
-        weights=[1.98594, 2.3216, -6.92335]),           # n=51, held out 0.961
+        feats=["tajd_delta", "snp_ratio"],
+        mean=[-0.847724, 0.648399],
+        sd=[1.3927, 0.27194],
+        weights=[1.8906, 2.18412, -6.33614]),           # n=51, held out 0.961
     "soft_given_complete": dict(
-        feats=["tajd_delta", "w_h12_2"],
-        mean=[-1.09206, 1.08781e+06],
-        sd=[1.60093, 1.02584e+06],
-        weights=[0.414562, 3.17302, 0.715223]),         # n=32, held out 0.906
+        feats=["pi_min_ratio", "w_pi_50", "w_pi_75"],
+        mean=[0.157919, 362812, 695938],
+        sd=[0.118081, 307929, 465019],
+        weights=[0.313829, 3.63156, 1.54612, -0.608262]),  # n=32, held out 0.906
     "soft_given_partial": dict(
         feats=["h2h1_ratio"],
         mean=[0.378404],
