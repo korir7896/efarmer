@@ -61,4 +61,12 @@ for s in sorted(d['sweeps'], key=lambda x: (x['chrom'], x['position'])):
           f\"s={s['selection_coefficient']:.4f} t={s['time_gens_ago']}\")
 "
 echo
+echo "=== gate feasibility, triviality and the design guarantee ==="
+"$PY" "$TASK/authoring/evidence/gate_feasibility.py"
+
+echo
+echo "=== verifier self-test against the shipped truth ==="
+"$PY" "$TASK/authoring/evidence/verifier_selftest.py"
+
+echo
 echo "results in $WORK"

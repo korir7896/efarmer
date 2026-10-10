@@ -25,7 +25,17 @@ REPS="${REPS:-3}"
 mkdir -p "$OUT"
 
 # label                s      origin  n_origins  tag
-CONFIGS=(
+#
+# SET=extra adds the second pass. The first pass put the soft_complete
+# intermediate at s=0.030 origin 480, and two of its three replicates came
+# out HARD: a soft sweep stops being soft once it has been complete for a
+# few hundred generations, because the surviving beneficial haplotypes drift
+# and one takes over. The measured elapsed time from origin to completion is
+# about 148 generations at s=0.030 with a hundred origins, so the origin has
+# to sit around 330 for the sweep to be young enough at the present. The
+# extra pass also tops up the two measured soft_complete configurations,
+# since the first pass lost replicates to the same effect.
+CONFIGS_MAIN=(
   "hard_complete    0.0800     280          1    _s0800"
   "hard_complete    0.0300     710          1    _s0300"
   "hard_complete    0.0085    2300          1    _s0085"
@@ -41,10 +51,23 @@ CONFIGS=(
   "soft_partial     0.0600     120         12    _s0600"
 )
 
+CONFIGS_EXTRA=(
+  "soft_complete    0.0300     330        100    _s0300b"
+  "soft_complete    0.0180     650        100    _s0180b"
+  "soft_complete    0.0450     380        100    _s0450b"
+)
+
+case "${SET:-main}" in
+  main)  CONFIGS=("${CONFIGS_MAIN[@]}") ;;
+  extra) CONFIGS=("${CONFIGS_EXTRA[@]}") ;;
+  all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}") ;;
+  *) echo "SET must be main, extra or all"; exit 1 ;;
+esac
+
 i=0
 for cfg in "${CONFIGS[@]}"; do
     read -r label s origin nd tag <<<"$cfg"
-    seed0=$((600000 + 1000 * i))
+    seed0=$((${SEED_BASE:-600000} + 1000 * i))
     i=$((i + 1))
     (
       OMP_NUM_THREADS=1 "$PY" "$HERE/make_training.py" \
