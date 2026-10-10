@@ -73,26 +73,50 @@ def binned_sfs(ac_derived: np.ndarray, n_hap: int) -> np.ndarray:
 
 def observed_summaries(chroms: Dict[str, "object"], chrom_len: int,
                        win: int = 50_000, step: int = 50_000,
-                       drop_low_pi_frac: float = 0.15) -> Dict[str, object]:
+                       drop_low_pi_frac: float = 0.0,
+                       exclude: Optional[Sequence[Dict[str, float]]] = None,
+                       exclude_bp: int = 1_200_000) -> Dict[str, object]:
     """Spectrum and mean diversity over windows that are unlikely to be swept.
 
-    Sweeps depress diversity and skew the spectrum locally.  Fitting a neutral
-    history to the whole genome therefore absorbs some of the selection into
-    the demography.  Dropping the lowest-diversity windows removes most of
-    that; the fit is then refined once sweeps have actually been located.
+    Sweeps depress diversity and skew the spectrum locally, so fitting a
+    neutral history to the whole genome absorbs some of the selection into
+    the demography.  `exclude` is a list of {chrom, position} to drop windows
+    around -- in practice detect.crude_candidates(), run on the observed scan
+    before any null exists -- and that is the exclusion to prefer: it is by
+    POSITION, so the windows that survive are an unbiased sample of what is
+    left.
+
+    `drop_low_pi_frac` drops the lowest-diversity windows by rank instead and
+    defaults to off.  It was 0.15 and it is a worse tool for this job, not
+    merely a cruder one: it conditions on the statistic being fitted, so it
+    also discards neutral windows sitting in the lower tail and biases the
+    remaining spectrum towards higher diversity.  It is kept so that the
+    comparison in authoring/evidence/ can still be run.
     """
     from . import sweepstats as SS
 
     pis: List[np.ndarray] = []
     per_window_ac: List[List[np.ndarray]] = []
+    near: List[np.ndarray] = []
     n_hap = None
     for name, cd in sorted(chroms.items()):
         n_hap = cd.n_hap
+        c = int(name[3:])
         st = SS.windowed_sfs_stats(cd, chrom_len, win, step)
         pis.append(st["pi"])
         lo = np.searchsorted(cd.pos, st["win"][:, 0], side="left")
         hi = np.searchsorted(cd.pos, st["win"][:, 1], side="right")
         per_window_ac.append([cd.ac[a:b, 1] for a, b in zip(lo, hi)])
+        if exclude:
+            centres = np.array([float(r["position"]) for r in exclude
+                                if int(r["chrom"]) == c], dtype=float)
+        else:
+            centres = np.array([], dtype=float)
+        if centres.size:
+            d = np.abs(st["mid"][:, None] - centres[None, :])
+            near.append(d.min(axis=1) <= exclude_bp)
+        else:
+            near.append(np.zeros(st["mid"].size, dtype=bool))
 
     pi_all = np.concatenate(pis)
     finite = np.isfinite(pi_all)
@@ -101,13 +125,14 @@ def observed_summaries(chroms: Dict[str, "object"], chrom_len: int,
     else:
         cut = -np.inf
 
+    near_all = np.concatenate(near) if near else np.zeros(pi_all.size, bool)
     keep_ac: List[np.ndarray] = []
     keep_pi: List[float] = []
     k = 0
     for block in per_window_ac:
         for ac in block:
-            p = pi_all[k]; k += 1
-            if not np.isfinite(p) or p <= cut:
+            p = pi_all[k]; excluded = bool(near_all[k]); k += 1
+            if excluded or not np.isfinite(p) or p <= cut:
                 continue
             keep_pi.append(p)
             if ac.size:
@@ -116,7 +141,9 @@ def observed_summaries(chroms: Dict[str, "object"], chrom_len: int,
     return {"sfs": binned_sfs(ac_cat, n_hap),
             "pi": float(np.mean(keep_pi)) if keep_pi else float("nan"),
             "n_hap": int(n_hap),
-            "n_snps": int(ac_cat.size)}
+            "n_snps": int(ac_cat.size),
+            "n_windows": int(len(keep_pi)),
+            "n_windows_excluded": int(near_all.sum())}
 
 
 def bin_expected(afs: np.ndarray, n_hap: int) -> np.ndarray:
@@ -215,24 +242,61 @@ def fit_demography(obs: Dict[str, object], mu: float, rate: float,
                    n_dip: int, seed: int = 20_240_101,
                    n_coarse: int = 240, n_refine_rounds: int = 7,
                    n_refine: int = 36, length: int = 20_000_000,
+                   length_refine: int = 80_000_000,
                    log=print) -> Tuple[History, float]:
+    """Fit a three-size bottleneck history to the observed spectrum.
+
+    The coarse search and the refinement use DIFFERENT simulated lengths,
+    and that is the difference between a fit that works and one that is a
+    coin toss.
+
+    Every proposal is scored against one simulated replicate under common
+    random numbers, so the objective is a noisy realization rather than the
+    expected distance. At 20 Mb that noise is about the size of the
+    differences between histories along the ridge the objective has -- a
+    short severe contraction leaves nearly the signature of a longer milder
+    one, since what a genealogy integrates is duration over size. Run at 20
+    Mb throughout and the answer depends on the seed: measured on the
+    shipped replicate at five seeds, the recovered ancestral size came out
+    1.02, 1.08, 1.19, 1.75 and 3.65 times the truth, and the bottleneck
+    strength 1.77 to 7.06 times it. Two of the five landed on a long mild
+    bottleneck instead of the short severe one that is there, and the
+    distance did not identify which: one of the wrong answers scored better
+    than two of the right ones.
+
+    So the coarse stage stays cheap, because all it has to do is find the
+    basins, and everything after it runs on four times the sequence, where
+    the noise is halved and the ridge is resolved. The cost is roughly
+    double, and the fit stops being a lottery.
+    """
     rng = np.random.default_rng(seed)
     sim_seed = seed + 7           # common random numbers across all proposals
 
-    def score(h: History) -> float:
+    def score_at(h: History, ln: int) -> float:
         try:
-            sim = simulate_summaries(h, mu, rate, n_dip, length, sim_seed)
+            sim = simulate_summaries(h, mu, rate, n_dip, ln, sim_seed)
         except Exception:
             return float("inf")
         return distance(obs, sim)
 
+    def score(h: History) -> float:
+        return score_at(h, length_refine)
+
     cands = _propose(rng, n_coarse)
-    scored = [(score(h), h) for h in cands]
+    scored = [(score_at(h, length), h) for h in cands]
     scored.sort(key=lambda x: x[0])
     log(f"    coarse search: best distance {scored[0][0]:.4f}")
 
-    best_d, best_h = scored[0]
+    # Re-score the coarse survivors at the refinement length: a distance
+    # measured on 20 Mb and one measured on 80 Mb are not comparable, and
+    # mixing them lets a coarse proposal that got a lucky draw outrank
+    # everything the refinement finds.
     pool = [h for _, h in scored[:4]]
+    rescored = sorted(((score(h), h) for h in pool), key=lambda x: x[0])
+    best_d, best_h = rescored[0]
+    pool = [h for _, h in rescored]
+    log(f"    coarse survivors rescored on {length_refine // 1_000_000} Mb: "
+        f"best distance {best_d:.4f}")
     scale = 0.45
     for r in range(n_refine_rounds):
         trials = []

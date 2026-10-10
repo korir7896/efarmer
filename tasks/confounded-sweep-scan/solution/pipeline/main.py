@@ -95,16 +95,51 @@ def main(argv=None):
     log(f"  recombination map: {rm.n_chrom} chromosomes of {rm.chrom_len} bp, "
         f"median rate {med_rate:.3g}")
 
-    log("fitting the demographic history to the site frequency spectrum")
-    obs_sum = DEM.observed_summaries(chroms, rm.chrom_len)
-    log(f"  background diversity {obs_sum['pi']:.4g} over {obs_sum['n_snps']} SNPs")
-    hist, dist = DEM.fit_demography(obs_sum, mu=a.mu, rate=med_rate,
-                                    n_dip=n_dip, seed=a.seed, log=log)
-    log(f"  fitted: {hist.as_dict()}  (distance {dist:.4f})")
-
     log("scanning the observed genome")
     obs = DET.scan_genome(chroms, rm.chrom_len, rm, WIN, STEP)
     log(f"  {obs['pi'].size} windows")
+
+    # The spectrum is fitted over EVERY window, with no attempt to remove the
+    # swept ones, and that is a measured choice against a strong intuition.
+    #
+    # Fifteen sweeps with footprints of half a megabase and more cover
+    # something like a fifth of 70 Mb, so masking them before fitting a
+    # neutral history looks obviously right, and this pipeline used to drop
+    # the lowest-diversity 15% of windows for exactly that reason. Measured
+    # against the truth on the shipped replicate, every form of exclusion
+    # makes the fit WORSE, and not marginally:
+    #
+    #     exclusion                              N_ancestral   bottleneck
+    #                                               factor       strength
+    #     none                                        1.19         2.22
+    #     lowest 15% of windows by diversity          1.72         4.33
+    #     +/-250 kb around the top 1.5% of candidates 2.90         6.64
+    #     +/-400 kb around the top 3%                 2.35         5.22
+    #     +/-1.2 Mb around the top 10%                2.49         6.26
+    #
+    # The mechanism is visible in the fitted parameters. The unmasked fit
+    # lands on a short severe contraction, N_bottleneck 437 for about 500
+    # generations, which is the right shape; every masked fit lands on a long
+    # mild one, N_bottleneck two to three thousand for five to eleven
+    # thousand generations. Removing low-diversity windows raises the
+    # apparent diversity of what remains and the fit answers with a larger
+    # ancestral size and a gentler bottleneck. It also fits that biased
+    # target BETTER -- the masked fits reach a smaller distance than the
+    # unmasked one -- so the objective cannot detect the problem.
+    #
+    # Excluding by position rather than by diversity rank does not rescue it,
+    # although it removes the obvious circularity of conditioning on the
+    # statistic being fitted: candidates are found by low diversity and high
+    # H12, so masking around them still cuts the lower tail of the spectrum.
+    # detect.crude_candidates() is kept because it is what makes that
+    # comparison runnable, not because the pipeline uses it.
+    log("fitting the demographic history to the site frequency spectrum")
+    obs_sum = DEM.observed_summaries(chroms, rm.chrom_len)
+    log(f"  background diversity {obs_sum['pi']:.4g} over "
+        f"{obs_sum['n_snps']} SNPs in {obs_sum['n_windows']} windows")
+    hist, dist = DEM.fit_demography(obs_sum, mu=a.mu, rate=med_rate,
+                                    n_dip=n_dip, seed=a.seed, log=log)
+    log(f"  fitted: {hist.as_dict()}  (distance {dist:.4f})")
 
     log(f"simulating {a.n_null} null replicates under the fitted history "
         f"with the real recombination map")

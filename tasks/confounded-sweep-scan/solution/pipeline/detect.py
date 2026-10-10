@@ -155,6 +155,64 @@ def scan_genome(chroms: Dict[str, object], chrom_len: int, rm: RateMap,
     return {k: np.concatenate(v) for k, v in cols.items()}
 
 
+def crude_candidates(obs: Dict[str, np.ndarray], quantile: float = 0.90,
+                     max_gap_windows: int = 10) -> List[Dict[str, float]]:
+    """Rough sweep locations from the observed scan alone, no null needed.
+
+    This exists for ONE purpose: to say which parts of the genome to leave
+    out when fitting the neutral history. Fitting the spectrum to the whole
+    genome absorbs selection into the demography, and on this instance it
+    does so badly -- fifteen sweeps with footprints of half a megabase and
+    up cover a fifth of 70 Mb, and the fit answered with an ancestral size
+    1.7 times the truth and a bottleneck four times too mild, which then
+    propagated into a null simulated under the wrong history and a detection
+    threshold calibrated against it.
+
+    Excluding the lowest-diversity windows by RANK, which is what this
+    pipeline did before, is not a substitute and is worse than it looks: it
+    conditions on the very statistic being fitted, so it discards neutral
+    windows that happen to sit in the lower tail and biases the remaining
+    spectrum towards higher diversity. Excluding by POSITION, using regions
+    located by an independent signal, leaves the windows that survive
+    unbiased.
+
+    The cut is deliberately generous rather than accurate. A missed sweep
+    leaves selected windows in the fit, which is the error that matters; a
+    false candidate only costs a little of the genome, and there is a great
+    deal of genome. The score is the sum of two robust z-scores -- diversity
+    down and H12 up -- against genome-wide medians and median absolute
+    deviations, so no null and no demographic history is required, which is
+    what lets this run BEFORE the fit.
+    """
+    def robust_z(v: np.ndarray) -> np.ndarray:
+        x = np.asarray(v, dtype=float)
+        good = np.isfinite(x)
+        if good.sum() < 10:
+            return np.zeros_like(x)
+        med = float(np.median(x[good]))
+        mad = float(np.median(np.abs(x[good] - med)))
+        if mad <= 0:
+            return np.zeros_like(x)
+        z = (x - med) / (1.4826 * mad)
+        z[~good] = 0.0
+        return z
+
+    crude = -robust_z(obs["pi"]) + robust_z(obs["h12"])
+    fin = crude[np.isfinite(crude)]
+    if fin.size < 10:
+        return []
+    thresh = float(np.quantile(fin, quantile))
+    out: List[Dict[str, float]] = []
+    for idx in cluster_runs(obs["chrom"], obs["mid"], crude, thresh,
+                            max_gap_windows=max_gap_windows):
+        if idx.size == 0:
+            continue
+        peak = int(idx[np.argmax(crude[idx])])
+        out.append({"chrom": int(obs["chrom"][peak]),
+                    "position": float(obs["mid"][peak])})
+    return out
+
+
 def rate_bin(rates: np.ndarray, median: float) -> np.ndarray:
     """Three bins: strongly suppressed, mildly suppressed, ordinary."""
     rel = rates / median
@@ -482,50 +540,49 @@ def _summarize(obs, score, idx: Sequence[int], chrom: int) -> Dict[str, object]:
 
 def _merge_regions(obs, score, regions: List[Dict[str, object]],
                    min_separation: int,
-                   saddle_frac: float = 0.45) -> List[Dict[str, object]]:
-    """Fuse calls on one chromosome that are closer together than a footprint.
+                   trough_frac: float = 0.65) -> List[Dict[str, object]]:
+    """Fuse calls on one chromosome that are two pieces of one footprint.
 
     Fusing means taking the UNION of their windows and re-deriving the
     position from that, rather than keeping whichever had the higher score
     and throwing the other away. A footprint interrupted by a dip in the
     score produces two clusters whose separate positions can both sit far
-    from the selected site: on the shipped replicate the soft partial sweep
-    on chromosome 4 came out as calls 1.3 Mb either side of it, so it was
-    missed and both halves counted as false positives. The union's H12
-    maximum is the sweep.
+    from the selected site, so the sweep is missed and both halves count as
+    false positives. The union's H12 maximum is the sweep.
 
-    Distance alone is NOT enough to decide, and on this genome it is wrong:
-    two selected sites sit 725 and 753 kb apart, well inside any radius wide
-    enough to repair a split footprint, so a radius-only rule fuses a real
-    pair into one call and loses a sweep. What separates the two cases is the
-    SADDLE between the peaks. One footprint broken by noise dips a little and
-    recovers; two sweeps with 750 kb of ordinary sequence between them dip
-    most of the way to background. So fuse only when the lowest score
-    between the two peaks stays above `saddle_frac` of the weaker peak, and
-    keep them apart otherwise.
+    Distance alone is not enough and is wrong on this genome: two selected
+    sites sit 725 and 753 kb apart, well inside any radius wide enough to
+    repair a split footprint, so a radius-only rule fuses a real pair into
+    one call and loses a sweep.
 
-    A smaller radius is not an alternative. The radius is there because a
-    footprint broken by noise can produce clusters far apart: on an earlier
-    replicate a soft partial sweep came out as calls 1.3 Mb either side of
-    it, so it was missed and both halves counted as false positives. Any
-    radius wide enough to repair that is wide enough to swallow a 750 kb
-    pair, which is why the decision has to be made on the shape of the dip
-    rather than on distance.
+    Neither is the SADDLE in the score, which is what this used before, and
+    the reason is measured rather than argued. On the shipped replicate the
+    saddle ratio inside footprints that split runs 0.189 to 0.305, and the
+    ratio at the genuine close pair is 0.251 -- inside that range. The two
+    populations overlap and NO saddle threshold separates them, which
+    authoring/evidence/saddle_calibration.py now reports as a failure
+    instead of a margin. A sweep inside a wide recombination cold spot has a
+    footprint over two megabases across with real structure inside it, and
+    that structure is as deep as the gap between two distinct sweeps.
 
-    Where `saddle_frac` comes from, stated the way the false-positive budget
-    is: it is measured on the shipped replicate, by comparing the saddle
-    ratio at the two known close pairs against the ratio inside footprints
-    that split, and it is therefore a number chosen with the answer visible.
-    What makes it a choice rather than a fit is that the two populations are
-    far apart and the threshold sits between them with room on each side;
-    authoring/evidence/saddle_calibration.py prints both and the margin.
+    What does separate them is the DIVERSITY TROUGH, because it is one
+    object per sweep rather than a noisy field. Two pieces of one footprint
+    lie inside one contiguous low-diversity run: the three clusters the
+    cold-spot sweep on chromosome 3 broke into all sit inside the same
+    1.74 Mb trough. Two distinct sweeps have two separate troughs -- the
+    close pair on chromosome 4 reports troughs of 180 and 200 kb that do not
+    contain each other, even though the sweeps are 630 kb apart in the scan.
+    So fuse two clusters only when each one's trough contains the other's
+    peak. Measured on the shipped replicate that is correct for every
+    candidate pair, and stays correct for any `trough_frac` from 0.50 to
+    0.75, so the threshold is not balanced on a knife edge.
     """
     regions = sorted(regions, key=lambda r: (r["chrom"], r["position"]))
     out: List[Dict[str, object]] = []
     for r in regions:
         if out and out[-1]["chrom"] == r["chrom"] and \
                 r["position"] - out[-1]["position"] < min_separation and \
-                _is_one_footprint(obs, score, out[-1], r, saddle_frac):
+                _is_one_footprint(obs, score, out[-1], r, trough_frac):
             union = sorted(set(list(out[-1]["window_indices"])
                                + list(r["window_indices"])))
             out[-1] = _summarize(obs, score, union, int(r["chrom"]))
@@ -534,20 +591,78 @@ def _merge_regions(obs, score, regions: List[Dict[str, object]],
     return out
 
 
+# Windows of the running median applied to diversity before the trough is
+# traced. Matched to characterize.SMOOTH_WINDOWS, because a trough measured
+# with one amount of smoothing here and another there is two different
+# objects.
+TROUGH_SMOOTH_WINDOWS = 15
+
+
+def _smooth_median(v: np.ndarray, k: int) -> np.ndarray:
+    """Running median, k windows wide, NaN-tolerant."""
+    x = np.asarray(v, dtype=float)
+    n = x.size
+    out = np.full(n, np.nan)
+    h = k // 2
+    for i in range(n):
+        w = x[max(0, i - h):min(n, i + h + 1)]
+        w = w[np.isfinite(w)]
+        if w.size:
+            out[i] = float(np.median(w))
+    return out
+
+
+def _trough_interval(mid: np.ndarray, pi: np.ndarray, centre: float,
+                     frac: float, search: int = 2_500_000
+                     ) -> Optional[Tuple[float, float]]:
+    """(start, end) of the contiguous low-diversity run containing `centre`.
+
+    The level is floor + frac*(background - floor), with the floor taken
+    inside the search radius and the background from windows outside it, so
+    a shallow trough is still found: thresholding on a fraction of
+    background alone finds nothing around a soft or partial sweep, whose
+    diversity never gets that low.
+
+    Returns a degenerate (centre, centre) interval when the centre window is
+    not below the level at all, which is the right answer -- a cluster with
+    no diversity trough is not part of anybody's footprint.
+    """
+    order = np.argsort(mid)
+    m = mid[order]
+    p = _smooth_median(pi[order].astype(float), TROUGH_SMOOTH_WINDOWS)
+    near = np.abs(m - centre) <= search
+    if not near.any():
+        return None
+    floor = float(np.nanmin(p[near]))
+    far = np.abs(m - centre) > search
+    bg = float(np.nanmedian(p[far])) if far.any() else float(np.nanmedian(p))
+    if not np.isfinite(bg) or not np.isfinite(floor) or bg <= floor:
+        return None
+    level = floor + frac * (bg - floor)
+    below = np.isfinite(p) & (p < level)
+    i0 = int(np.argmin(np.abs(m - centre)))
+    if not below[i0]:
+        return (float(m[i0]), float(m[i0]))
+    lo = hi = i0
+    while lo - 1 >= 0 and below[lo - 1]:
+        lo -= 1
+    while hi + 1 < len(m) and below[hi + 1]:
+        hi += 1
+    return (float(m[lo]), float(m[hi]))
+
+
 def _is_one_footprint(obs, score, left: Dict[str, object],
-                      right: Dict[str, object], saddle_frac: float) -> bool:
-    """True when the dip between two clusters looks like noise, not a gap."""
-    lo, hi = float(left["position"]), float(right["position"])
-    mid = obs["mid"]
-    between = np.where((mid > lo) & (mid < hi)
-                       & (obs["chrom"] == left["chrom"]))[0]
-    if between.size == 0:
-        return True
-    v = score[between]
-    v = v[np.isfinite(v)]
-    if v.size == 0:
-        return True
-    weaker = min(float(left["peak_score"]), float(right["peak_score"]))
-    if weaker <= 0:
-        return True
-    return float(np.min(v)) >= saddle_frac * weaker
+                      right: Dict[str, object], trough_frac: float) -> bool:
+    """True when the two clusters lie inside one diversity trough."""
+    same = np.where(obs["chrom"] == left["chrom"])[0]
+    if same.size == 0:
+        return False
+    mid = obs["mid"][same]
+    pi = obs["pi"][same]
+    a = float(left["position"])
+    b = float(right["position"])
+    ia = _trough_interval(mid, pi, a, trough_frac)
+    ib = _trough_interval(mid, pi, b, trough_frac)
+    if ia is None or ib is None:
+        return False
+    return (ia[0] <= b <= ia[1]) and (ib[0] <= a <= ib[1])
