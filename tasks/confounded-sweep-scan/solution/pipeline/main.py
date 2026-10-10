@@ -66,8 +66,10 @@ def main(argv=None):
     # Reading it on the shipped replicate is to say this number was chosen
     # with the answer visible; the rule it follows (sit at half the
     # verifier's cap) is what makes it a choice rather than a fit.
-    ap.add_argument("--expected-false", type=float, default=0.5)
-    ap.add_argument("--form-quantile", type=float, default=0.99,
+    ap.add_argument("--expected-false", type=float,
+                    default=DET.EXPECTED_FALSE)
+    ap.add_argument("--form-quantile", type=float,
+                    default=DET.FORM_QUANTILE,
                     help="null quantile at which clusters are formed")
     ap.add_argument("--seed", type=int, default=20_240_101)
     ap.add_argument("--dump-scan", default=None,

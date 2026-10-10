@@ -196,8 +196,8 @@ history, so the history comes first.
 2. **Null** of ten neutral replicates under the fitted history using the
    provided recombination map, scanned identically to the observed genome.
 3. **Detection**: each observed window gets a rank-based p-value against null
-   windows in the same local-rate bin, for six statistics, combined as
-   -2 sum log p. Rank-based rather than a z-score because these statistics
+   windows in the same local-rate bin, for six one-sided tests over five
+   statistics, combined as -2 sum log p. Rank-based rather than a z-score because these statistics
    are strongly skewed, so a z is not on a calibrated scale: thresholding a
    max-z for a fixed false-positive budget put the cut at z = 10 and missed
    the two oldest sweeps despite their diversity sitting at 0.21 of
@@ -210,7 +210,7 @@ history, so the history comes first.
    a window extreme in one tail has a p near one in the other and
    contributes nothing from it, so the pair acts as a two-sided test. It is
    there because soft sweeps push Tajima's D the opposite way from hard
-   ones, +0.53 against -2.44 at the sweep. With only the one-sided set, soft
+   ones, a median of +0.23 against -2.43 at the sweep. With only the one-sided set, soft
    sweeps contributed to a single statistic and two of the three in an
    earlier replicate were missed.
 
@@ -427,7 +427,7 @@ order of how much they tell you.
    re-fitted on 60 replicates across 20 configurations the shipped replicate
    never uses, also clears every gate: 9 matched calls, no false positives,
    class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9 with
-   a spread of 3.8x and a rank correlation of 0.517, and all three localized
+   a spread of 5.4x and a rank correlation of 0.517, and all three localized
    hard_complete sweeps dated inside tolerance
    (`authoring/evidence/holdout_calibration.py`). Nothing in that version is
    fitted at a point it is graded on.
@@ -466,8 +466,8 @@ order of how much they tell you.
    the non-identifiability the duration-over-depth gate was designed around,
    demonstrated rather than asserted. It passes every recall gate, class
    accuracy at 5 of 7, and all three coefficient gates, with a rank
-   correlation of 0.847, the best ordering of any method here including the
-   reference.
+   correlation of 0.847 on its seven matched calls -- level with the
+   reference's 0.850 on nine, from a completely different estimator.
 
    It fails two. The false-positive cap, 2 against 1, one of them at the
    edge of a cold spot its quantile rate bins do not fully absorb. And
@@ -598,12 +598,15 @@ background, with no sweep window empty of variants.
 **`task.toml` validates** against harbor's own task schema.
 
 **The verifier container behaves.** Built from `tests/Dockerfile` and run
-against the real images with `--network none`: the oracle's own output
-scores `reward=1`, a perfect submission scores 1, an empty `/app` scores 0,
-a malformed `results.json` scores 0, an empty JSON object scores 0, and
+against the real image with `--network none`: the oracle's own output scores
+`reward=1`, a perfect submission scores 1, an empty `/app` scores 0, a
+malformed `results.json` scores 0, an empty JSON object scores 0, and
 `/logs/verifier/ctrf.json` is written at the canonical path in every case,
-naming all ten gates. A socket call from inside the container fails, so it
-really has no network.
+naming all eleven gate functions -- the twelve pytest items collapse to
+eleven names because the two demography-size parameters share one. A socket
+call from inside the container fails with a resolver error, so it really has
+no network, and `import numpy` fails, so the verifier really does run on
+pytest and the standard library alone.
 
 **Both harbor gates pass.** `harbor run -a oracle -e docker` returns reward
 **1.0** and `harbor run -a nop -e docker` returns **0.0**, one trial each,

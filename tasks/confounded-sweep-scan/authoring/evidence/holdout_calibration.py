@@ -228,6 +228,9 @@ def main():
               <= x[3]["selection_coefficient"] * f_)
     print(f"  s within {f_}: {oks}/{len(m)} = {oks/len(m):.2f} "
           f"(need {GATES['min_s_accuracy']:.2f})")
+    got_s = [x[1] for x in m]
+    spread = max(got_s) / min(got_s) if min(got_s) > 0 else float("inf")
+    print(f"  s spread {spread:.2f}x (need {GATES['min_s_spread']:.2f})")
     print(f"  s rank correlation "
           f"{spearman([x[1] for x in m], [x[3]['selection_coefficient'] for x in m]):.3f} "
           f"(need {GATES['min_s_rank_corr']:.2f})")

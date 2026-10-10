@@ -355,6 +355,17 @@ def cluster_runs(chrom: np.ndarray, mid: np.ndarray, score: np.ndarray,
     return runs
 
 
+# Expected false CLUSTERS per genome, the pipeline's one free parameter. It
+# lives here rather than in main.py's argparse default so that
+# authoring/evidence/baselines.py cannot drift away from the shipped value
+# while claiming to measure the reference. The reasoning behind 0.5, and the
+# measured comparison across budgets, is in main.py and in README.md.
+EXPECTED_FALSE = 0.5
+
+# Null quantile at which clusters are formed, before their mass is judged.
+FORM_QUANTILE = 0.99
+
+
 def cluster_mass(score: np.ndarray, idx: np.ndarray, form_thresh: float) -> float:
     v = score[idx]
     v = v[np.isfinite(v)]

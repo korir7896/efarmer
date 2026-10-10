@@ -11,7 +11,7 @@ in downstream bookkeeping.
                        percentile. No demographic inference, no null
                        simulation, no awareness of local recombination rate.
                        This is a scan run at its defaults.
-  multi_constant_null  all four detection statistics, but the null is
+  multi_constant_null  all six detection tests, but the null is
                        simulated under a constant-size population whose size
                        is read off mean diversity. Tests whether inferring
                        the bottleneck matters.
@@ -99,7 +99,9 @@ def single_statistic_regions(obs, stat, direction, pct=99.9):
     return DET.call_regions(obs, score, hot_thr)
 
 
-def pooled_threshold_regions(obs, null, med_rate, expected_false=0.3, n_reps=10):
+def pooled_threshold_regions(obs, null, med_rate,
+                             expected_false=DET.EXPECTED_FALSE,
+                             n_reps=10):
     """Rate-blind: one null distribution for the whole genome."""
     score = np.full(obs["pi"].size, -np.inf)
     for stat, direction in DET.DETECT_STATS:
@@ -258,9 +260,9 @@ def main():
     score = DET.sweep_scores(obs, null, med_rate)
     null_score = DET.sweep_scores(null, null, med_rate)
     fin = null_score[np.isfinite(null_score)]
-    form_thresh = float(np.quantile(fin, 0.99))
+    form_thresh = float(np.quantile(fin, DET.FORM_QUANTILE))
     mass_thresh = DET.calibrate_clusters(null, null_score, form_thresh,
-                                         a.n_null, 0.3)
+                                         a.n_null, DET.EXPECTED_FALSE)
     strategies["reference"] = (hist.as_dict(),
                                DET.call_clusters(obs, score, form_thresh,
                                                  mass_thresh))

@@ -8,8 +8,9 @@
       "demog_is_bottleneck": false,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": false,
-      "s_accuracy": false,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "s_spread": false,
       "s_ordering": false,
       "timing": false,
       "_n_calls": 1,
@@ -33,9 +34,9 @@
         {
           "chrom": 1,
           "position": 1695000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.022690474199134253,
-          "time_gens_ago": 236.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.03928309205142062,
+          "time_gens_ago": 216.0
         }
       ]
     }
@@ -51,6 +52,7 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
+      "s_spread": false,
       "s_ordering": false,
       "timing": false,
       "_n_calls": 2,
@@ -75,15 +77,15 @@
           "chrom": 1,
           "position": 1725000,
           "class": "hard_complete",
-          "selection_coefficient": 0.041721725704558295,
-          "time_gens_ago": 223.0
+          "selection_coefficient": 0.03933940876935353,
+          "time_gens_ago": 204.0
         },
         {
           "chrom": 2,
           "position": 5615000,
           "class": "hard_complete",
-          "selection_coefficient": 0.024758326488787227,
-          "time_gens_ago": 422.0
+          "selection_coefficient": 0.02002681187026223,
+          "time_gens_ago": 399.0
         }
       ]
     }
@@ -97,8 +99,9 @@
       "demog_is_bottleneck": false,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": false,
-      "s_accuracy": false,
+      "class_accuracy": true,
+      "s_accuracy": true,
+      "s_spread": false,
       "s_ordering": false,
       "timing": false,
       "_n_calls": 1,
@@ -122,9 +125,9 @@
         {
           "chrom": 1,
           "position": 1775000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.022878225593976086,
-          "time_gens_ago": 211.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.03927536032219076,
+          "time_gens_ago": 194.0
         }
       ]
     }
@@ -140,6 +143,7 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
+      "s_spread": false,
       "s_ordering": false,
       "timing": false,
       "_n_calls": 2,
@@ -164,15 +168,15 @@
           "chrom": 3,
           "position": 2445000,
           "class": "hard_partial",
-          "selection_coefficient": 0.022258949495843304,
-          "time_gens_ago": 370.0
+          "selection_coefficient": 0.023008591551983103,
+          "time_gens_ago": 388.0
         },
         {
           "chrom": 4,
           "position": 2825000,
           "class": "soft_partial",
-          "selection_coefficient": 0.048848024485440775,
-          "time_gens_ago": 344.0
+          "selection_coefficient": 0.04186351517208201,
+          "time_gens_ago": 332.0
         }
       ]
     }
@@ -188,7 +192,8 @@
       "false_positives": false,
       "class_accuracy": false,
       "s_accuracy": true,
-      "s_ordering": false,
+      "s_spread": true,
+      "s_ordering": true,
       "timing": true,
       "_n_calls": 12,
       "_n_false_positives": 4,
@@ -211,86 +216,86 @@
         {
           "chrom": 1,
           "position": 1775000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.022293236596429494,
-          "time_gens_ago": 195.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.04103962900833826,
+          "time_gens_ago": 180.0
         },
         {
           "chrom": 1,
           "position": 7045000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.018153676775517956,
-          "time_gens_ago": 399.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.028253150402095664,
+          "time_gens_ago": 646.0
         },
         {
           "chrom": 1,
           "position": 10325000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.02657083245684008,
-          "time_gens_ago": 326.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.030075135797605197,
+          "time_gens_ago": 314.0
         },
         {
           "chrom": 2,
           "position": 5575000,
           "class": "hard_complete",
-          "selection_coefficient": 0.02562566057113864,
-          "time_gens_ago": 442.0
+          "selection_coefficient": 0.020944695841050374,
+          "time_gens_ago": 414.0
         },
         {
           "chrom": 2,
           "position": 10005000,
           "class": "soft_complete",
-          "selection_coefficient": 0.04328150728802029,
-          "time_gens_ago": 518.0
+          "selection_coefficient": 0.0334301918294163,
+          "time_gens_ago": 493.0
         },
         {
           "chrom": 3,
           "position": 2355000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.019645641717094053,
-          "time_gens_ago": 347.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.021022863573700718,
+          "time_gens_ago": 376.0
         },
         {
           "chrom": 3,
           "position": 7575000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.025,
-          "time_gens_ago": 1393.0
+          "class": "hard_partial",
+          "selection_coefficient": 0.022,
+          "time_gens_ago": 1342.0
         },
         {
           "chrom": 3,
           "position": 9705000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.025,
-          "time_gens_ago": 1781.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.010298613296148725,
+          "time_gens_ago": 1851.0
         },
         {
           "chrom": 4,
           "position": 2785000,
-          "class": "soft_complete",
-          "selection_coefficient": 0.03202366924530729,
-          "time_gens_ago": 260.0
+          "class": "soft_partial",
+          "selection_coefficient": 0.04701620531824738,
+          "time_gens_ago": 252.0
         },
         {
           "chrom": 4,
           "position": 4505000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.05191978977603914,
-          "time_gens_ago": 941.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.07135151345651931,
+          "time_gens_ago": 984.0
         },
         {
           "chrom": 4,
           "position": 8425000,
           "class": "hard_complete",
-          "selection_coefficient": 0.02560899323458006,
-          "time_gens_ago": 2101.0
+          "selection_coefficient": 0.017699099321629806,
+          "time_gens_ago": 1900.0
         },
         {
           "chrom": 4,
           "position": 10845000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.025,
-          "time_gens_ago": 1302.0
+          "class": "hard_partial",
+          "selection_coefficient": 0.022,
+          "time_gens_ago": 1376.0
         }
       ]
     }
@@ -304,8 +309,9 @@
       "demog_is_bottleneck": true,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": true,
+      "class_accuracy": false,
       "s_accuracy": true,
+      "s_spread": true,
       "s_ordering": true,
       "timing": false,
       "_n_calls": 9,
@@ -329,65 +335,65 @@
         {
           "chrom": 1,
           "position": 55000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.04645746702411768,
-          "time_gens_ago": 577.0
+          "class": "soft_partial",
+          "selection_coefficient": 0.06654691354374254,
+          "time_gens_ago": 500.0
         },
         {
           "chrom": 1,
           "position": 1775000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.022657370162686506,
-          "time_gens_ago": 181.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.04006238166559706,
+          "time_gens_ago": 168.0
         },
         {
           "chrom": 1,
           "position": 7285000,
           "class": "soft_complete",
-          "selection_coefficient": 0.013517703329011851,
-          "time_gens_ago": 371.0
+          "selection_coefficient": 0.028664206843544388,
+          "time_gens_ago": 427.0
         },
         {
           "chrom": 1,
           "position": 10325000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.027920965369208763,
-          "time_gens_ago": 287.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.030620435234911123,
+          "time_gens_ago": 293.0
         },
         {
           "chrom": 2,
           "position": 3245000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.011619627515686397,
-          "time_gens_ago": 258.0
+          "class": "hard_partial",
+          "selection_coefficient": 0.023669459764276486,
+          "time_gens_ago": 500.0
         },
         {
           "chrom": 2,
           "position": 5575000,
           "class": "hard_complete",
-          "selection_coefficient": 0.025001349231208503,
-          "time_gens_ago": 408.0
+          "selection_coefficient": 0.02036329828372832,
+          "time_gens_ago": 386.0
         },
         {
           "chrom": 2,
           "position": 9945000,
           "class": "soft_complete",
-          "selection_coefficient": 0.044195613582843706,
-          "time_gens_ago": 427.0
+          "selection_coefficient": 0.03933798896914869,
+          "time_gens_ago": 411.0
         },
         {
           "chrom": 3,
           "position": 2355000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.02012719020536696,
-          "time_gens_ago": 319.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.02070862312460916,
+          "time_gens_ago": 351.0
         },
         {
           "chrom": 4,
           "position": 2725000,
-          "class": "soft_complete",
-          "selection_coefficient": 0.03151248051860817,
-          "time_gens_ago": 237.0
+          "class": "soft_partial",
+          "selection_coefficient": 0.0507412197375702,
+          "time_gens_ago": 235.0
         }
       ]
     }
@@ -403,6 +409,7 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
+      "s_spread": true,
       "s_ordering": true,
       "timing": true,
       "_n_calls": 8,
@@ -426,58 +433,58 @@
         {
           "chrom": 1,
           "position": 1775000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.022489328262621393,
-          "time_gens_ago": 188.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.04051777274144461,
+          "time_gens_ago": 173.0
         },
         {
           "chrom": 1,
           "position": 7285000,
           "class": "soft_complete",
-          "selection_coefficient": 0.013426183363567502,
-          "time_gens_ago": 384.0
+          "selection_coefficient": 0.024361893065549832,
+          "time_gens_ago": 441.0
         },
         {
           "chrom": 1,
           "position": 10325000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.026953152562062627,
-          "time_gens_ago": 314.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.029937741552252713,
+          "time_gens_ago": 303.0
         },
         {
           "chrom": 2,
           "position": 5575000,
           "class": "hard_complete",
-          "selection_coefficient": 0.02547985072201057,
-          "time_gens_ago": 423.0
+          "selection_coefficient": 0.02074181449042655,
+          "time_gens_ago": 400.0
         },
         {
           "chrom": 2,
           "position": 9945000,
           "class": "soft_complete",
-          "selection_coefficient": 0.043896392559164873,
-          "time_gens_ago": 442.0
+          "selection_coefficient": 0.03177961841092295,
+          "time_gens_ago": 425.0
         },
         {
           "chrom": 3,
           "position": 2355000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.019977913777396838,
-          "time_gens_ago": 331.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.020994713875742612,
+          "time_gens_ago": 363.0
         },
         {
           "chrom": 4,
           "position": 2725000,
-          "class": "soft_complete",
-          "selection_coefficient": 0.03373520389278011,
-          "time_gens_ago": 249.0
+          "class": "soft_partial",
+          "selection_coefficient": 0.04803631903487471,
+          "time_gens_ago": 243.0
         },
         {
           "chrom": 4,
           "position": 8425000,
           "class": "hard_complete",
-          "selection_coefficient": 0.025102574684396688,
-          "time_gens_ago": 2024.0
+          "selection_coefficient": 0.017383980958326963,
+          "time_gens_ago": 1830.0
         }
       ]
     }
@@ -491,9 +498,10 @@
       "demog_is_bottleneck": true,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": false,
+      "class_accuracy": true,
       "s_accuracy": true,
-      "s_ordering": false,
+      "s_spread": true,
+      "s_ordering": true,
       "timing": false,
       "_n_calls": 6,
       "_n_false_positives": 1,
@@ -516,44 +524,44 @@
         {
           "chrom": 1,
           "position": 1775000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.022589283456131693,
-          "time_gens_ago": 193.0
+          "class": "hard_complete",
+          "selection_coefficient": 0.04017431667151319,
+          "time_gens_ago": 177.0
         },
         {
           "chrom": 1,
           "position": 10325000,
-          "class": "hard_partial",
-          "selection_coefficient": 0.02689207329543369,
-          "time_gens_ago": 304.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.029928728488156083,
+          "time_gens_ago": 310.0
         },
         {
           "chrom": 2,
           "position": 5575000,
           "class": "hard_complete",
-          "selection_coefficient": 0.025042276438838468,
-          "time_gens_ago": 433.0
+          "selection_coefficient": 0.020420193700802794,
+          "time_gens_ago": 409.0
         },
         {
           "chrom": 2,
           "position": 11305000,
-          "class": "soft_partial",
-          "selection_coefficient": 0.00345068338016306,
-          "time_gens_ago": 984.0
+          "class": "soft_complete",
+          "selection_coefficient": 0.023921536327796353,
+          "time_gens_ago": 992.0
         },
         {
           "chrom": 3,
           "position": 2335000,
           "class": "hard_partial",
-          "selection_coefficient": 0.021471946745071285,
-          "time_gens_ago": 359.0
+          "selection_coefficient": 0.02198142766125251,
+          "time_gens_ago": 393.0
         },
         {
           "chrom": 4,
           "position": 2805000,
-          "class": "soft_complete",
-          "selection_coefficient": 0.029509403168213492,
-          "time_gens_ago": 293.0
+          "class": "soft_partial",
+          "selection_coefficient": 0.04744926991106713,
+          "time_gens_ago": 287.0
         }
       ]
     }

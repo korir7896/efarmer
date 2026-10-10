@@ -303,8 +303,9 @@ configurations those replicates cover are the shipped sweeps' own.
 Two: the same pipeline with every characterisation constant re-SELECTED and
 refitted on 60 replicates across 20 configurations the shipped replicate
 never uses also clears every gate -- 9 matched calls, no false positives,
-class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9 with a
-rank correlation of 0.517, all three localized hard_complete sweeps dated
+class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9,
+spanning a factor of 5.4, with a rank correlation of 0.517, all three
+localized hard_complete sweeps dated
 inside tolerance (authoring/evidence/holdout_calibration.py). Nothing in that
 version is fitted at a point it is graded on, but it is still the reference's
 method.
@@ -316,8 +317,8 @@ judged by cluster mass, linear discriminant analysis for the class, the
 Tajima's D trough width for s, and a diversity-recovery clock -- calibrated
 only on configurations the shipped replicate does not use. It clears 10 of
 the 12 gates, including all four demography gates with a visibly different
-history and all three coefficient gates with the best rank correlation of any
-method here. It fails the false-positive cap, 2 against 1, and timing, 0 of
+history and all three coefficient gates with a rank correlation of 0.847,
+level with the reference's own 0.850 from a completely different estimator. It fails the false-positive cap, 2 against 1, and timing, 0 of
 3, because its diversity-recovery clock dates every sweep about 2.5 times too
 old. So the timing gate does separate a good clock from a poor one, and no
 structurally independent implementation has yet been shown to clear it.
