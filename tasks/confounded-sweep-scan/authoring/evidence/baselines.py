@@ -55,7 +55,8 @@ def characterise(obs, regions, med_rate, n_current):
         lev = bg.get(b) or list(bg.values())[0]
         f = CH.features(obs, r, lev)
         klass = CH.classify(f)
-        s_hat = CH.estimate_s(obs, r, lev["pi"], float(obs["rate"][r["peak_index"]]))
+        s_hat = CH.estimate_s(obs, r, lev["pi"],
+                              float(obs["rate"][r["peak_index"]]), klass)
         t_hat = CH.estimate_time(f, klass, n_current)
         calls.append({"chrom": int(r["chrom"]), "position": int(r["position"]),
                       "class": klass,
@@ -156,7 +157,7 @@ def grade(truth, submission):
         res["s_accuracy"] = (ok_s / len(pairs)) >= G.GATES["min_s_accuracy"]
         by_class = {}
         for t, c, _ in pairs:
-            if t["class"] in G.COMPLETE_CLASSES and t["completion_gens_ago"] is not None:
+            if t["class"] in G.TIMED_CLASSES and t["completion_gens_ago"] is not None:
                 by_class.setdefault(t["class"], []).append((t, c))
         tok = bool(by_class)
         for klass, items in by_class.items():

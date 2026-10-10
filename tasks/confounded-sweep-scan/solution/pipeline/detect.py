@@ -206,46 +206,82 @@ def build_null(hist, rm: RateMap, mu: float, n_dip: int, win: int, step: int,
 # scoring and peak calling
 # ---------------------------------------------------------------------------
 
+def _empirical_p(obs_vals: np.ndarray, null_vals: np.ndarray,
+                 direction: str) -> np.ndarray:
+    """Rank-based one-sided p-value of each observation against the null.
+
+    Rank-based rather than a z-score. These statistics are strongly skewed,
+    so (x - mean) / sd is not on a calibrated scale: taking the largest z
+    across four of them and thresholding for a fixed false-positive budget
+    put the cut at z = 10, which only the sharpest sweeps clear. Both old
+    sweeps in the shipped replicate were missed that way despite having
+    diversity at 0.21 of background and Tajima's D at -2.1.
+    """
+    nv = null_vals[np.isfinite(null_vals)]
+    if nv.size < 20:
+        return np.full(obs_vals.size, np.nan)
+    srt = np.sort(nv)
+    p = np.full(obs_vals.size, np.nan)
+    ok = np.isfinite(obs_vals)
+    if direction == "low":
+        # how many null values are <= each observation
+        k = np.searchsorted(srt, obs_vals[ok], side="right")
+    else:
+        k = nv.size - np.searchsorted(srt, obs_vals[ok], side="left")
+    p[ok] = (1.0 + k) / (1.0 + nv.size)
+    return p
+
+
 def sweep_scores(obs: Dict[str, np.ndarray], null: Dict[str, np.ndarray],
                  median_rate: float) -> np.ndarray:
-    """Per-window sweep evidence: the strongest rate-matched z across statistics."""
+    """Per-window sweep evidence, combining statistics by Fisher's method.
+
+    Each statistic contributes a rate-matched rank-based p-value and the
+    combination is -2 sum log p. Combining beats taking the strongest single
+    signal: a sweep class that only one statistic responds to still gets a
+    high score, while a window that is mildly unusual on three statistics is
+    no longer dismissed. A statistic pointing the wrong way contributes a
+    p near one and so adds nothing, rather than dragging the score down --
+    which matters for soft sweeps, where Tajima's D moves opposite to the
+    direction a sweep scan expects.
+
+    The threshold for this score is taken from the null itself
+    (null_score_threshold), so the false-positive budget stays exact
+    regardless of how the statistics are distributed or correlated.
+    """
     ob = rate_bin(obs["rate"], median_rate)
     nb = rate_bin(null["rate"], median_rate)
-    score = np.full(obs["pi"].size, -np.inf)
+    total = np.zeros(obs["pi"].size)
+    counted = np.zeros(obs["pi"].size)
     for stat, direction in DETECT_STATS:
         o = obs[stat].astype(float)
-        z = np.full(o.size, -np.inf)
+        p = np.full(o.size, np.nan)
         for b in np.unique(ob):
+            sel = ob == b
             nvals = null[stat].astype(float)[nb == b]
-            nvals = nvals[np.isfinite(nvals)]
-            if nvals.size < 50:
+            if nvals[np.isfinite(nvals)].size < 200:
                 nvals = null[stat].astype(float)
-                nvals = nvals[np.isfinite(nvals)]
-            mu_ = float(np.mean(nvals)); sd = float(np.std(nvals))
-            if sd <= 0:
-                continue
-            sel = (ob == b) & np.isfinite(o)
-            zz = (o[sel] - mu_) / sd
-            z[sel] = -zz if direction == "low" else zz
-        score = np.maximum(score, z)
-    return score
-
-
-def null_score_threshold(null: Dict[str, np.ndarray], median_rate: float,
-                         n_reps: int, expected_false: float = 0.3) -> float:
-    """Threshold whose expected number of null windows per genome is small."""
-    self_scores = sweep_scores(null, null, median_rate)
-    finite = self_scores[np.isfinite(self_scores)]
-    per_genome = finite.size / max(1, n_reps)
-    q = 1.0 - (expected_false / per_genome)
-    q = min(max(q, 0.5), 1.0 - 1e-9)
-    return float(np.quantile(finite, q))
+            p[sel] = _empirical_p(o[sel], nvals, direction)
+        good = np.isfinite(p) & (p > 0)
+        total[good] += -2.0 * np.log(p[good])
+        counted[good] += 1
+    # windows where nothing could be evaluated get no evidence
+    total[counted == 0] = -np.inf
+    return total
 
 
 def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
-                 max_gap_windows: int = 3, min_separation: int = 400_000
+                 max_gap_windows: int = 10, min_separation: int = 1_000_000
                  ) -> List[Dict[str, object]]:
-    """Cluster windows over threshold into regions, one call per region."""
+    """Cluster windows over threshold into regions, one call per region.
+
+    The gap and separation are generous because a sweep footprint here is one
+    to two megabases and its evidence is not monotonic across it: with a
+    30 kb gap tolerance and a 400 kb merge radius, single sweeps were split
+    into two calls 500 kb apart, which cost both a false positive and, when
+    the stronger half sat off-centre, the match itself. True sweeps are at
+    least 2 Mb apart, so merging within 1 Mb cannot join two of them.
+    """
     regions: List[Dict[str, object]] = []
     for c in np.unique(obs["chrom"]):
         sel = np.where(obs["chrom"] == c)[0]

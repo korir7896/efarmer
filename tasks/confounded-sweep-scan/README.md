@@ -100,17 +100,28 @@ history, so the history comes first.
    class to find. The threshold is set so the expected number of null windows
    per genome is a fraction of one; contiguous passing windows cluster into
    one call.
-4. **Characterisation** from the measured separations above, in the order
-   soft (Tajima's D), then old (H12), then partial (residual diversity),
-   each threshold sitting in a measured gap between classes. Plus two
-   calibrated estimators: trough width times local rate equals 0.56 times s
-   (measured 0.536, 0.571, 0.564, 0.561 across the four classes), and
-   completion time from `2 * N_current * pi_min / pi_background` with a
-   class-specific bias removed.
+4. **Characterisation** by a nearest-centroid rule on four features read at
+   the peak: diversity and H2/H1 as ratios to background, Tajima's D and the
+   extreme-nSL fraction as differences. Calibrated on 32 independent
+   single-sweep replicates, 90.6% leave-one-out accuracy against 69% for the
+   best single feature. Plus two estimators: the selection coefficient from
+   the trough width times the local rate, with the width measured as the
+   contiguous span recovering halfway from the trough's own floor rather
+   than crossing half of background (which the shallow classes never do),
+   meeting a factor-of-three tolerance on 91% of replicates and on all of
+   both hard classes; and the completion time from diversity recovery with a
+   class-specific bias removed, for single-origin completed sweeps only.
 
 Validated against four independent neutral replicates with known truth:
 N_ancestral 1.00 to 1.16x, N_current 0.88 to 1.12x, bottleneck severity 1.14
 to 1.48x, all inside their gates.
+
+The false-positive control is the sharper test. Run end to end on a genome
+simulated under the same history and the same map but with no selection
+anywhere, the pipeline reports **zero** sweeps. That is the counterpart to
+the cold-spot enrichment above: a genome-wide threshold fires 7 to 21 times
+more often inside cold spots than outside, while a null simulated under the
+fitted history and compared rate-bin by rate-bin fires not at all.
 
 ## Verification
 

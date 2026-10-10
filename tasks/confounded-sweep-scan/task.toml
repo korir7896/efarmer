@@ -122,17 +122,31 @@ across statistics, thresholded so the expected number of null windows per
 genome is a fraction of one, and contiguous passing windows are clustered
 into one call each.
 
-Classification applies the measured separations in order, each threshold
-sitting in a gap between classes: positive Tajima's D at the site means
-several frequent haplotypes and so a soft sweep; among the rest a weak H12
-ratio means recombination has eroded the block, so an old one; among the rest
-high residual diversity means a sweep still segregating. The selection
-coefficient comes from the width of the diversity trough times the local
-recombination rate, which measurement puts at 0.56 times s across all four
-classes with about 5% scatter. The completion time comes from diversity
-recovery at the centre, 2*N_current*pi_min/pi_background, with a
-class-specific bias removed, and is reported only for single-origin
-completed sweeps.
+Run end to end on a genome simulated under the same history and the same
+recombination map but with no selection anywhere, the pipeline reports zero
+sweeps.
+
+Classification is a nearest-centroid rule on four features read at the
+detected peak: diversity and H2/H1 as ratios to background, Tajima's D and
+the extreme-nSL fraction as differences. Single-feature thresholds are not
+enough. On eight training replicates Tajima's D appeared to separate soft
+sweeps with a gap of 0.46; with seven soft replicates instead of four it
+overlaps by 1.59, and the best single feature gives 69% leave-one-out
+accuracy against 90.6% for the four together. Each class is distinguished by
+a different combination: a recent hard sweep is low on everything; an old one
+looks the same except H2/H1 has recovered, because recombination broke up the
+swept block; a soft sweep barely depresses diversity while pushing Tajima's D
+positive; and a partial sweep is the only class with a strong nSL signal,
+being the only one still segregating.
+
+The selection coefficient comes from the width of the diversity trough times
+the local recombination rate, with the width measured as the contiguous span
+recovering halfway from the trough's own floor to background rather than
+crossing half of background, which the shallow classes never do. With a
+per-class constant this meets a factor-of-three tolerance on 91% of
+replicates and on all of both hard classes. The completion time comes from
+diversity recovery at the centre, with a class-specific bias removed, and is
+reported only for single-origin completed sweeps.
 """
 
 verification_explanation = """
