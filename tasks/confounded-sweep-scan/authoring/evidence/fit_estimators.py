@@ -235,8 +235,8 @@ def score_t(cands, data):
               f"rho {rho:+.2f}  (n={n_ok})")
 
 
-# Selected by leave-one-configuration-out score over all 33 calibration
-# configurations, 16 of which the shipped replicate does not use, preferring
+# Selected by leave-one-configuration-out score over all 37 calibration
+# configurations, 20 of which the shipped replicate does not use, preferring
 # predictors that are defined on every replicate so the estimator never has
 # to fall back. Selecting over the ten shipped configurations alone picked
 # (pi_ratio, w_pi_75) for soft_complete, which scores a rank correlation of

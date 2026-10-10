@@ -13,7 +13,7 @@ The calibrated constants are imported from the reference solution rather than
 copied, so this cannot silently drift away from what the reference actually
 uses.
 """
-import glob, json, os, sys
+import glob, itertools, json, os, random, sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,8 +36,8 @@ def predictors():
     this cannot drift away from what the pipeline actually computes.
     """
     sys.path.insert(0, HERE)
-    from fit_estimators import rows
-    return rows()
+    from fit_estimators import rows, ALL_DIRS
+    return rows(ALL_DIRS)
 
 
 def feasibility():
@@ -73,9 +73,11 @@ def feasibility():
               f"{spearman(all_hat, all_true):.3f} over {n} replicates "
               f"(not gated; reported because an estimator that ranks well "
               f"is doing more than landing in the right decade)")
-        print("  NOTE: fitted on these same replicates. The honest, "
-              "leave-one-configuration-out\n"
-              "        numbers are in authoring/evidence/fit_estimators.py.")
+        print("  NOTE: these are IN-SAMPLE -- the shipped coefficients were\n"
+              "        fitted on exactly these replicates, so this is a\n"
+              "        consistency check, not evidence. The honest numbers are\n"
+              "        leave-one-configuration-out and are printed by\n"
+              "        authoring/evidence/fit_estimators.py --emit.")
 
     print(f"\ncompletion time, within max({GATES['time_abs_tol_gens']} gens, "
           f"{GATES['time_rel_tol']:.0%}) of truth "
@@ -164,10 +166,38 @@ def triviality():
           f"{GATES['min_s_spread']:.2f}, and rank correlation 0.000 against "
           f"{GATES['min_s_rank_corr']:.2f} -- excluded with certainty by "
           f"both, on any match set.")
-    print(f"s, constant plus noise: passes magnitude and spread; caught only "
-          f"by the ordering gate, which at nine matched calls a random answer "
-          f"clears about one time in five. That is the honest limit of what "
-          f"ten instances support.")
+    # A constant with noise added passes magnitude and spread, so only the
+    # ordering gate stands against it -- and at this few matched calls a
+    # random order clears a 0.30 correlation some of the time. Measure that
+    # rather than assert it: over every match set the recall gates permit,
+    # draw random reported coefficients and count how often they clear the
+    # gate. The worst case over match sets is the number that matters.
+    rng = random.Random(20_240_101)
+    trials = 20_000
+    by_n, worst_esc, worst_n = {}, 0.0, 0
+    for combo in itertools.product(*choices):
+        vals = [v for part in combo for v in part]
+        n = len(vals)
+        hits = 0
+        for _ in range(trials):
+            rep = [rng.random() for _ in range(n)]
+            if spearman(rep, vals) >= GATES["min_s_rank_corr"]:
+                hits += 1
+        esc = hits / trials
+        by_n[n] = max(by_n.get(n, 0.0), esc)
+        if esc > worst_esc:
+            worst_esc, worst_n = esc, n
+    print("s, constant plus noise: passes magnitude and spread, so only the "
+          "ordering gate stands against it. Measured over "
+          f"{trials} random answers per match set, worst case by match-set "
+          "size:")
+    for n in sorted(by_n):
+        print(f"    {n} matched calls: clears the ordering gate "
+              f"{by_n[n]:.3f} of the time (about one in {1 / by_n[n]:.1f})")
+    print(f"    worst case over every match set: {worst_esc:.3f} at "
+          f"{worst_n} matched calls. That is the honest limit of what ten "
+          f"instances support -- the ordering gate excludes a constant with "
+          f"certainty and a jittered constant only most of the time.")
 
     dated = [s for s in truth["sweeps"] if s["class"] in TIMED_CLASSES
              and s.get("completion_gens_ago") is not None]

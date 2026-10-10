@@ -50,17 +50,22 @@ def main(argv=None):
     ap.add_argument("--n-null", type=int, default=10)
     # Expected false CLUSTERS per genome. The verifier allows one unmatched
     # call, so a budget of 0.3 was three times stricter than the allowance,
-    # and the strictness cost real signal rather than buying safety: at 0.3
-    # the pipeline makes 8 calls and misses both the weakest hard_complete
-    # sweep and the weaker soft_partial one; at 0.5 it makes 9, still with no
-    # false positive, and the rank correlation of its selection coefficients
-    # rises from 0.595 to 0.717 because there is one more sweep to order.
-    # Half the cap leaves a factor of two for the budget's own estimation
-    # error while actually using the allowance. The comparison across budgets
-    # is in README.md, measured on the shipped replicate -- which is to say
-    # this number was chosen with the answer visible, and the rule it follows
-    # (sit at half the verifier's cap) is what makes it a choice rather than
-    # a fit.
+    # and the strictness cost real signal rather than buying safety. Measured
+    # on the shipped replicate, every budget from 0.2 to 1.0 passes every
+    # gate, but 0.5 passes with the widest margins: at 0.3 the pipeline makes
+    # 8 calls and misses the weaker soft_partial sweep; at 0.5 it makes 9,
+    # still with no false positive at all, and the rank correlation of its
+    # coefficients rises from 0.786 to 0.850 with one more sweep to order; at
+    # 0.8 a false positive appears and class accuracy drops from 0.78 to
+    # 0.67; by 1.5 there are two and the cap is breached. Half the cap leaves
+    # a factor of two for the budget's own estimation error while actually
+    # using the allowance.
+    #
+    # The full budget comparison is the table in README.md under "Why
+    # shortcuts fail, gate by gate", reproducible from a --dump-scan run.
+    # Reading it on the shipped replicate is to say this number was chosen
+    # with the answer visible; the rule it follows (sit at half the
+    # verifier's cap) is what makes it a choice rather than a fit.
     ap.add_argument("--expected-false", type=float, default=0.5)
     ap.add_argument("--form-quantile", type=float, default=0.99,
                     help="null quantile at which clusters are formed")

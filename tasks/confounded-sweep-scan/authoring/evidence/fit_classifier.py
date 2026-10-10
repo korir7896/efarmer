@@ -215,8 +215,8 @@ def joint_conditional(data, combo_c, combo_soft_complete, combo_soft_partial,
 
 CHOSEN = {
     # Chosen by a joint search over the top six feature sets per axis, scored
-    # FOUR-WAY and held out by configuration over all 33 calibration
-    # configurations, 16 of which the shipped replicate does not use.
+    # FOUR-WAY and held out by configuration over all 37 calibration
+    # configurations, 20 of which the shipped replicate does not use.
     # Scoring each axis on its own is the wrong objective: the softness rules
     # are fitted inside a completeness group and applied to the PREDICTED
     # group, so the axes interact and a rule that is better on its own axis
@@ -224,9 +224,10 @@ CHOSEN = {
     #
     # Selecting over the ten shipped configurations alone picked
     # (tajd_delta, snp_ratio) / (pi_min_ratio, w_pi_50, w_pi_75) /
-    # (h2h1_ratio) and scored 0.824. On the wider space that triple scores
-    # well below this one: the earlier figure was optimistic because every
-    # configuration it was validated against was one of the ten being graded.
+    # (h2h1_ratio) and scored 0.824 there. On the wider space that triple
+    # scores well below this one: the earlier figure was optimistic because
+    # every configuration it was validated against was one of the ten being
+    # graded. Over all 37 this triple scores 0.802 four-way.
     #
     # completeness: the floor of the diversity trough, the H12 elevation and
     #   the extreme-nSL fraction. Only a sweep still rising carries a long

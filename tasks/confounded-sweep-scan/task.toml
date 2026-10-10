@@ -161,37 +161,50 @@ Run end to end on a genome simulated under the same history and the same
 recombination map but with no selection anywhere, the pipeline reports zero
 sweeps.
 
-Characterisation then uses fixed constants, fitted offline on single-sweep
-replicates and listed in solution/pipeline/characterize.py. The class comes
-from two logistic rules rather than one rule over four classes: first
-complete against partial, from Tajima's D and the number of segregating
-sites in the window, and then soft against hard with a rule fitted for
-whichever completeness group the first rule chose -- the depth of the
-diversity trough with its widths at two recovery levels for the completed
-ones, and H2/H1 for the partial ones. Fitting softness separately per group
-is what makes H2/H1 usable at all: pooled over completed sweeps of every
-age it is confounded, because at an old hard sweep recombination has broken
-up the swept block and H2/H1 has recovered into the range a soft sweep
-occupies.
+Characterisation then uses fixed constants, fitted offline on 111
+single-sweep replicates at 37 configurations and listed in
+solution/pipeline/characterize.py. Every score below is held out by
+CONFIGURATION, never by replicate: ten of those configurations are the
+shipped sweeps' own, so holding out one replicate at a time would reward a
+rule that had memorised a handful of (s, age) pairs.
+
+The class comes from two logistic rules rather than one rule over four
+classes, which is worth 80.2% four-way against 75.7% for the best
+nearest-centroid rule on three features. First complete against partial,
+from the floor of the diversity trough, the H12 elevation and the
+standardized-nSL fraction (91.0%); then soft against hard with a rule fitted
+for whichever completeness group the first rule chose -- the trough floor
+with Tajima's D and H2/H1 among the completed sweeps (92.4%), and the extent
+of the H12 elevation with H2/H1 among the partial ones (80.0%). Fitting
+softness separately per group is what makes H2/H1 usable at all: pooled over
+completed sweeps of every age it is confounded, because at an old hard sweep
+recombination has broken up the swept block and H2/H1 has recovered into the
+range a soft sweep occupies. Within a completeness group that confound is
+gone, since every partial sweep is young.
 
 The selection coefficient comes from a log-linear fit in two measured
-features per class. The backbone is the textbook relation, that a footprint
-extends to about s over the local recombination rate, so every width
-feature is multiplied by the local rate: what strength sets is the genetic
-length of the footprint, not its length in base pairs. On its own, as trough
-width over one constant per class, that relation put 74% of calibration
-replicates inside a factor of 2.5 and ranked them at only 0.32, because a
-soft sweep leaves no trough whose width can be measured; the soft classes
-therefore take their extent from the H12 elevation instead, and each class
-pairs its width with the diversity at the peak.
+features per class, s_hat = exp(a) * prod(feature_i ** b_i). The backbone is
+the textbook relation, that a footprint extends to about s over the local
+recombination rate, so every width feature is multiplied by the local rate:
+what strength sets is the genetic length of the footprint, not its length in
+base pairs. On its own, as trough width over one constant per class, that
+relation put 74% of calibration replicates inside a factor of 2.5 and ranked
+them at only 0.32, because a soft sweep leaves no trough whose width can be
+measured. Only the completed hard sweeps therefore read their width from the
+diversity trough; the other three classes read it from the extent of the H12
+elevation, and each class pairs its width with a level feature -- diversity
+at the peak for the two hard classes, H12 for the completed soft ones. Held
+out by configuration that reaches 109 of 109 inside a factor of 2.5 with a
+pooled rank correlation of +0.82.
 
 The completion time comes from H12 decay with the footprint extent
 controlling for strength, not from residual diversity: haplotype homozygosity
 at a completed sweep falls back towards background as recombination breaks up
 the swept block, and that dates a sweep better than how far below background
-its diversity still sits. It is reported for every call, whatever class the
-call was given, because the date is read off the footprint rather than off
-the class.
+its diversity still sits -- 36 of 40 inside the verifier's tolerance with a
+rank correlation of +0.93, against 9 of 16 for the diversity-depth clock. It
+is reported for every call, whatever class the call was given, because the
+date is read off the footprint rather than off the class.
 """
 
 
@@ -217,9 +230,10 @@ recovers; recall of at least three of the four hard_complete sweeps and at
 least one of each other class; at most one call matching no true sweep, with
 cold-spot calls counting against that cap; the right class on at least 70%
 of matched calls; selection coefficients within a factor of 2.5 on at least
-70% of them AND a rank correlation of at least 0.50 against the true
-coefficients; and at least three of the matched hard_complete sweeps dated
-to within 50% or 150 generations, whichever is larger.
+70% of matched calls, spanning a range of at least a factor of 2 across
+them, AND ranked against the true coefficients with a correlation of at
+least 0.30; and at least three of the matched hard_complete sweeps dated to
+within 50% or 150 generations, whichever is larger.
 
 Four of those choices were forced by measurement rather than chosen for
 neatness.
@@ -251,31 +265,74 @@ drove diversity to zero; a soft sweep never did, so that clock has no zero
 to start from and no estimator is known that recovers the age of one.
 Grading a quantity nothing recovers would be grading noise.
 
-Selection coefficients are graded on magnitude and on order, and the bundle
-does not pretend the magnitude test is enough on its own: the shipped
-coefficients span a factor of 9.4, and authoring/evidence/gate_feasibility.py
-searches for the single coefficient that satisfies the most magnitude tests
-and reports what it achieves. The ordering test is the one that cannot be
-satisfied without measuring strength. A constant answer produces nothing but
-ties, which score zero, so no constant passes whatever its value.
+Selection coefficients are graded three ways -- magnitude, spread and order
+-- and the bundle does not pretend any one of them is enough. The shipped
+coefficients span a factor of 9.4, so the magnitude test alone is weak:
+authoring/evidence/gate_feasibility.py searches for the single coefficient
+that satisfies the most magnitude tests and reports what it achieves. The
+spread gate requires the reported coefficients to range over at least a
+factor of 2, which no constant answer can do. The ordering gate requires a
+rank correlation of at least 0.30; a constant produces nothing but ties,
+which score zero by the verifier's own convention, so no constant passes
+whatever its value. The honest limit of the pair is measured rather
+than asserted: over 20,000 random answers per match set, a jittered constant
+clears the ordering gate on 0.223 of tries at nine matched calls and 0.290
+at the smallest match set the recall gates permit, so the worst case is
+about one escape in 3.5. Raising the correlation threshold to close that gap would
+start excluding methods that order sweeps correctly but coarsely, which is
+the worse error for a benchmark.
 
-The three bounds on the thresholds rest on different evidence, and only one
-of them involves the reference. That the gates are PASSABLE is measured on
-independent single-sweep replicates, one chromosome and one sweep each,
-simulated at several strengths per class, which the shipped genome had no
-part in; every pass fraction sits below what was measured there, and the
-demography gates rest on four independent neutral replicates with known
-truth. That the gates are NOT TRIVIALLY PASSABLE is established without the
-reference at all, by searching for the best possible constant coefficient
-and the best possible constant completion time against the shipped truth and
-by running those and twenty-odd other degenerate submissions through the
-real verifier. The ablation table in README.md is neither of those and no
-threshold was set from it: every row there is handed the reference's own
-classification and estimation step on purpose, so the rows isolate detection
-and calibration. What this does not establish is that a method unlike the
-reference would pass; the claim is the narrower one, that every gate is met
-by at least one honest method measured out of sample and none is met by an
-answer that estimates nothing.
+That the gates are NOT trivially passable is the claim with the strongest
+evidence, and it does not involve the reference at all. gate_feasibility.py
+enumerates every assignment of calls to true sweeps that satisfies the recall
+gates and searches for the best possible constant coefficient and the best
+possible constant completion time against the shipped truth; twenty-eight
+degenerate submissions, including the best constants that search finds and a
+constant with noise added, go through the REAL verifier in
+authoring/evidence/verifier_selftest.py.
+
+That the gates are PASSABLE rests on three measurements, in increasing order
+of how much they establish, and the first two are weaker than they look.
+
+One: the reference clears all twelve gates. By itself this establishes
+little. Its characterisation constants are fitted on single-sweep replicates
+simulated under the TRUE demography rather than a fitted one, so it carries
+no demographic-inference error a real analysis would, and ten of the 37
+configurations those replicates cover are the shipped sweeps' own.
+
+Two: the same pipeline with every characterisation constant re-SELECTED and
+refitted on 60 replicates across 20 configurations the shipped replicate
+never uses also clears every gate -- 9 matched calls, no false positives,
+class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9 with a
+rank correlation of 0.517, all three localized hard_complete sweeps dated
+inside tolerance (authoring/evidence/holdout_calibration.py). Nothing in that
+version is fitted at a point it is graded on, but it is still the reference's
+method.
+
+Three: authoring/evidence/independent_solver.py is a structurally different
+solver -- Nelder-Mead on four moments instead of L2 on a binned spectrum,
+a sliding macro-window mean of rank scores instead of a Fisher combination
+judged by cluster mass, linear discriminant analysis for the class, the
+Tajima's D trough width for s, and a diversity-recovery clock -- calibrated
+only on configurations the shipped replicate does not use. It clears 10 of
+the 12 gates, including all four demography gates with a visibly different
+history and all three coefficient gates with the best rank correlation of any
+method here. It fails the false-positive cap, 2 against 1, and timing, 0 of
+3, because its diversity-recovery clock dates every sweep about 2.5 times too
+old. So the timing gate does separate a good clock from a poor one, and no
+structurally independent implementation has yet been shown to clear it.
+Tuning that solver until it passed would manufacture the very evidence this
+exercise exists to test for, so it was left where three good-faith
+improvement passes put it.
+
+What none of this establishes is that an arbitrary correct method clears
+every gate. The ablation table in README.md is not evidence for it either,
+and no threshold was set from it: every row there is handed the reference's
+own classification and estimation step on purpose, so the rows isolate
+detection and calibration. The claim the bundle makes is the narrower one:
+every gate is met by at least one method measured out of sample, two of the
+twelve are met with no margin and those two are structural minima rather than
+tuned values, and no gate is met by an answer that estimates nothing.
 
 authoring/evidence/verifier_selftest.py runs the whole battery through the
 real verifier against the shipped truth file, not a stand-in. The perfect

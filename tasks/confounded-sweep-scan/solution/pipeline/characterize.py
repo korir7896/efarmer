@@ -1,46 +1,48 @@
 """Classify each detected sweep and estimate its strength and age.
 
-Everything here is calibrated on 99 independent single-sweep replicates
-simulated under the same history at several strengths per class
-(authoring/evidence/run_training.sh), grouped by what each sweep ACTUALLY
-turned out to be rather than what it was asked to be. The feature sets and
-the fits are chosen by held-out score in authoring/evidence/fit_classifier.py
-and authoring/evidence/fit_estimators.py, not assumed.
+Everything here is calibrated on 111 independent single-sweep replicates at
+37 configurations, simulated under the same history at several strengths per
+class (authoring/evidence/run_training.sh) and grouped by what each sweep
+ACTUALLY turned out to be rather than what it was asked to be. The feature
+sets and the fits are chosen by held-out score in
+authoring/evidence/fit_classifier.py and authoring/evidence/fit_estimators.py
+and pasted in from their --emit output, not assumed.
 
 Two things about those replicates are worth stating outright, because they
 are what the constants here are and are not evidence for. They are simulated
 under the TRUE demography, not under a history fitted from data, so these
-constants carry no demographic-inference error -- an analyst doing this for
-real would fit them on simulations of their own fitted history and would.
-And their sweep configurations ARE the shipped sweeps' (s, origin,
-n_origins), so the reference is calibrated at the very points it is then
-graded on.
+constants carry no demographic-inference error; an analyst doing this for
+real would fit them on simulations of their own fitted history, and would
+inherit that history's error. And ten of the 37 configurations ARE the
+shipped sweeps' own (s, origin, n_origins), so the reference is calibrated
+at points it is then graded on. The remaining 20 are not used by the shipped
+replicate at all.
 
 Scores are therefore leave-one-CONFIGURATION-out throughout: holding out one
 REPLICATE at a time measures almost nothing, since a rule that had memorised
 those few (s, age) pairs would score perfectly and generalise not at all.
 Leaving out the whole configuration is the strongest test available from
 these replicates, and authoring/evidence/holdout_calibration.py goes one
-step further -- it refits every constant on configurations the shipped
-replicate does not use at all, and regrades.
+step further -- it re-SELECTS and refits every constant on the
+configurations the shipped replicate does not use at all, and regrades.
 
-Measured means at the sweep, against each replicate's own background
+Measured medians at the sweep, against each replicate's own background
 (diversity, H12 and H2/H1 as ratios, Tajima's D and the extreme-nSL fraction
 as differences):
 
     realized class     diversity   Tajima D    H12   H2/H1     nSL    n
-    hard_complete          0.119      -2.44  7.409   0.084   +0.01   16
-    hard_partial           0.801      -0.63  6.596   0.104   +0.41    9
-    soft_complete          0.794      +0.53  4.298   0.673   -0.02   16
-    soft_partial           0.811      -0.03  4.949   0.549   +0.20   10
+    hard_complete          0.119      -2.43  5.142   0.169   +0.01   40
+    hard_partial           0.540      -0.83  6.596   0.150   +0.45   21
+    soft_complete          0.700      +0.23  4.427   0.642   -0.01   26
+    soft_partial           0.787      +0.00  5.418   0.488   +0.20   24
 
 Neither axis of the class scheme has a statistic that carries it alone.
-H2/H1, the textbook hard-versus-soft discriminator, runs from 0.009 to 1.012
-of background across the hard_complete replicates, swallowing the 0.025 to
+H2/H1, the textbook hard-versus-soft discriminator, runs from 0.007 to 1.012
+of background across the hard_complete replicates, swallowing the 0.013 to
 0.861 the soft completed ones occupy: at an old hard sweep recombination has
 broken up the swept block and H2/H1 has recovered. Diversity, the obvious
 complete-versus-partial discriminator, runs from 0.011 to 0.719 across
-hard_complete and from 0.383 to 1.167 across hard_partial, so it overlaps
+hard_complete and from 0.158 to 1.431 across hard_partial, so it overlaps
 too. The medians above separate; the distributions do not. What works is one
 rule per axis, with softness fitted separately inside each completeness
 group, where H2/H1 is usable again because every partial sweep is young.
@@ -54,67 +56,78 @@ import numpy as np
 
 # ===========================================================================
 # CALIBRATED CONSTANTS.  Everything between here and background_levels() is
-# produced by authoring/evidence/emit_constants.py from the single-sweep
-# training replicates in authoring/evidence/training/ and pasted in verbatim.
+# produced by the --emit output of authoring/evidence/fit_classifier.py and
+# authoring/evidence/fit_estimators.py, run over the single-sweep training
+# replicates in authoring/evidence/training{,_holdout}/, and pasted in
+# verbatim.
 # ===========================================================================
 
 # --- classifier: the two axes of the class scheme, one rule each ---
-# A single nearest-centroid rule over all four classes at once scores 72.9%
-# held out. The scheme is two independent binary properties, so two binary
-# rules do better: 82.4%, measured leave-one-CONFIGURATION-out, which is the
-# honest test here because the shipped sweeps sit at the very configurations
-# the calibration replicates were simulated at and a rule that memorised
+# A nearest-centroid rule over all four classes at once scores 75.7% held
+# out, at its best feature triple. The scheme is two independent binary
+# properties, so two binary rules do better: 80.2% four-way, measured
+# leave-one-CONFIGURATION-out over 111 replicates at 37 configurations, 20 of
+# which the shipped replicate does not use. Leaving out one CONFIGURATION
+# rather than one replicate is the honest test here, because the shipped
+# sweeps sit at ten of those configurations and a rule that had memorised
 # those few (s, age) pairs would otherwise score perfectly.
 #
 # Softness is fitted separately inside each completeness group, because the
-# axis is far easier among completed sweeps (90.6%) than among the ones still
-# rising (73.7%): the frequent haplotypes a completed soft sweep leaves have
-# had time to become frequent, while a partial sweep's are still a minority
-# of the sample however many of them there are.
+# axis is far easier among completed sweeps (92.4% held out) than among the
+# ones still rising (80.0%): the frequent haplotypes a completed soft sweep
+# left have had time to become frequent, while a partial sweep's are still a
+# minority of the sample however many of them there are.
 #
 # The three feature sets are chosen by a joint search over the top six
 # candidates per axis, 216 triples, scored FOUR-WAY. Scoring each axis on its
 # own is the wrong objective: the softness rules are fitted inside a
 # completeness group and applied to the PREDICTED group, so the axes
-# interact. Diversity with the SNP count scores 0.941 on completeness and
-# the extreme-nSL fraction with the SNP count 0.961, yet the triples built
-# on either come out at 0.745 four-way where this one reaches 0.824.
+# interact, and a rule that is better on its own axis can hand the next stage
+# replicates it handles worse. Selecting over the ten shipped configurations
+# alone picked (tajd_delta, snp_ratio) / (pi_min_ratio, w_pi_50, w_pi_75) /
+# (h2h1_ratio) and scored 0.824 there; on the full 37 configurations that
+# triple falls well below this one, so the earlier figure was optimistic in
+# exactly the way one would expect from selecting on the graded instances.
 #
 # What carries each axis:
-#   completeness -- Tajima's D with the number of segregating sites in the
-#     window. A completed sweep removed variation and left the spectrum
-#     skewed toward rare variants; one still rising did neither as strongly.
-#   softness, completed -- how deep the diversity trough got, with its
-#     widths at two recovery levels. One frequent haplotype drives diversity
-#     to nothing in a narrow core; several leave it shallow and broad, so the
-#     SHAPE of the trough carries the axis where its depth alone does not.
-#   softness, partial -- H2/H1, the textbook hard-versus-soft discriminator,
-#     which is usable here only because age is not in play: every partial
-#     sweep is still rising. Pooled over completed sweeps of all ages it is
-#     confounded, which is why it does not appear in the rule above.
+#   completeness (91.0% held out) -- the floor of the diversity trough, the
+#     H12 elevation and the extreme-nSL fraction. A completed sweep removed
+#     variation and left one or a few long haplotypes; a sweep still rising
+#     carries a long YOUNG high-frequency haplotype against a background that
+#     is otherwise intact, which is what the standardized nSL fraction
+#     responds to and what separates the two.
+#   softness among COMPLETED sweeps (92.4%) -- the trough floor with Tajima's
+#     D and H2/H1. One frequent haplotype drives diversity to nothing and D
+#     far negative; several leave both milder and H2/H1 high.
+#   softness among PARTIAL sweeps (80.0%) -- the EXTENT of the H12 elevation
+#     with H2/H1, the textbook hard-versus-soft discriminator, usable here
+#     only because age is not in play: every partial sweep is still rising.
+#     Pooled over completed sweeps of all ages H2/H1 alone is confounded by
+#     age, which is why the rule above does not rest on it.
 CLASS_RULES = {
     "complete": dict(
-        feats=["tajd_delta", "snp_ratio"],
-        mean=[-0.847724, 0.648399],
-        sd=[1.3927, 0.27194],
-        weights=[1.8906, 2.18412, -6.33614]),           # n=51, held out 0.961
+        feats=["pi_min_ratio", "h12_ratio", "nsl_delta"],
+        mean=[0.202414, 6.16942, 0.139751],
+        sd=[0.133287, 4.02357, 0.202995],
+        weights=[1.29204, -2.53342, 1.34942, -2.84588]),   # n=111, held out 0.910
     "soft_given_complete": dict(
-        feats=["pi_min_ratio", "w_pi_50", "w_pi_75"],
-        mean=[0.157919, 362812, 695938],
-        sd=[0.118081, 307929, 465019],
-        weights=[0.313829, 3.63156, 1.54612, -0.608262]),  # n=32, held out 0.906
+        feats=["pi_min_ratio", "tajd_delta", "h2h1_ratio"],
+        mean=[0.132788, -1.39298, 0.432094],
+        sd=[0.106168, 1.48955, 0.343405],
+        weights=[-0.501691, 1.7704, 2.50172, -1.90602]),   # n=66, held out 0.924
     "soft_given_partial": dict(
-        feats=["h2h1_ratio"],
-        mean=[0.378404],
-        sd=[0.277096],
-        weights=[0.142307, 0.894801]),                  # n=19, held out 0.737
+        feats=["w_h12_15", "h2h1_ratio"],
+        mean=[1.45733e+06, 0.387836],
+        sd=[890214, 0.27403],
+        weights=[0.449437, 2.40476, 1.97816]),             # n=45, held out 0.800
 }
 
 # How far around the detected peak to read the features, matching calibration.
 FEATURE_RADIUS_BP = 60_000
 
 # --- s and age from the shape of the footprint ---
-# Both estimators are log-linear fits in two measured features, chosen by
+# Both estimators are log-linear fits in two measured features -- s_hat =
+# exp(a) * prod(feature_i ** b_i) -- with the pair chosen per class by
 # held-out score in authoring/evidence/fit_estimators.py rather than assumed.
 #
 # The first version of this used one relation for s, trough width times the
@@ -123,9 +136,14 @@ FEATURE_RADIUS_BP = 60_000
 # replicates inside a factor of 2.5 but ranked them at only 0.32, because a
 # soft sweep leaves diversity near background and has no trough whose width
 # can be measured. Adding a second feature, and taking the swept extent from
-# the H12 elevation rather than the diversity dip where diversity is flat,
-# brings that to 100% inside a factor of 2.5 and a rank correlation of 0.80,
-# held out across 33 configurations.
+# the H12 elevation rather than the diversity dip wherever diversity is flat,
+# brings that to 109 of 109 inside a factor of 2.5 with a pooled rank
+# correlation of +0.82, held out by configuration across all 37.
+#
+# Only hard_complete reads its width from the diversity trough (w_pi_50, the
+# width at half recovery). The other three read it from the H12 elevation
+# (w_h12_15 and w_h12_2, the extents at 1.5x and 2x background), because a
+# partial or soft sweep leaves no trough with a measurable edge.
 #
 # Width features are scaled by the local recombination rate: what carries the
 # strength is the GENETIC length of the footprint, so a sweep sitting in a
@@ -139,7 +157,7 @@ BASE_RATE = 1e-8
 
 S_MODEL = {
     "hard_complete": dict(feats=["pi_min_ratio", "w_pi_50"],
-                          coef=[-8.4232, -0.48969, 0.25391]),
+                          coef=[-8.1369, -0.58052, 0.20986]),
     "hard_partial":  dict(feats=["pi_ratio", "w_h12_15"],
                           coef=[-8.9524, 0.44373, 0.38606]),
     "soft_complete": dict(feats=["h12_ratio", "w_h12_15"],
@@ -152,20 +170,21 @@ S_MODEL = {
 S_FALLBACK = {"hard_complete": 0.026, "hard_partial": 0.022,
               "soft_complete": 0.028, "soft_partial": 0.025}
 
-# --- diversity-recovery clock ---
-# Age comes from H12 decay with the footprint extent controlling for
-# strength, not from residual diversity alone. H12 at a completed sweep falls
-# back towards background as recombination breaks up the swept block, which
-# is a cleaner clock than the depth of the diversity trough: measured
-# held out across 33 configurations, 27 of 28 completion times land inside
-# the verifier's tolerance, with a rank correlation of 0.95, against 9 of 16
-# for the diversity-depth version.
+# --- completion clock ---
+# Age comes from H12 DECAY with the footprint extent controlling for
+# strength, not from residual diversity. H12 at a completed sweep falls back
+# towards background as recombination breaks up the swept block, which is a
+# cleaner clock than the depth of the diversity trough: held out by
+# configuration, 36 of 40 completion times land inside the verifier's
+# tolerance with a rank correlation of +0.93, against 9 of 16 for the
+# diversity-depth version on the configurations that version was measured on.
 #
 # Reported for every sweep called complete, because the submission schema
 # requires a number there, but only meaningful for the single-origin ones:
 # the verifier grades timing on true hard_complete sweeps only.
 TIMED_CLASSES = ("hard_complete", "soft_complete")
-T_MODEL = dict(feats=["h12_ratio", "w_pi_50"], coef=[4.9582, -0.96009, 0.21275])
+T_MODEL = dict(feats=["h12_ratio", "w_pi_50"],
+               coef=[6.9076, -0.87188, 0.048488])
 TIME_FALLBACK_GENS = 500.0
 
 
