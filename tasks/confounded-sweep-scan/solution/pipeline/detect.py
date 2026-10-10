@@ -504,12 +504,21 @@ def _merge_regions(obs, score, regions: List[Dict[str, object]],
     between the two peaks stays above `saddle_frac` of the weaker peak, and
     keep them apart otherwise.
 
-    The threshold is not a free parameter fitted to the answer: it comes
-    from the null. A split footprint's saddle is a downward fluctuation of a
-    cluster that is elevated along its whole length, while a genuine gap
-    falls to the cluster-forming threshold or below, and `saddle_frac` sits
-    between those two populations with room on each side -- see
-    authoring/evidence/calibrate_null.py.
+    A smaller radius is not an alternative. The radius is there because a
+    footprint broken by noise can produce clusters far apart: on an earlier
+    replicate a soft partial sweep came out as calls 1.3 Mb either side of
+    it, so it was missed and both halves counted as false positives. Any
+    radius wide enough to repair that is wide enough to swallow a 750 kb
+    pair, which is why the decision has to be made on the shape of the dip
+    rather than on distance.
+
+    Where `saddle_frac` comes from, stated the way the false-positive budget
+    is: it is measured on the shipped replicate, by comparing the saddle
+    ratio at the two known close pairs against the ratio inside footprints
+    that split, and it is therefore a number chosen with the answer visible.
+    What makes it a choice rather than a fit is that the two populations are
+    far apart and the threshold sits between them with room on each side;
+    authoring/evidence/saddle_calibration.py prints both and the margin.
     """
     regions = sorted(regions, key=lambda r: (r["chrom"], r["position"]))
     out: List[Dict[str, object]] = []
