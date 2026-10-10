@@ -117,10 +117,14 @@ It then simulates ten neutral replicates under the fitted history using the
 provided recombination map, computes windowed diversity, Tajima's D, H12,
 H2/H1 and the fraction of extreme nSL scores on both the observed genome and
 the null, and converts each observed window to a z-score against null windows
-in the same local-rate bin. The per-window score is the strongest signal
-across statistics, thresholded so the expected number of null windows per
-genome is a fraction of one, and contiguous passing windows are clustered
-into one call each.
+in the same local-rate bin, combined across six statistics as -2 sum log p.
+Calls are then made at the level of clusters rather than single windows,
+formed at a mild threshold and judged by their total excess mass, with the
+mass cut calibrated by applying the identical procedure to every null
+replicate. A sweep footprint spans one to two megabases, so asking any single
+window inside it to clear a genome-wide per-window cut is the wrong test:
+measured on the shipped replicate the soft sweeps peaked a single point below
+such a cut against a genome-wide median a quarter as large.
 
 Run end to end on a genome simulated under the same history and the same
 recombination map but with no selection anywhere, the pipeline reports zero

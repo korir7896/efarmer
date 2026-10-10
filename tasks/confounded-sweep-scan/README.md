@@ -109,12 +109,20 @@ history, so the history comes first.
    ones. With only the one-sided set, soft sweeps contributed to a single
    statistic and two of three were missed.
 
-   The threshold is taken from the null itself, so the false-positive budget
-   holds whatever shape the combined score has and however correlated the
-   statistics are. Contiguous passing windows cluster into one call, with a
-   generous gap tolerance: a footprint here is one to two megabases and its
-   evidence is not monotonic across it, so a tight tolerance split single
-   sweeps into two calls.
+   Calls are made at the level of CLUSTERS, not single windows. A footprint
+   here spans one to two megabases, a hundred to two hundred windows at a
+   10 kb step, each moderately elevated. Requiring any one window to clear a
+   cut set for 0.3 expected false windows per genome puts that cut at the
+   99.993rd percentile of the null, and measured on the shipped replicate
+   the three soft sweeps peaked at 49.3, 55.4 and 55.9 against a threshold of
+   56.44, with a genome-wide median of 12.7: real signal, two of them short
+   by a single point. So clusters are formed at the null's 99th percentile
+   and judged by total mass, the summed excess over that threshold. A broad,
+   consistently elevated footprint accumulates far more mass than the short
+   runs noise produces, and the mass cut is calibrated by applying the
+   identical procedure to every null replicate, which keeps the
+   false-positive budget exact and makes it a budget on clusters, which is
+   what a call is.
 4. **Characterisation** by a nearest-centroid rule on four features read at
    the peak: diversity and H2/H1 as ratios to background, Tajima's D and the
    extreme-nSL fraction as differences. Calibrated on 32 independent
