@@ -276,27 +276,47 @@ def score_t(cands, data):
 # 0.10-0.29 on the wider set: it was chosen on noise, and refitting it away
 # from those ten points returns an almost flat model.
 # Chosen on held-out accuracy first and rank correlation second, from the
-# tables score_s() and score_t() print over all 120 replicates. Three of the
-# four s models take rate_ratio, which is the whole reason the cold-spot
-# replicates exist: a footprint measured in base pairs is wider where the
-# local recombination rate is lower, so a width-based strength estimate that
-# ignores the rate reads a cold-spot sweep as stronger than it is.
+# tables score_s() and score_t() print over all 120 replicates, restricted to
+# predictors that are strictly positive on every replicate so the shipped
+# estimator never meets a sweep it cannot score.
 #
-# soft_complete is the one place where the best-accuracy and best-ordering
-# models differ: w_pi_50+w_pi_75 reaches 0.95 within tolerance but orders the
-# class at rho +0.32, while snp_ratio+w_pi_50+rate_ratio gives up four points
-# of accuracy for rho +0.54. The POOLED rank correlation is what the verifier
-# scores, this class contributes three of the fifteen shipped sweeps, and one
-# of those three sits in a cold spot -- so the model that reads the rate wins
-# on both counts.
+# One of the four carries rate_ratio and three do not, which deserves an
+# explanation because three of the fifteen shipped sweeps sit inside a wide
+# recombination cold spot and the cold-spot calibration replicates exist for
+# exactly this question. Measured, the rate term wins outright for
+# soft_complete and buys nothing elsewhere. That is not evidence against the
+# rate mattering: the calibration set is 31 base-rate configurations against
+# 9 cold-spot ones, so a predictor that is identically 1.0 in three quarters
+# of the rows spends a degree of freedom to explain nothing there, and only a
+# class whose cold-spot error is large enough pays that back.
+#
+# Which objective decides is settled by s_gate_design.py, which scores both
+# sets over the composition of the SHIPPED zoo -- 3 cold-spot sweeps out of
+# 15 -- rather than over the calibration average. CHOSEN_S_RATE below is the
+# alternative it is compared against, so the choice is a measurement and the
+# losing option stays visible instead of being deleted.
 CHOSEN_S = {
-    "hard_complete": ("w_h12_2", "w_h12_15", "rate_ratio"),   # 0.90, rho +0.55
-    "hard_partial":  ("snp_ratio", "w_h12_15", "rate_ratio"), # 1.00, rho +0.83
-    "soft_complete": ("snp_ratio", "w_pi_50", "rate_ratio"),  # 0.91, rho +0.54
-    "soft_partial":  ("w_pi_50", "w_h12_15", "rate_ratio"),   # 1.00, rho +0.66
+    "hard_complete": ("pi_min_ratio", "w_pi_50"),              # 0.95, rho +0.46
+    "hard_partial":  ("pi_ratio", "w_h12_15"),                 # 0.94, rho +0.74
+    "soft_complete": ("snp_ratio", "w_pi_50", "rate_ratio"),   # 1.00, rho +0.54
+    "soft_partial":  ("h12_ratio",),                           # 0.92, rho +0.11
 }
-# Two features, not three: h12_ratio+w_snp_50+rate_ratio scores the same 0.88
-# at a slightly worse rho, so the extra width term buys nothing.
+# The best model per class that DOES carry the local rate, for the
+# shipped-composition comparison in s_gate_design.py. soft_complete is in
+# both because there the rate term wins outright -- which is the class the
+# cold-spot soft sweep belongs to, and the one a base-rate calibration gets
+# most wrong.
+CHOSEN_S_RATE = {
+    "hard_complete": ("w_pi_75", "rate_ratio"),                # 0.95, rho +0.38
+    "hard_partial":  ("w_h12_15", "rate_ratio"),               # 0.94, rho +0.67
+    "soft_complete": ("snp_ratio", "w_pi_50", "rate_ratio"),   # 1.00, rho +0.54
+    "soft_partial":  ("h12_ratio", "rate_ratio"),              # 0.92, rho +0.08
+}
+# Age, by contrast, takes the rate term on the measurement: h12_ratio alone
+# reaches 0.83 inside tolerance and h12_ratio+rate_ratio 0.88, the best of
+# any pair. Diversity recovery after a sweep is a local clock, and how much
+# diversity has returned to a window depends on how much recombination that
+# window has had.
 CHOSEN_T = ("h12_ratio", "rate_ratio")
 
 
@@ -364,14 +384,23 @@ if __name__ == "__main__":
           f"{len(set(r['cfg'] for r in data))} configurations, "
           f"{len(set(r['cfg'] for r in data if not r['shipped_cfg']))} not "
           f"used by the shipped replicate")
+    # Exactly the predictors solution/pipeline/characterize.py computes, and
+    # nothing else. A model fitted here on a quantity the pipeline does not
+    # produce cannot be used, and the failure is silent: _loglinear() returns
+    # None for the missing feature and estimate_s() quietly substitutes a
+    # per-class constant, which costs the spread and rank gates rather than
+    # raising anything. w_snp_50 is the case in point -- it scored best for
+    # soft_partial and is left out, because the fitter measures it against a
+    # far-field SNP-density background and the pipeline has no matching
+    # definition, so the two would be different quantities under one name.
+    #
     # rate_ratio is a candidate here and NOT in fit_classifier: strength is
     # read off footprint geometry, which depends on the local recombination
     # rate, while class is read off haplotype structure, which does not.
     # Offering it to the classifier would let it learn "cold spot implies
-    # this class" from the five cold-spot configurations.
+    # this class" from the nine cold-spot configurations.
     keys = ["pi_ratio", "pi_min_ratio", "h12_ratio", "snp_ratio",
-            "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "w_snp_50",
-            "rate_ratio"]
+            "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "rate_ratio"]
     # Drop any predictor that is not strictly positive on every replicate.
     # These models are log-linear, so a feature of zero is not a weak
     # measurement, it is log(0): the fit silently discards that replicate and

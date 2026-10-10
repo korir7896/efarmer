@@ -148,17 +148,50 @@ GATES: Dict[str, Any] = {
     # ORDER: Spearman rank correlation against the truth. A constant is all
     #   ties, which scores zero by the convention in grading.spearman().
     #
-    # The true coefficients span a factor of 12.0 across the zoo, and s is
+    # All four numbers come from authoring/evidence/s_gate_design.py, which
+    # scores drawn submissions over the composition of the SHIPPED zoo --
+    # fifteen sweeps, three of them inside a cold spot -- rather than over
+    # the calibration set as a whole, because three of fifteen is what the
+    # gate will see. Fraction of draws passing all three gates at once:
+    #
+    #     factor  min acc  min rho    reference   base-rate-calibrated
+    #       2.20     0.70     0.50        0.880                  0.781
+    #       2.20     0.75     0.50        0.797                  0.740
+    #       2.50     0.75     0.50        0.891                  0.781
+    #       2.50     0.80     0.50        0.891                  0.781
+    #       2.50     0.80     0.40        0.986                  0.892
+    #       2.50     0.85     0.40        0.912                  0.887
+    #       2.80     0.90     0.40        0.581                  0.596
+    #
+    # I had these at 2.20 / 0.75 / 0.50 on the reasoning that a tighter
+    # tolerance makes a harder task. Measured, that setting fails the best
+    # estimator available on one draw in five, which is not a hard gate but a
+    # broken one, and the binding constraint turned out to be the rank gate
+    # rather than the tolerance: pooled rank correlation has a median of
+    # +0.661 over draws and a 1st percentile of +0.386, so 0.50 alone costs
+    # about eleven percent of draws. 2.50 / 0.80 / 0.40 is the one setting the
+    # reference clears essentially always, and it is a real tightening of the
+    # fraction required (0.75 -> 0.80) bought by loosening the tolerance.
+    #
+    # What these gates do NOT do is worth stating, because the obvious story
+    # is wrong. The cold spots stretch a footprint in base pairs, so reading
+    # strength off physical width overestimates it there, and the same
+    # measurement shows what that is worth: an estimator calibrated only on
+    # base-rate simulations is biased 2.65x on the soft completed sweep
+    # inside a cold spot and misses it by up to 5.90x -- but it is one sweep
+    # in fifteen, and such a submission still clears all three gates on 89%
+    # of draws against the reference's 99%. The cold spots earn their place
+    # as false-positive traps for DETECTION, where three of the six carry no
+    # sweep at all, not as a strength-estimation trap. Claiming otherwise
+    # would be asserting a difficulty the evidence does not support.
+    #
+    # The true coefficients span a factor of 12.0 across the zoo and s is
     # non-monotone in sweep age, so the rank gate cannot be earned by dating
-    # sweeps instead of measuring their strength. Three of the fifteen sweeps
-    # sit inside a wide recombination cold spot, where reading s off physical
-    # footprint width overestimates it about threefold; scaling width by the
-    # local rate recovers it. That is what the magnitude and rank gates
-    # together are for.
-    "s_within_factor": 2.20,
-    "min_s_accuracy": 0.75,
+    # sweeps instead of measuring their strength.
+    "s_within_factor": 2.50,
+    "min_s_accuracy": 0.80,
     "min_s_spread": 3.00,
-    "min_s_rank_corr": 0.50,
+    "min_s_rank_corr": 0.40,
     "min_matched_for_rank": 8,
     # Timing is graded only over sweeps whose TRUE class is hard_complete --
     # grading against the true class, not the reported one, so a

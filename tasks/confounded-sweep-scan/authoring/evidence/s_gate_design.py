@@ -36,10 +36,8 @@ import argparse, itertools, sys
 import numpy as np
 
 import fit_estimators as F
-from fit_estimators import CHOSEN_S, CLASSES, spearman
+from fit_estimators import CHOSEN_S, CHOSEN_S_RATE, CLASSES, spearman
 import config as C
-
-sys.path.insert(0, F.os.path.join(F.TASK, "tests")) if hasattr(F, "TASK") else None
 
 
 def shipped_sweeps():
@@ -118,15 +116,32 @@ def loo_predict(data, combo, cls, train_pool):
     return out
 
 
+ARMS = ("shipped", "rate-aware", "shortcut")
+
+
 def build_predictions(data):
-    """Both arms' held-out predictions, keyed by replicate."""
+    """Each arm's held-out predictions, keyed by replicate.
+
+      shipped     CHOSEN_S, trained on every other configuration.
+      rate-aware  CHOSEN_S_RATE, the best model per class that carries the
+                  local recombination rate, trained the same way. This is
+                  the arm that decides whether the rate term belongs in the
+                  shipped estimator: it wins on the three cold-spot sweeps
+                  and loses a little on the other twelve, and the shipped
+                  composition is what settles the trade.
+      shortcut    CHOSEN_S with the rate term dropped and trained on
+                  BASE-RATE replicates only, which is what calibrating
+                  against simulations at the genome's average rate gives
+                  you.
+    """
     base = [r for r in data if abs(r["rate_ratio"] - 1.0) < 1e-9]
-    ref, short = {}, {}
+    out = {a: {} for a in ARMS}
     for c in CLASSES:
-        ref.update(loo_predict(data, CHOSEN_S[c], c, data))
-        blind = tuple(k for k in CHOSEN_S[c] if k != "rate_ratio")
-        short.update(loo_predict(data, blind, c, base))
-    return ref, short
+        out["shipped"].update(loo_predict(data, CHOSEN_S[c], c, data))
+        out["rate-aware"].update(loo_predict(data, CHOSEN_S_RATE[c], c, data))
+        blind = tuple(k for k in CHOSEN_S_RATE[c] if k != "rate_ratio")
+        out["shortcut"].update(loo_predict(data, blind, c, base))
+    return out
 
 
 def score_draw(pairs, factor):
@@ -154,7 +169,7 @@ def main():
     data = F.rows(F.ALL_DIRS)
     for i, r in enumerate(data):
         r["key"] = (r["cfg"], i)
-    ref, short = build_predictions(data)
+    preds = build_predictions(data)
     sweeps = resolve(shipped_sweeps(), data)
 
     print(f"calibration set: {len(data)} replicates; shipped zoo: "
@@ -170,7 +185,7 @@ def main():
     # realized class differs from the scheduled one is kept under the class
     # it realized, because that is the class the verifier will grade it as.
     pools = {}
-    for name, pred in (("reference", ref), ("shortcut", short)):
+    for name, pred in preds.items():
         pool = []
         for sw in sweeps:
             got = [(float(np.exp(pred[r["key"]])), float(r["s_true"]))
@@ -201,24 +216,50 @@ def main():
     print("\n=== magnitude: fraction of drawn submissions reaching each "
           "accuracy, by tolerance ===")
     accs = [0.70, 0.75, 0.80, 0.85, 0.90]
-    hdr = "  " + "factor".ljust(8) + "method".ljust(11) \
+    hdr = "  " + "factor".ljust(8) + "method".ljust(12) \
         + "".join(f"  >={a:.2f}" for a in accs) + "   median acc"
     print(hdr)
     for f in grid:
-        for name in ("reference", "shortcut"):
+        for name in ARMS:
             got = np.array([score_draw(p, f)[0] for p in draws[name]])
             cells = "".join(f"  {float((got >= a).mean()):6.2f}" for a in accs)
-            print(f"  {f:<8.2f}{name:<11}{cells}   {float(np.median(got)):.3f}")
+            print(f"  {f:<8.2f}{name:<12}{cells}   {float(np.median(got)):.3f}")
         print()
 
     print("=== spread and rank correlation (tolerance-independent) ===")
-    for name in ("reference", "shortcut"):
+    for name in ARMS:
         sp = np.array([score_draw(p, 2.0)[1] for p in draws[name]])
         rh = np.array([score_draw(p, 2.0)[2] for p in draws[name]])
-        print(f"  {name:<11} spread: median {float(np.median(sp)):.2f}x, "
+        print(f"  {name:<12} spread: median {float(np.median(sp)):.2f}x, "
               f"1st percentile {float(np.percentile(sp, 1)):.2f}x;  "
               f"rho: median {float(np.median(rh)):+.3f}, "
               f"1st percentile {float(np.percentile(rh, 1)):+.3f}")
+
+    print("\n=== all three s gates at once: fraction of drawn submissions "
+          "that pass every one ===")
+    print("  A submission passes only if magnitude, spread and rank all hold, "
+          "so this is\n  the number that decides whether a gate setting is "
+          "passable at all. A setting\n  the reference clears in 85% of draws "
+          "is not a hard gate, it is a gate that\n  fails one submission in "
+          "seven for the draw it got.")
+    cand = [(2.00, 0.70, 3.00, 0.50), (2.20, 0.70, 3.00, 0.50),
+            (2.20, 0.75, 3.00, 0.50), (2.20, 0.75, 3.00, 0.40),
+            (2.50, 0.75, 3.00, 0.50), (2.50, 0.80, 3.00, 0.50),
+            (2.50, 0.80, 3.00, 0.40), (2.50, 0.85, 3.00, 0.40),
+            (2.80, 0.85, 3.00, 0.40), (2.80, 0.90, 3.00, 0.40)]
+    print(f"\n  {'factor':>7}{'min acc':>9}{'min spread':>12}{'min rho':>9}"
+          + "".join(f"{a:>13}" for a in ARMS))
+    for f, a_min, sp_min, rho_min in cand:
+        cells = []
+        for name in ARMS:
+            ok = 0
+            for pairs in draws[name]:
+                acc, sp, rho = score_draw(pairs, f)
+                if acc >= a_min and sp >= sp_min and rho >= rho_min:
+                    ok += 1
+            cells.append(ok / len(draws[name]))
+        print(f"  {f:>7.2f}{a_min:>9.2f}{sp_min:>12.2f}{rho_min:>9.2f}"
+              + "".join(f"{c:>13.3f}" for c in cells))
 
     print("\n=== cold-spot sweeps alone, which is where the two arms differ ===")
     cold_idx = [i for i, sw in enumerate(sweeps) if sw["cold"]]
@@ -226,7 +267,7 @@ def main():
         for i in cold_idx:
             errs = [max(h / t, t / h) for h, t in pool[i]]
             bias = float(np.exp(np.mean([np.log(h / t) for h, t in pool[i]])))
-            print(f"  {name:<11}{sweeps[i]['sid']:<6}"
+            print(f"  {name:<12}{sweeps[i]['sid']:<6}"
                   f"{sweeps[i]['cls']:<15} error "
                   + "/".join(f"{e:.2f}x" for e in sorted(errs))
                   + f"  mean bias {bias:.2f}x")

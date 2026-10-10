@@ -290,22 +290,46 @@ def _smooth_median(v: np.ndarray, k: int) -> np.ndarray:
     return out
 
 
+def grid_step(mid: np.ndarray) -> float:
+    """One step of the scan grid, the floor on every width this module reports.
+
+    A contiguous run of windows is measured as the distance between the
+    centres of its first and last window, so a run ONE window wide measures
+    zero -- and so does a statistic that never crosses its threshold near the
+    centre at all. Both mean "narrower than this scan can resolve", which is a
+    measurement rather than a missing value, but the strength and age models
+    are log-linear in these widths and log(0) is not a number. Reporting one
+    step keeps the quantity finite and monotone in the right direction: a
+    weaker sweep leaves a narrower footprint.
+
+    The authoring-side fitter applies the identical floor. If these two ever
+    disagree the shipped coefficients are fitted on one quantity and applied
+    to another, which is silent and would not show up as an error anywhere.
+    """
+    m = np.sort(np.asarray(mid, dtype=float))
+    d = np.diff(m)
+    d = d[d > 0]
+    return float(np.median(d)) if d.size else 1.0
+
+
 def _run_around(mid: np.ndarray, flag: np.ndarray, centre: float) -> float:
-    """Span of the contiguous run of flagged windows containing the centre."""
+    """Span of the contiguous run of flagged windows containing the centre,
+    floored at one scan step. See grid_step for why the floor exists."""
+    step = grid_step(mid)
     if not flag.any():
-        return 0.0
+        return step
     i0 = int(np.argmin(np.abs(mid - centre)))
     if not flag[i0]:
         cand = np.where(flag)[0]
         i0 = int(cand[np.argmin(np.abs(mid[cand] - centre))])
         if abs(mid[i0] - centre) > 600_000:
-            return 0.0
+            return step
     lo = hi = i0
     while lo - 1 >= 0 and flag[lo - 1]:
         lo -= 1
     while hi + 1 < len(mid) and flag[hi + 1]:
         hi += 1
-    return float(mid[hi] - mid[lo])
+    return max(float(mid[hi] - mid[lo]), step)
 
 
 def contiguous_low_width(mid: np.ndarray, v: np.ndarray, bg: float,
@@ -322,7 +346,7 @@ def contiguous_low_width(mid: np.ndarray, v: np.ndarray, bg: float,
     vs = _smooth_median(v[order].astype(float), SMOOTH_WINDOWS)
     near = (np.abs(m - centre) <= WIDTH_SEARCH_BP) & np.isfinite(vs)
     if not near.any() or not np.isfinite(bg):
-        return 0.0
+        return grid_step(m)
     floor = float(vs[near].min())
     level = floor + frac * (bg - floor)
     return _run_around(m, np.isfinite(vs) & (vs < level), centre)
@@ -335,7 +359,7 @@ def contiguous_high_width(mid: np.ndarray, v: np.ndarray, bg: float,
     m = mid[order]
     vs = _smooth_median(v[order].astype(float), SMOOTH_WINDOWS)
     if not np.isfinite(bg) or bg <= 0:
-        return 0.0
+        return grid_step(m)
     return _run_around(m, np.isfinite(vs) & (vs > mult * bg), centre)
 
 
