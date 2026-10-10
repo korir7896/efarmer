@@ -1,0 +1,4 @@
+override hard_partial -> (0.032, 240, 1)
+hard_partial seed 762000: realized=hard_partial origins_surviving=1 done_ago=None freq=0.841 h2h1=0.053 bg=0.781 ratio=0.068 rate=2.3e-09
+hard_partial seed 762097: realized=hard_partial origins_surviving=1 done_ago=None freq=0.499 h2h1=0.109 bg=0.811 ratio=0.134 rate=2.3e-09
+hard_partial seed 762194: realized=hard_partial origins_surviving=1 done_ago=None freq=0.582 h2h1=0.339 bg=0.806 ratio=0.420 rate=2.3e-09
