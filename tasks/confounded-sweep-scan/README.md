@@ -645,11 +645,19 @@ naming nine of the eleven gate functions passed and exactly two failed,
 10-of-12 scorecard above, produced by the shipped verifier rather than by an
 authoring script.
 
-**Both harbor gates pass.** `harbor run -a oracle -e docker` returns reward
-**1.0** and `harbor run -a nop -e docker` returns **0.0**, one trial each,
-zero exceptions, through the real harness: environment image built,
-`solve.sh` run inside it for eight minutes, `/app/results.json` copied out
-as the declared artifact, and the separate verifier container grading it.
+**Both harbor gates pass**, run against this bundle with these constants.
+`harbor run -a oracle -e docker` returns reward **1.0** and
+`harbor run -a nop -e docker` returns **0.0**, one trial each, zero
+exceptions, through the real harness: environment image built, `solve.sh`
+run inside it for eight minutes, `/app/results.json` copied out as the
+declared artifact, and the separate verifier container grading it to
+`12 passed`. The in-container demography fit converged to the same history
+as the out-of-container run, to every printed digit.
+
+The nop trial's log carries one expected error, `Engine cp failed ... Could
+not find the file /app/results.json`: the nop agent writes no submission, so
+the artifact copy has nothing to copy and the verifier scores the missing
+file 0, which is the behaviour being checked.
 
 Those runs used a locally patched copy of the bundle. Two changes, neither
 of which applies in the real pipeline and neither of which touches what the
