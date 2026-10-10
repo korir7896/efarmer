@@ -25,9 +25,10 @@ What is deliberately different from solution/pipeline/:
                 with clusters formed at a mild cut and judged by total mass.
                 Three statistics, not six.
 
-  class         a distance-weighted k-nearest-neighbour vote (k=5) on four
-                features, three of which the reference's rules do not use,
-                against two fitted logistic rules applied in sequence.
+  class         linear discriminant analysis on four features, three of
+                which the reference's rules do not use, against two fitted
+                logistic rules applied in sequence. A nearest-neighbour vote
+                was tried first and classified 3 of 7 matched calls right.
 
   s             the width of the Tajima's D trough times the local rate,
                 over one constant per class -- the relation the reference
@@ -290,11 +291,17 @@ def simulate_null(hist: Dict[str, float], mu: float, n_dip: int, rows,
 DET_SPEC = (("pi", -1), ("tajd", -1), ("h12", +1))
 
 
-def rate_bins(rate: np.ndarray, med: float) -> np.ndarray:
-    b = np.full(rate.size, 1, dtype=int)
-    b[rate < 0.30 * med] = 0
-    b[rate > 0.70 * med] = 2
-    return b
+def rate_bins(rate: np.ndarray, med: float, n_bins: int = 5) -> np.ndarray:
+    """Quantile bins of the local rate.
+
+    Three fixed cut-points mishandle the edges of a cold spot: a window just
+    outside one has a normal mean rate while its genealogies are still
+    shaped by the low-rate region beside it, and it gets compared against
+    normal-rate nulls. Quantile bins put those edge windows with each other.
+    """
+    r = np.where(np.isfinite(rate), rate, med)
+    qs = np.quantile(r, np.linspace(0, 1, n_bins + 1)[1:-1])
+    return np.digitize(r, qs)
 
 
 def rank_scores(obs: Dict[str, np.ndarray], null: Dict[str, np.ndarray],
@@ -533,7 +540,15 @@ def _tajd_width_arrays(mid, v, bg, centre) -> float:
     return float(m[hi] - m[lo])
 
 
-def build_knn(cal):
+def build_lda(cal):
+    """Linear discriminant analysis on four features.
+
+    A third model family: not the reference's two sequential logistic rules
+    and not the nearest-neighbour vote this solver tried first, which
+    over-predicted one class badly (3 of 7 matched calls right) because the
+    four classes overlap heavily in this feature space and a local vote has
+    no notion of a shared covariance.
+    """
     X, y = [], []
     for r in cal:
         x = [r[k] for k in KNN_FEATS]
@@ -542,20 +557,35 @@ def build_knn(cal):
         X.append(x); y.append(r["cls"])
     X = np.array(X, float)
     mu, sd = X.mean(0), np.where(X.std(0) > 0, X.std(0), 1.0)
-    return (X - mu) / sd, y, mu, sd
+    Z = (X - mu) / sd
+    labels = sorted(set(y))
+    means, Sw = {}, np.zeros((Z.shape[1], Z.shape[1]))
+    for c in labels:
+        m = np.array([yy == c for yy in y])
+        means[c] = Z[m].mean(0)
+        d = Z[m] - means[c]
+        Sw += d.T @ d
+    Sw /= max(len(y) - len(labels), 1)
+    Sw += 1e-6 * np.eye(Sw.shape[0])
+    Si = np.linalg.inv(Sw)
+    priors = {c: float(np.mean([yy == c for yy in y])) for c in labels}
+    return dict(mu=mu, sd=sd, means=means, Si=Si, priors=priors,
+                labels=labels)
 
 
-def knn_classify(f, Z, y, mu, sd, k: int = 5) -> str:
+def lda_classify(f, model) -> str:
     x = np.array([f.get(c, np.nan) for c in KNN_FEATS], float)
     if not np.all(np.isfinite(x)):
         return "hard_complete"
-    z = (x - mu) / sd
-    d = np.linalg.norm(Z - z, axis=1)
-    near = np.argsort(d)[:k]
-    votes: Dict[str, float] = {}
-    for i in near:
-        votes[y[i]] = votes.get(y[i], 0.0) + 1.0 / (1e-9 + d[i])
-    return max(votes, key=votes.get)
+    z = (x - model["mu"]) / model["sd"]
+    best, bs = model["labels"][0], -np.inf
+    for c in model["labels"]:
+        m = model["means"][c]
+        sc = float(z @ model["Si"] @ m - 0.5 * m @ model["Si"] @ m
+                   + math.log(max(model["priors"][c], 1e-9)))
+        if sc > bs:
+            best, bs = c, sc
+    return best
 
 
 def s_constants(cal, base_rate: float) -> Dict[str, float]:
@@ -589,9 +619,10 @@ def main(argv=None):
     ap.add_argument("--mu", type=float, default=2.0e-8)
     ap.add_argument("--n-null", type=int, default=8)
     ap.add_argument("--calibration", default="training_holdout")
-    ap.add_argument("--expected-false", type=float, default=1.0,
-                    help="expected false calls per genome; the verifier's "
-                         "cap is one")
+    ap.add_argument("--expected-false", type=float, default=0.5,
+                    help="expected false calls per genome; half the "
+                         "verifier's cap of one, the same rule the reference "
+                         "follows")
     ap.add_argument("--seed", type=int, default=777_001)
     a = ap.parse_args(argv)
 
@@ -630,7 +661,7 @@ def main(argv=None):
     log(f"calibrating characterisation on {a.calibration} (not the shipped "
         f"configurations)")
     cal = load_calibration(a.calibration)
-    Z, y, mu, sd = build_knn(cal)
+    lda = build_lda(cal)
     kconst = s_constants(cal, med_rate)
     bias = time_bias(cal, hist["N_current"])
     log(f"  {len(cal)} replicates; s constants "
@@ -648,7 +679,7 @@ def main(argv=None):
     for r in calls:
         idx = r["index"]
         f = peak_features(obs, idx, bg)
-        klass = knn_classify(f, Z, y, mu, sd)
+        klass = lda_classify(f, lda)
         w = tajd_trough_width(obs, idx, bg["tajd"])
         rate = float(obs["rate"][idx])
         k = kconst.get(klass, float(np.median(list(kconst.values()) or [0.1])))
