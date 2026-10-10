@@ -69,6 +69,15 @@ for cfg in "${CONFIGS[@]}"; do
     read -r label s origin nd tag <<<"$cfg"
     seed0=$((${SEED_BASE:-600000} + 1000 * i))
     i=$((i + 1))
+    # Already simulated? Skip it. Each replicate is a few minutes, so a run
+    # interrupted part-way through should resume rather than start over.
+    # find, not ls: with `set -o pipefail` a glob that matches nothing makes
+    # `ls | wc -l` fail and takes the whole script down.
+    have=$(find "$OUT" -maxdepth 1 -name "${label}${tag}_*.npz" | wc -l)
+    if [ "$have" -ge "$REPS" ]; then
+        echo "skip ${label}${tag}: $have replicate(s) already present"
+        continue
+    fi
     (
       OMP_NUM_THREADS=1 "$PY" "$HERE/make_training.py" \
           --label "$label" --s "$s" --origin "$origin" --n-origins "$nd" \
@@ -81,6 +90,6 @@ wait
 
 echo
 echo "replicates written:"
-ls -1 "$OUT"/*.npz | wc -l
+find "$OUT" -maxdepth 1 -name '*.npz' | wc -l
 echo
 grep -h 'realized=' "$OUT"/log_*.txt | sort

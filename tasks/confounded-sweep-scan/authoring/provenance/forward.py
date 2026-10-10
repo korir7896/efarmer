@@ -423,8 +423,23 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                     break
                 if pop.generation >= st.deadline:
                     strong = done or total >= est_threshold(st.plan.s)
+                    # How many origins must still be present at the
+                    # establishment deadline for the sweep to count as soft.
+                    # A flat five is right for a hundred introductions and
+                    # wrong for twelve: the longer the establishment window,
+                    # the more the founding lineages drift against each
+                    # other, and a weak sweep's window is long. Measured on
+                    # twelve introductions, five survivors after the 351
+                    # generations s=0.025 needs is rare enough that the
+                    # driver spent eighteen minutes on one replicate without
+                    # finishing, where s=0.060, whose window is 118
+                    # generations, kept five or six in 8 of 8. Two surviving
+                    # origins is what makes a sweep soft by definition, so
+                    # the requirement scales and never drops below two.
+                    soft_target = max(2, min(min_soft_origins,
+                                             st.plan.n_origins // 4))
                     soft_ok = (st.plan.n_origins == 1
-                               or surviving >= min_soft_origins)
+                               or surviving >= soft_target)
                     if strong and soft_ok:
                         confirmed[sid] = True
                         recorder.real[sid].established = True
