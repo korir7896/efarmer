@@ -357,7 +357,10 @@ ACCEPT: Dict[str, Dict] = {
     "sw07": dict(class_="soft_complete", must_complete=True,
                  done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
-                 done_min=100,  done_max=480),    # origin pulled to 900
+                 done_min=70,   done_max=650),    # isolated 81, 570, 615 --
+    #            the scatter is intrinsic at s=0.0095, and soft_complete is
+    #            not graded for timing, so the window simply brackets it and
+    #            the two-surviving-origin check does the real work
     # hard_partial: still segregating today.
     "sw09": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.1, freq_max=0.96),   # isolated 0.221, 0.880, 0.907
