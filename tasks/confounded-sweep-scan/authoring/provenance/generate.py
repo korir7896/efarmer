@@ -31,6 +31,7 @@ import config as C
 import sweeps as S
 from export import scrub_metadata, subsample, write_vcf
 from forward import run_forward
+from datadoc import render as render_data_readme
 from genome import write_rate_map_bed
 from recap import overlay_mutations, recapitate
 
@@ -160,6 +161,15 @@ def main():
 
     bed_path = os.path.join(pub, "recombination_map.bed")
     write_rate_map_bed(cfg, bed_path)
+
+    # Rendered from the config rather than hand-maintained, so the file that
+    # tells the agent how many individuals and chromosomes there are cannot
+    # disagree with the data beside it.
+    doc_path = os.path.join(pub, "README_DATA.txt")
+    with open(doc_path, "w") as fh:
+        fh.write(render_data_readme(C.N_SAMPLE_DIPLOIDS, cfg.n_chrom,
+                                    cfg.chrom_len, cfg.mut_rate))
+    print(f"wrote {doc_path}", flush=True)
 
     # ---------------- sealed truth ----------------
     truth = {

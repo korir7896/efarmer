@@ -481,7 +481,8 @@ def _summarize(obs, score, idx: Sequence[int], chrom: int) -> Dict[str, object]:
 
 
 def _merge_regions(obs, score, regions: List[Dict[str, object]],
-                   min_separation: int) -> List[Dict[str, object]]:
+                   min_separation: int,
+                   saddle_frac: float = 0.45) -> List[Dict[str, object]]:
     """Fuse calls on one chromosome that are closer together than a footprint.
 
     Fusing means taking the UNION of their windows and re-deriving the
@@ -493,17 +494,51 @@ def _merge_regions(obs, score, regions: List[Dict[str, object]],
     missed and both halves counted as false positives. The union's H12
     maximum is the sweep.
 
-    The radius stays below the minimum spacing between true selected sites,
-    so two genuinely distinct sweeps cannot be fused into one.
+    Distance alone is NOT enough to decide, and on this genome it is wrong:
+    two selected sites sit 750 and 830 kb apart, well inside any radius wide
+    enough to repair a split footprint, so a radius-only rule fuses a real
+    pair into one call and loses a sweep. What separates the two cases is the
+    SADDLE between the peaks. One footprint broken by noise dips a little and
+    recovers; two sweeps with 750 kb of ordinary sequence between them dip
+    most of the way to background. So fuse only when the lowest score
+    between the two peaks stays above `saddle_frac` of the weaker peak, and
+    keep them apart otherwise.
+
+    The threshold is not a free parameter fitted to the answer: it comes
+    from the null. A split footprint's saddle is a downward fluctuation of a
+    cluster that is elevated along its whole length, while a genuine gap
+    falls to the cluster-forming threshold or below, and `saddle_frac` sits
+    between those two populations with room on each side -- see
+    authoring/evidence/calibrate_null.py.
     """
     regions = sorted(regions, key=lambda r: (r["chrom"], r["position"]))
     out: List[Dict[str, object]] = []
     for r in regions:
         if out and out[-1]["chrom"] == r["chrom"] and \
-                r["position"] - out[-1]["position"] < min_separation:
+                r["position"] - out[-1]["position"] < min_separation and \
+                _is_one_footprint(obs, score, out[-1], r, saddle_frac):
             union = sorted(set(list(out[-1]["window_indices"])
                                + list(r["window_indices"])))
             out[-1] = _summarize(obs, score, union, int(r["chrom"]))
             continue
         out.append(r)
     return out
+
+
+def _is_one_footprint(obs, score, left: Dict[str, object],
+                      right: Dict[str, object], saddle_frac: float) -> bool:
+    """True when the dip between two clusters looks like noise, not a gap."""
+    lo, hi = float(left["position"]), float(right["position"])
+    mid = obs["mid"]
+    between = np.where((mid > lo) & (mid < hi)
+                       & (obs["chrom"] == left["chrom"]))[0]
+    if between.size == 0:
+        return True
+    v = score[between]
+    v = v[np.isfinite(v)]
+    if v.size == 0:
+        return True
+    weaker = min(float(left["peak_score"]), float(right["peak_score"]))
+    if weaker <= 0:
+        return True
+    return float(np.min(v)) >= saddle_frac * weaker

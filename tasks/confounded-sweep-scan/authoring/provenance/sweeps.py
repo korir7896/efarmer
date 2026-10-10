@@ -19,19 +19,46 @@ from forward import SweepPlan, SweepRealization
 from genome import GenomeConfig
 
 
-def _violations(pos: int, chrom: int, placed: List[Tuple[int, int]],
-                cfg: GenomeConfig) -> List[str]:
+# How far inside a sweep-bearing cold spot a selected site has to sit. The
+# point of putting a sweep in a cold spot is that its footprint stretches in
+# base pairs, and that only happens while the footprint is still inside the
+# spot, so a site near an edge gets most of its footprint at the base rate
+# and the trap does not spring.
+MIN_INSET_IN_COLDSPOT = 1_000_000
+
+
+def _violations(pos: int, chrom: int, sid: str,
+                placed: List[Tuple[int, int]], cfg: GenomeConfig) -> List[str]:
     bad = []
     local = pos - cfg.chrom_offset(chrom)
     if local < C.MIN_DIST_FROM_CHROM_END or local > cfg.chrom_len - C.MIN_DIST_FROM_CHROM_END:
         bad.append(f"within {C.MIN_DIST_FROM_CHROM_END} of a chromosome end (local={local})")
+
+    wants_coldspot = sid in C.SWEEPS_IN_COLDSPOT
+    inside_any = False
     for spot in cfg.cold_spots:
         if spot.chrom != chrom:
             continue
-        d = 0 if spot.start <= local < spot.end else min(abs(local - spot.start),
-                                                         abs(local - spot.end))
-        if d < C.MIN_DIST_FROM_COLDSPOT:
-            bad.append(f"{d} from cold spot [{spot.start},{spot.end})")
+        inside = spot.start <= local < spot.end
+        d = 0 if inside else min(abs(local - spot.start), abs(local - spot.end))
+        if spot.decoy:
+            # Decoys carry no sweep and every sweep stays well clear of them,
+            # so a called region can never be excused as "that was the decoy".
+            if d < C.MIN_DIST_FROM_COLDSPOT:
+                bad.append(f"{d} from decoy cold spot [{spot.start},{spot.end})")
+        elif inside:
+            inside_any = True
+            inset = min(local - spot.start, spot.end - local)
+            if inset < MIN_INSET_IN_COLDSPOT:
+                bad.append(f"only {inset} inside cold spot "
+                           f"[{spot.start},{spot.end})")
+    if wants_coldspot and not inside_any:
+        bad.append("is listed in SWEEPS_IN_COLDSPOT but lands outside every "
+                   "sweep-bearing cold spot")
+    if inside_any and not wants_coldspot:
+        bad.append("lands inside a sweep-bearing cold spot but is not listed "
+                   "in SWEEPS_IN_COLDSPOT")
+
     for pchrom, ppos in placed:
         if pchrom == chrom and abs(ppos - pos) < C.MIN_SWEEP_SPACING:
             bad.append(f"{abs(ppos - pos)} from another sweep")
@@ -47,11 +74,18 @@ def build_plans(cfg: GenomeConfig, seed: int) -> List[SweepPlan]:
         base = cfg.chrom_offset(chrom) + int(frac * cfg.chrom_len)
         for attempt in range(500):
             jitter = int(rng.integers(-C.POSITION_JITTER, C.POSITION_JITTER + 1))
-            # force a non-round coordinate
+            # Force a coordinate that does not look round. Rejecting only
+            # exact multiples of 1000 is not enough: a site at 7,300,001 is
+            # one base off a round number and still stands out to anyone
+            # eyeballing the list, so require the low three digits to sit
+            # well away from both ends of their range.
             pos = base + jitter
-            if pos % 1000 == 0:
-                pos += int(rng.integers(1, 999))
-            bad = _violations(pos, chrom, placed, cfg)
+            for _ in range(64):
+                low = pos % 1000
+                if 80 <= low <= 920:
+                    break
+                pos += int(rng.integers(80, 921)) - low
+            bad = _violations(pos, chrom, sid, placed, cfg)
             if not bad:
                 break
         else:

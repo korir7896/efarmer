@@ -20,28 +20,51 @@ this task split the completed hard sweeps into "recent" and "old" at a fixed
 boundary, which put age inside the class label: a submission could then
 satisfy the timing gate with one constant per class without dating anything,
 and the review of that version said so. Age is now graded only as a
-continuous quantity, over the hard_complete sweeps, whose completion times
-in the shipped replicate span a factor of 15.8: 133, 292, 1214 and 2097
-generations ago.
+continuous quantity, over the hard_complete sweeps.
 
-Two spreads do the work of making the graded quantities discriminating:
+Fifteen sweeps rather than ten, and what the extra five buy
+-----------------------------------------------------------
+The previous zoo carried ten sweeps, all of them strong enough that a scan
+for low diversity plus long shared haplotypes found nine, and the
+characterisation gates then had three or four calls of slack. Two
+independent agent transcripts cleared ten of the twelve gates with that
+much room, which is the definition of a task that is not measuring what it
+claims to. What is different here:
 
-  * s spans a factor of 9.4, from 0.0085 to 0.080, and is assigned across
-    classes so that neither s nor age can be read off the other;
-  * the four hard_complete completion times are far enough apart that the
-    tolerance windows of any three of them have no point in common, so no
-    single number can satisfy a gate that requires three correct dates.
-    gate_feasibility.py checks that against the realized truth rather than
-    against these targets.
+  * s spans a factor of 12.0, from 0.0075 to 0.0900, and is assigned so
+    that s is NON-MONOTONE in age -- the youngest completed sweep is the
+    strongest in the zoo, the second youngest is the weakest, and the oldest
+    is the second strongest. Neither quantity can be read off the other even
+    approximately, so a rank correlation on s cannot be earned by dating.
+  * FIVE hard_complete sweeps are dateable instead of four, at ages spaced
+    so that the verifier's tolerance windows never overlap three at a time.
+    No single constant can date more than two of the five.
+  * THREE sweeps sit inside a wide, moderate recombination cold spot
+    (SWEEPS_IN_COLDSPOT). Their footprints are stretched in base pairs and
+    unchanged in Morgans, so reading selection strength off physical
+    footprint width -- the textbook shortcut, and what both agent
+    transcripts did -- overestimates s there roughly threefold. Scaling
+    width by the local rate recovers it.
+  * TWO pairs sit 800 and 840 kb apart (CLOSE_PAIRS): above the verifier's
+    250 kb dedupe radius, so both have to be reported, but close enough
+    that a scan on megabase windows merges them into one call and loses a
+    sweep to the recall gate.
+  * Three DEEP NARROW cold spots carry no sweep at all and exist only to
+    produce sweep-like statistics where there is nothing to find. The
+    genome is 70 Mb rather than 48, so there is half again as much room for
+    a miscalibrated scan to spend its one allowed false positive.
+  * The sample is 40 diploids rather than 50. Haplotype statistics are the
+    ones that separate soft from hard, and they are the ones that lose most
+    from a smaller sample.
 
-Timescales are also chosen so that no one statistic sees everything, which
-is what makes the scan itself hard:
+Timescales are chosen so that no one statistic sees everything, which is
+what makes the scan itself hard:
 
   * N_cur = 9000, so haplotype statistics (H12, nSL, iHS) keep power for
     sweeps younger than roughly 0.1*N = 900 generations and lose it beyond;
   * site-frequency statistics keep power to roughly 0.25*N = 2250;
-  * the two oldest hard sweeps completed 1100-2100 generations ago, inside
-    the SFS window and outside the haplotype window;
+  * the two oldest hard sweeps completed about 1550 and 2500 generations
+    ago, one inside and one beyond even that window;
   * partial sweeps never complete, so statistics keyed on fixed differences
     or on a completed spectrum miss them while nSL/iHS see them;
   * soft sweeps carry several frequent haplotypes, so H12 sees them while
@@ -57,8 +80,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Tuple
 
-CHROM_LEN = 12_000_000
-N_CHROM = 4
+CHROM_LEN = 14_000_000
+N_CHROM = 5
 BASE_REC_RATE = 1e-8
 MUT_RATE = 2.0e-8
 
@@ -67,9 +90,9 @@ N_BOTTLENECK = 800
 N_CURRENT = 9_000
 T_BOTTLENECK_START = 3_400      # generations before present
 T_BOTTLENECK_END = 3_000
-T_FORWARD = 2_600               # forward phase length; < T_BOTTLENECK_END
+T_FORWARD = 2_900               # forward phase length; < T_BOTTLENECK_END
 
-N_SAMPLE_DIPLOIDS = 50
+N_SAMPLE_DIPLOIDS = 40
 
 MASTER_SEED = 20_251_009
 
@@ -98,29 +121,59 @@ MASTER_SEED = 20_251_009
 # and chromosome ends are asserted in sweeps.build_plans().
 
 SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
-    # --- hard, complete: four widely spread completion times. s is NOT
-    #     monotone in age, so neither can be inferred from the other.
-    ("sw01", 0, 0.14,  0.0800,  280,   1, "hard_complete"),   # ~130 gens ago
-    ("sw02", 1, 0.46,  0.0300,  710,   1, "hard_complete"),   # ~330
-    ("sw03", 2, 0.655, 0.0085, 2300,   1, "hard_complete"),   # ~1140
-    ("sw04", 3, 0.71,  0.0250, 2500,   1, "hard_complete"),   # ~2020
-    # --- soft, complete: many origins, recent enough that several survive ---
-    ("sw05", 0, 0.62,  0.0180,  650, 100, "soft_complete"),
-    ("sw06", 1, 0.84,  0.0450,  380, 100, "soft_complete"),
-    # --- hard, partial: one origin, still segregating ---
-    ("sw07", 2, 0.18,  0.0140,  530,   1, "hard_partial"),
-    ("sw08", 0, 0.86,  0.0350,  230,   1, "hard_partial"),
-    # --- soft, partial: the weakest cell. Twelve origins rather than a
-    #     hundred, so the surviving beneficial haplotypes are few enough to
-    #     leave a haplotype signal while still being more than one.
-    ("sw09", 1, 0.26,  0.0110,  560, 150, "soft_partial"),
-    ("sw10", 3, 0.22,  0.0600,  130,  12, "soft_partial"),
+    # --- hard, complete: FIVE widely spread completion times -------------
+    # Ages are spaced so that the verifier's tolerance windows never overlap
+    # three at a time, which is what stops a single constant from satisfying
+    # a gate requiring four correct dates. With a tolerance of
+    # max(40%, 120 generations) that needs each age to be more than three
+    # times the one two slots below it, so five is the most that fits between
+    # 120 generations and the end of the forward phase. Origins come from the
+    # probe runs recorded in ACCEPT below, not from theory.
+    #
+    # s is deliberately NON-MONOTONE in age: the youngest sweep is the
+    # strongest in the zoo, the second youngest is the weakest, and the
+    # oldest is the second strongest. Nothing about a sweep's strength can be
+    # read off its age or the reverse.
+    ("sw01", 0, 0.120,  0.0900,  274,   1, "hard_complete"),   # ~130 gens ago
+    ("sw02", 1, 0.160,  0.0075, 1569,   1, "hard_complete"),   # ~320
+    ("sw03", 1, 0.6571, 0.0400, 1083,   1, "hard_complete"),   # ~760
+    ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
+    ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
+    # --- soft, complete: many origins, recent enough that several survive --
+    ("sw06", 1, 0.600,  0.0220,  700, 130, "soft_complete"),
+    ("sw07", 3, 0.460,  0.0500,  420,  80, "soft_complete"),
+    ("sw08", 4, 0.3429, 0.0095, 1500, 150, "soft_complete"),   # COLD, weakest
+    # --- hard, partial: one origin, still segregating ---------------------
+    ("sw09", 1, 0.8857, 0.0160,  500,   1, "hard_partial"),
+    ("sw10", 0, 0.7143, 0.0380,  210,   1, "hard_partial"),    # COLD
+    ("sw11", 3, 0.520,  0.0085,  850,   1, "hard_partial"),
+    ("sw12", 4, 0.6786, 0.0650,  120,   1, "hard_partial"),
+    # --- soft, partial: the weakest cell. Origin counts scale as 1/(2s),
+    #     because a founding lineage escapes drift with probability ~2s, so
+    #     the SURVIVING origin count stays in the two-to-six range that the
+    #     haplotype statistics can actually resolve.
+    ("sw13", 0, 0.8929, 0.0120,  600, 150, "soft_partial"),
+    ("sw14", 4, 0.8786, 0.0580,  130,  14, "soft_partial"),
+    ("sw15", 3, 0.800,  0.0300,  260,  40, "soft_partial"),
 ]
 
-MIN_SWEEP_SPACING = 2_000_000
-MIN_DIST_FROM_COLDSPOT = 1_200_000
+# Three sweeps sit INSIDE a wide moderate cold spot, one per completeness
+# and softness combination that can carry one: sw05 (hard, complete, the
+# oldest), sw08 (soft, complete, the weakest) and sw10 (hard, partial).
+# Their footprints are stretched in base pairs and unchanged in Morgans, so
+# reading s off physical width overestimates it roughly threefold there.
+# Asserted against the map in sweeps.build_plans(), not just declared.
+SWEEPS_IN_COLDSPOT = ("sw05", "sw08", "sw10")
+
+# Two pairs sit 800 and 840 kb apart, which is above the verifier's 250 kb
+# dedupe radius -- so they must be reported as two calls -- but close enough
+# that a scan on megabase windows merges them and loses one.
+CLOSE_PAIRS = (("sw06", "sw03"), ("sw07", "sw11"))
+
+MIN_SWEEP_SPACING = 600_000
+MIN_DIST_FROM_COLDSPOT = 900_000   # decoy spots only
 MIN_DIST_FROM_CHROM_END = 1_200_000
-POSITION_JITTER = 180_000
+POSITION_JITTER = 60_000
 
 # ---------------------------------------------------------------------------
 # replicate acceptance criteria (realized, not scheduled)
@@ -200,25 +253,43 @@ POSITION_JITTER = 180_000
 # land inside three of the four hard_complete tolerance ranges for ANY draw
 # the generator would accept.
 ACCEPT: Dict[str, Dict] = {
+    # hard_complete: completion-age windows. Spaced so that NO constant can
+    # land inside three of the five tolerance ranges for any draw the
+    # generator would accept -- checked over the windows themselves by
+    # gate_feasibility.design_guarantee(), not over one realized replicate.
     "sw01": dict(class_="hard_complete", must_complete=True,
-                 done_min=90,   done_max=210),
+                 done_min=100,   done_max=180),  # measured 111, 131, 148
     "sw02": dict(class_="hard_complete", must_complete=True,
-                 done_min=240,  done_max=420),
+                 done_min=260,  done_max=430),  # measured 283, 357, 404
     "sw03": dict(class_="hard_complete", must_complete=True,
-                 done_min=820,  done_max=1400),
+                 done_min=700,  done_max=880),  # measured 749, 802, 823
     "sw04": dict(class_="hard_complete", must_complete=True,
-                 done_min=1850, done_max=2200),
-    "sw05": dict(class_="soft_complete", must_complete=True,
-                 done_min=100,  done_max=270),
+                 done_min=1420, done_max=1900),  # measured 1487, 1704, 1795
+    "sw05": dict(class_="hard_complete", must_complete=True,
+                 done_min=2400, done_max=2620),  # measured 2468, 2494, 2532
+    # soft_complete
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=130,  done_max=330),
-    "sw07": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.42, freq_max=0.93),
-    "sw08": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.42, freq_max=0.93),
-    "sw09": dict(class_="soft_partial", must_complete=False,
+                 done_min=120,  done_max=330),
+    "sw07": dict(class_="soft_complete", must_complete=True,
+                 done_min=140,  done_max=340),
+    "sw08": dict(class_="soft_complete", must_complete=True,
+                 done_min=250,  done_max=620),
+    # hard_partial: still segregating, and far enough from both ends of the
+    # frequency range that the class is unambiguous.
+    "sw09": dict(class_="hard_partial", must_complete=False,
+                 freq_min=0.40, freq_max=0.93),
+    "sw10": dict(class_="hard_partial", must_complete=False,
+                 freq_min=0.40, freq_max=0.93),
+    "sw11": dict(class_="hard_partial", must_complete=False,
+                 freq_min=0.30, freq_max=0.90),
+    "sw12": dict(class_="hard_partial", must_complete=False,
+                 freq_min=0.40, freq_max=0.93),
+    # soft_partial
+    "sw13": dict(class_="soft_partial", must_complete=False,
+                 freq_min=0.40, freq_max=0.95),
+    "sw14": dict(class_="soft_partial", must_complete=False,
                  freq_min=0.45, freq_max=0.95),
-    "sw10": dict(class_="soft_partial", must_complete=False,
+    "sw15": dict(class_="soft_partial", must_complete=False,
                  freq_min=0.45, freq_max=0.95),
 }
 # `class` is a keyword, so the dicts above carry `class_`; expose it under the
@@ -231,7 +302,7 @@ assert sorted(ACCEPT) == sorted(spec[0] for spec in SWEEP_SPEC)
 assert all(ACCEPT[spec[0]]["class"] == spec[6] for spec in SWEEP_SPEC)
 _S = sorted(spec[3] for spec in SWEEP_SPEC)
 assert len(set(_S)) == len(_S), "duplicate selection coefficients"
-assert _S[-1] / _S[0] > 9.0, f"s spans only {_S[-1] / _S[0]:.2f}"
+assert _S[-1] / _S[0] > 11.5, f"s spans only {_S[-1] / _S[0]:.2f}"
 del _S
 
 
