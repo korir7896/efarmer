@@ -26,7 +26,7 @@ import argparse, json, os, sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TASK = os.path.abspath(os.path.join(HERE, ".."))
+TASK = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(TASK, "solution"))
 sys.path.insert(0, os.path.join(TASK, "tests"))
 sys.path.insert(0, os.path.join(HERE, "..", "provenance"))
