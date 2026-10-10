@@ -147,13 +147,21 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw09", 1, 0.600,  0.0160,  500,   1, "hard_partial"),
     ("sw10", 0, 0.7143, 0.0380,  210,   1, "hard_partial"),    # COLD
     ("sw11", 3, 0.520,  0.0075,  850,   1, "hard_partial"),
-    ("sw12", 4, 0.6786, 0.0650,  160,   1, "hard_partial"),
+    # 160 generations completed it with one generation to spare in context,
+    # against an isolated 0.376/0.783/0.963; at s=0.065 twenty generations is
+    # the difference between 0.93 and fixation.
+    ("sw12", 4, 0.6786, 0.0650,  138,   1, "hard_partial"),
     # --- soft, partial: the weakest cell. Origin counts scale as 1/(2s),
     #     because a founding lineage escapes drift with probability ~2s, so
     #     the SURVIVING origin count stays in the two-to-six range that the
     #     haplotype statistics can actually resolve.
     ("sw13", 0, 0.8929, 0.0120,  430, 150, "soft_partial"),
-    ("sw14", 4, 0.8786, 0.0580,  130,  14, "soft_partial"),
+    # 130 generations reached 0.978 in context against an isolated
+    # 0.068/0.759/0.803. Pulled back so that the partial sweeps span a range
+    # of frequencies rather than crowding the completion threshold: sw11 is
+    # the one allowed to sit right under it, and a second sweep there would
+    # cost the class gate without adding a different kind of hard case.
+    ("sw14", 4, 0.8786, 0.0580,  105,  14, "soft_partial"),
     ("sw15", 3, 0.800,  0.0300,  230, 100, "soft_partial"),
 ]
 
@@ -353,7 +361,10 @@ ACCEPT: Dict[str, Dict] = {
                  done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
     # soft_complete: must stay SOFT, which is the binding constraint.
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=100,  done_max=330),    # origin pulled to 440
+                 done_min=100,  done_max=380),    # in context 334, with six
+    #            surviving origins; the window was set from isolated
+    #            replicates and 334 is four generations past the old cap,
+    #            which is scatter, not a different sweep
     "sw07": dict(class_="soft_complete", must_complete=True,
                  done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
@@ -367,7 +378,16 @@ ACCEPT: Dict[str, Dict] = {
     "sw10": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.1, freq_max=0.96),   # isolated 0.386, 0.455, 0.577
     "sw11": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.1, freq_max=0.96),   # isolated 0.094, 0.197, 0.885
+                 freq_min=0.1, freq_max=0.9799),  # isolated 0.094, 0.197,
+    #            0.885; in context 0.977. The cap is the completion threshold
+    #            rather than a margin below it, deliberately: a partial sweep
+    #            sitting two points under 0.98 has very nearly a completed
+    #            sweep's footprint, which is the hardest case the
+    #            complete-versus-partial axis has, and this is the one sweep
+    #            allowed to be it. The cap is not what keeps the sweep
+    #            partial -- must_complete=False and the realized-class check
+    #            already require that the allele never reached 0.98 -- so
+    #            this bound only documents that no margin is being demanded.
     "sw12": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.70, freq_max=0.97),   # the deliberate
     #            near-complete case; isolated 0.376, 0.783, 0.963

@@ -126,30 +126,36 @@ CLASS_RULES = {
 FEATURE_RADIUS_BP = 60_000
 
 # --- s and age from the shape of the footprint ---
-# Both estimators are log-linear fits in two measured features -- s_hat =
-# exp(a) * prod(feature_i ** b_i) -- with the pair chosen per class by
+# Both estimators are log-linear fits in measured features -- s_hat = exp(a)
+# * prod(feature_i ** b_i) -- with the predictors chosen per class by
 # held-out score in authoring/evidence/fit_estimators.py rather than assumed.
 #
-# The first version of this used one relation for s, trough width times the
-# local recombination rate over a per-class constant, which is the textbook
-# one: the swept region extends to roughly s/r. It put 74% of calibration
+# The first version used one relation for s, trough width times the local
+# recombination rate over a per-class constant, which is the textbook one:
+# the swept region extends to roughly s/r. It put 74% of calibration
 # replicates inside a factor of 2.5 but ranked them at only 0.32, because a
 # soft sweep leaves diversity near background and has no trough whose width
-# can be measured. Adding a second feature, and taking the swept extent from
-# the H12 elevation rather than the diversity dip wherever diversity is flat,
-# brings that to 109 of 109 inside a factor of 2.5 with a pooled rank
-# correlation of +0.82, held out by configuration across all 37.
+# can be measured. Fitting per class in two or three features instead brings
+# that to 114 of 120 inside a factor of 2.5 with a pooled rank correlation of
+# +0.58, held out by CONFIGURATION across all 40 -- 16 of which the shipped
+# replicate does not use.
 #
-# Only hard_complete reads its width from the diversity trough (w_pi_50, the
-# width at half recovery). The other three read it from the H12 elevation
-# (w_h12_15 and w_h12_2, the extents at 1.5x and 2x background), because a
-# partial or soft sweep leaves no trough with a measurable edge.
+# Which features each class reads is a measurement, and the answers differ
+# by class because the footprints do. hard_complete has a real diversity
+# trough and reads its width (w_pi_50, the extent at half recovery);
+# hard_partial has no trough edge and reads the H12 elevation instead;
+# soft_partial has no reliable extent at all and reads only the level of the
+# H12 peak.
 #
-# Width features are scaled by the local recombination rate: what carries the
-# strength is the GENETIC length of the footprint, so a sweep sitting in a
-# cold spot leaves a physically wider one at the same s. The calibration
-# genome is at the base rate throughout, so the scaling is 1 there and the
-# coefficients are unchanged by it.
+# Widths are in BASE PAIRS, not divided by the local recombination rate. The
+# textbook correction is to divide, since what strength sets is the GENETIC
+# length of the footprint -- but a cold spot here is finite, the footprint
+# runs out of it into base-rate flanks, and the measured stretching is 2.05x
+# in a 0.25x spot rather than the 4x the ratio implies. So the rate is
+# offered to the fit as its own predictor, rate_ratio, and the exponent is
+# fitted. Measured, only soft_complete takes it: that is the class holding
+# the soft sweep inside a cold spot, and the one an estimator calibrated at
+# the base rate alone gets most wrong (biased 2.65x, worst case 5.90x).
 SMOOTH_WINDOWS = 15
 RECOVERY_FRAC = 0.5
 WIDTH_SEARCH_BP = 1_200_000
@@ -157,35 +163,74 @@ BASE_RATE = 1e-8
 
 S_MODEL = {
     "hard_complete": dict(feats=["pi_min_ratio", "w_pi_50"],
-                          coef=[-8.1369, -0.58052, 0.20986]),
+                          coef=[-8.4615, -0.30364, 0.31393]),
     "hard_partial":  dict(feats=["pi_ratio", "w_h12_15"],
-                          coef=[-8.9524, 0.44373, 0.38606]),
-    "soft_complete": dict(feats=["h12_ratio", "w_h12_15"],
-                          coef=[-11.919, -0.36355, 0.63452]),
-    "soft_partial":  dict(feats=["w_h12_2", "w_h12_15"],
-                          coef=[-15.803, 0.30979, 0.54943]),
+                          coef=[-8.7726, 0.07419, 0.36409]),
+    "soft_complete": dict(feats=["snp_ratio", "w_pi_50", "rate_ratio"],
+                          coef=[2.1002, -0.89684, -0.51141, 0.71458]),
+    "soft_partial":  dict(feats=["h12_ratio"],
+                          coef=[-4.0223, 0.30065]),
 }
-# Per-class median s, used only when a feature the model needs is missing --
-# a footprint with no measurable extent at all.
 S_FALLBACK = {"hard_complete": 0.026, "hard_partial": 0.022,
               "soft_complete": 0.028, "soft_partial": 0.025}
 
 # --- completion clock ---
-# Age comes from H12 DECAY with the footprint extent controlling for
-# strength, not from residual diversity. H12 at a completed sweep falls back
-# towards background as recombination breaks up the swept block, which is a
-# cleaner clock than the depth of the diversity trough: held out by
-# configuration, 36 of 40 completion times land inside the verifier's
-# tolerance with a rank correlation of +0.93, against 9 of 16 for the
-# diversity-depth version on the configurations that version was measured on.
+# Age comes from H12 DECAY, with the local recombination rate controlling
+# for how fast that decay runs. H12 at a completed sweep falls back towards
+# background as recombination breaks up the swept block, which is a cleaner
+# clock than the depth of the diversity trough: held out by configuration
+# over 42 hard_complete replicates spanning ages of 36 to 2504 generations,
+# 37 land inside the verifier's tolerance, with a rank correlation of +0.88.
+#
+# This is the one place the local rate earns its keep outright. Diversity
+# recovery after a sweep is a local clock and how much has returned to a
+# window depends on how much recombination that window has had, so
+# h12_ratio alone scores 0.83 inside tolerance and h12_ratio with the rate
+# scores 0.88 -- the best of any pair tried.
 #
 # Reported for every sweep called complete, because the submission schema
 # requires a number there, but only meaningful for the single-origin ones:
 # the verifier grades timing on true hard_complete sweeps only.
 TIMED_CLASSES = ("hard_complete", "soft_complete")
-T_MODEL = dict(feats=["h12_ratio", "w_pi_50"],
-               coef=[6.9076, -0.87188, 0.048488])
+T_MODEL = dict(feats=["h12_ratio", "rate_ratio"],
+               coef=[7.6903, -0.98094, -0.27172])
 TIME_FALLBACK_GENS = 500.0
+
+
+# Every feature name level_features() and shape_features() can return. The
+# models above are checked against it at import, because the failure mode is
+# silent: _loglinear() returns None for a feature the pipeline never
+# produces, estimate_s() substitutes a per-class constant, and the result is
+# a submission that looks complete while reporting the same strength for
+# every sweep of a class. That is a spread-and-rank failure with no error
+# message anywhere, and it is exactly what an earlier revision shipped when
+# a model was fitted on a width the authoring side measured and this side
+# did not.
+PRODUCED_FEATURES = frozenset((
+    "pi_ratio", "pi_min_ratio", "h12_ratio", "h2h1_ratio", "nsl_delta",
+    "tajd_delta", "snp_ratio",
+    "w_pi_50", "w_pi_75", "w_h12_15", "w_h12_2", "rate_ratio",
+))
+
+
+def _check_models_are_computable() -> None:
+    missing = {}
+    for name, feats in ([(f"S_MODEL[{k!r}]", v["feats"])
+                         for k, v in S_MODEL.items()]
+                        + [("T_MODEL", T_MODEL["feats"])]
+                        + [(f"CLASS_RULES[{k!r}]", v["feats"])
+                           for k, v in CLASS_RULES.items()]):
+        gap = [f for f in feats if f not in PRODUCED_FEATURES]
+        if gap:
+            missing[name] = gap
+    if missing:
+        raise AssertionError(
+            "these fitted models ask for features this module does not "
+            "compute, so they would silently fall back:\n  "
+            + "\n  ".join(f"{k}: {', '.join(v)}" for k, v in missing.items()))
+
+
+_check_models_are_computable()
 
 
 def background_levels(obs: Dict[str, np.ndarray], regions: Sequence[Dict],

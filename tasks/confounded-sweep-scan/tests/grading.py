@@ -195,39 +195,40 @@ GATES: Dict[str, Any] = {
     "min_matched_for_rank": 8,
     # Timing is graded only over sweeps whose TRUE class is hard_complete --
     # grading against the true class, not the reported one, so a
-    # misclassification is not punished twice. The five realized completion
-    # times are 130, 348, 791, 1662 and 2498 generations ago, spaced so that
-    # no three tolerance windows have a point in common: the best a single
-    # constant can do is two of the five, for any draw the generator would
-    # accept, which gate_feasibility.design_guarantee() checks over the
-    # acceptance windows rather than over this one replicate. Requiring four
-    # therefore cannot be met by one constant, and since class no longer
-    # carries age, a class-conditional constant is just a constant here.
-    # The tolerance is 50% or 150 generations, whichever is larger, and the
-    # gate needs four of the five. Both numbers come from measurement, not
-    # from how hard they sound. Held out by configuration over 22 dateable
-    # calibration replicates spanning 124 to 2504 generations, the best
-    # log-linear clock available reaches:
+    # misclassification is not punished twice. The five completion ages are
+    # spaced so that no three tolerance windows have a point in common, which
+    # gate_feasibility.design_guarantee() checks over the generator's
+    # ACCEPTANCE WINDOWS rather than over the one realized replicate: the
+    # best a single constant can do is two of the five, so requiring four
+    # cannot be met by one, and since class no longer carries age, a
+    # class-conditional constant is just a constant here.
     #
-    #     tolerance    best held-out accuracy    expected of 5
-    #     40% / 120            0.59                   3.0
-    #     45% / 140            0.77                   3.9
-    #     50% / 150            0.86                   4.3
-    #     55% / 175            0.86                   4.3
+    # Tolerance and count both come from measurement over the composition of
+    # the shipped zoo -- its five specific hard_complete configurations, one
+    # of them inside a cold spot -- rather than from the calibration average,
+    # because five sweeps is what the gate counts over. Fraction of drawn
+    # submissions reaching each count, under the shipped clock:
     #
-    # A gate of four needs 80%, so 40% and 45% would demand better than any
-    # measured clock achieves and 55% buys nothing over 50%. I set this to
-    # 40%/120 first on the reasoning that a tighter tolerance is a harder
-    # task, measured it, and moved it back: a gate the reference cannot clear
-    # is not a hard task, it is a broken one.
+    #     tolerance     calibration    >=3 of 5   >=4 of 5   >=5 of 5
+    #     50% / 150         0.88         1.000      1.000      0.671
+    #     45% / 140         0.86         1.000      1.000      0.668
+    #     40% / 120         0.79         1.000      0.892      0.441
+    #     35% / 110         0.62         0.812      0.441      0.098
     #
-    # It is still a tightening. The previous version graded four dateable
-    # sweeps spanning a factor of 15.8 and required three (75%); this grades
-    # five spanning a factor of 19 and requires four (80%), one of which sits
-    # inside a recombination cold spot, and the recall gate has to supply
-    # four hard_complete sweeps for four to be gradeable at all.
-    "time_rel_tol": 0.50,
-    "time_abs_tol_gens": 150,
+    # 45% / 140 is therefore free: it is strictly tighter than 50% / 150 and
+    # costs nothing at the count the gate asks for. 40% does cost, and five
+    # of five is not reachable at any tolerance -- the youngest sweep
+    # completed about 130 generations ago, where the absolute floor of the
+    # tolerance is the whole of its age and the clock has almost no dynamic
+    # range to work with.
+    #
+    # The previous version graded four dateable sweeps spanning a factor of
+    # 15.8 and required three of them (75%); this grades five spanning a
+    # factor of about 19 and requires four (80%) at a tighter tolerance, one
+    # of which sits inside a recombination cold spot, and the recall gate has
+    # to supply four hard_complete sweeps for four to be gradeable at all.
+    "time_rel_tol": 0.45,
+    "time_abs_tol_gens": 140,
     "min_time_correct": 4,
 }
 

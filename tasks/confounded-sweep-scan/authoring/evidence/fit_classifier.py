@@ -150,7 +150,7 @@ def axis_table_within(data, name, subset_fn, combos):
 
 
 def joint_conditional(data, combo_c, combo_soft_complete, combo_soft_partial,
-                      quiet=False):
+                      quiet=False, detail=None):
     """Completeness first, then softness with a rule fitted for that group."""
     rs = [r for r in data if all(np.isfinite(r[k]) for k in FEATS)]
     groups = [r["cfg"] for r in rs]
@@ -200,6 +200,8 @@ def joint_conditional(data, combo_c, combo_soft_complete, combo_soft_partial,
             for s_, c in zip(pred_s, pred_c)]
     true = [r["cls"] for r in rs]
     acc = float(np.mean([p == t for p, t in zip(pred, true)]))
+    if detail is not None:
+        detail.extend(zip(rs, pred, true))
     if quiet:
         return acc
     print(f"\n=== four-way accuracy, completeness then softness: {acc:.3f} "
@@ -288,17 +290,62 @@ def search_joint(data, combos_c, combos_sc, combos_sp, top=6):
     scored four-way and held out by configuration.
     """
     print("\n=== joint search over the top feature sets per axis ===")
+    print("  Ranked by SHIPPED-MIX accuracy, not by accuracy over the\n"
+          "  calibration set. The verifier applies the gate to a fraction of\n"
+          "  the matched calls on one replicate carrying five hard_complete,\n"
+          "  three soft_complete, four hard_partial and three soft_partial\n"
+          "  sweeps, and those classes are not equally easy -- the\n"
+          "  calibration set has 42 hard_complete replicates against 22\n"
+          "  soft_complete, so it flatters a classifier on exactly the axis\n"
+          "  the shipped zoo weights most. Measured, the gap is 0.758 over\n"
+          "  the calibration set against 0.667 over the shipped mix, which is\n"
+          "  the difference between a class gate of 0.70 passing and failing.")
+    weights = shipped_mix_weights(data)
     best = []
     for cc in combos_c[:top]:
         for sc in combos_sc[:top]:
             for sp in combos_sp[:top]:
-                acc = joint_conditional(data, cc, sc, sp, quiet=True)
-                best.append((acc, cc, sc, sp))
+                detail = []
+                acc = joint_conditional(data, cc, sc, sp, quiet=True,
+                                        detail=detail)
+                best.append((shipped_mix_accuracy(detail, weights), acc,
+                             cc, sc, sp))
     best.sort(key=lambda t: -t[0])
-    for acc, cc, sc, sp in best[:10]:
-        print(f"  {acc:.3f}  complete={'+'.join(cc)}  "
+    print(f"\n  {'shipped':>8}{'calib':>8}  feature sets")
+    for mix, acc, cc, sc, sp in best[:10]:
+        print(f"  {mix:>8.3f}{acc:>8.3f}  complete={'+'.join(cc)}  "
               f"soft|complete={'+'.join(sc)}  soft|partial={'+'.join(sp)}")
-    return best[0] if best else None
+    return best[0][2:] if best else None
+
+
+def shipped_mix_weights(data):
+    """One weight per calibration configuration, from the shipped zoo.
+
+    Each shipped sweep contributes 1/15 of the gate, spread evenly over the
+    replicates of the configuration that matches it. A configuration the
+    shipped replicate does not use gets no weight at all.
+    """
+    import s_gate_design as SG
+    sweeps = SG.resolve(SG.shipped_sweeps(), data)
+    w = {}
+    for sw in sweeps:
+        w[sw["cfg"]] = w.get(sw["cfg"], 0.0) + 1.0 / len(sweeps)
+    return w
+
+
+def shipped_mix_accuracy(detail, weights):
+    """Expected class accuracy on the shipped zoo, from per-replicate hits."""
+    num = den = 0.0
+    hits, tot = {}, {}
+    for r, pred, true in detail:
+        cfg = r["cfg"]
+        hits[cfg] = hits.get(cfg, 0) + (1 if pred == true else 0)
+        tot[cfg] = tot.get(cfg, 0) + 1
+    for cfg, wt in weights.items():
+        if tot.get(cfg):
+            num += wt * hits[cfg] / tot[cfg]
+            den += wt
+    return num / den if den else float("nan")
 
 
 ALL_DIRS = ("training", "training_holdout")
@@ -345,6 +392,67 @@ if __name__ == "__main__":
                      subset_fn=lambda r: not r["cls"].endswith("complete")),
             key=lambda t: -t[0])]
         search_joint(data, cands_c, cands_sc, cands_sp)
+        sys.exit(0)
+
+    if "--shipped-composition" in sys.argv:
+        # Four-way accuracy over the calibration set is not the number the
+        # verifier applies. The gate is a fraction of the MATCHED calls on
+        # the shipped replicate, which is fifteen sweeps in a fixed mix of
+        # the four classes -- five hard_complete, three soft_complete, four
+        # hard_partial, three soft_partial -- and the classes are not equally
+        # easy. Averaging over a calibration set with a different mix can
+        # put a gate either side of what the reference will actually score.
+        # This draws submissions from the shipped mix and reports how often
+        # each candidate threshold is met, which is what "passable" means.
+        import s_gate_design as SG
+        detail = []
+        joint_conditional(data, CHOSEN["complete"],
+                          CHOSEN["soft_given_complete"],
+                          CHOSEN["soft_given_partial"], quiet=True,
+                          detail=detail)
+        by_cfg = {}
+        for r, pred, true in detail:
+            by_cfg.setdefault(r["cfg"], []).append(pred == true)
+        sweeps = SG.resolve(SG.shipped_sweeps(), data)
+        pool, missing = [], []
+        for sw in sweeps:
+            got = by_cfg.get(sw["cfg"])
+            if not got:
+                missing.append(f"{sw['sid']} ({sw['cfg']})")
+                continue
+            pool.append(got)
+        if missing:
+            raise SystemExit("no classifier prediction for: "
+                             + ", ".join(missing))
+        print(f"\n=== class gate over the shipped mix of {len(pool)} sweeps "
+              f"===")
+        for sw, got in zip(sweeps, pool):
+            print(f"  {sw['sid']:<6}{sw['cls']:<15}"
+                  f"{'correct' if all(got) else ('wrong' if not any(got) else 'mixed'):<9}"
+                  f"{sum(got)}/{len(got)} replicates classified correctly")
+        rng = np.random.default_rng(20_251_010)
+        draws = np.array([
+            [pool[i][rng.integers(len(pool[i]))] for i in range(len(pool))]
+            for _ in range(4000)])
+        accs = draws.mean(axis=1)
+        print(f"\n  accuracy over draws: median {float(np.median(accs)):.3f}, "
+              f"1st percentile {float(np.percentile(accs, 1)):.3f}, "
+              f"mean {float(accs.mean()):.3f}")
+        print(f"  {'threshold':>10}{'passes':>9}")
+        for thr in (0.55, 0.60, 0.65, 0.70, 0.75, 0.80):
+            print(f"  {thr:>10.2f}{float((accs >= thr).mean()):>9.3f}")
+        # And the same when only the recall floor is matched: the gate is a
+        # FRACTION, so a smaller match set makes each error cost more.
+        for k in (10, 12):
+            sub = np.array([
+                [pool[i][rng.integers(len(pool[i]))]
+                 for i in rng.permutation(len(pool))[:k]]
+                for _ in range(4000)]).mean(axis=1)
+            print(f"\n  with only {k} of {len(pool)} matched: median "
+                  f"{float(np.median(sub)):.3f}, "
+                  f"1st percentile {float(np.percentile(sub, 1)):.3f}")
+            for thr in (0.60, 0.65, 0.70, 0.75):
+                print(f"  {thr:>10.2f}{float((sub >= thr).mean()):>9.3f}")
         sys.exit(0)
 
     print("\n--- held out with the CHOSEN feature sets, not the best-scoring ---")
