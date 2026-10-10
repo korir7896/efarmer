@@ -392,6 +392,48 @@ assert _S[-1] / _S[0] > 11.5, f"s spans only {_S[-1] / _S[0]:.2f}"
 del _S
 
 
+# ---------------------------------------------------------------------------
+# reachability invariant
+# ---------------------------------------------------------------------------
+# A sweep that MUST complete has to be able to escape drift and then rise, and
+# there are exactly two ways to arrange that:
+#
+#   * introduce it long enough ago that forward.est_window(s) generations fit
+#     before the present, which is how the five single-origin hard_complete
+#     sweeps work; or
+#   * introduce enough copies that it starts ABOVE forward.est_threshold(s) =
+#     2/s and so never has a drift phase, which is how the three soft_complete
+#     sweeps work -- 400, 80 and 400 copies against thresholds of 91, 40 and
+#     211.
+#
+# Sweeps that only have to stay PARTIAL need neither: sw09, sw11, sw13 and
+# sw15 all have origins shorter than their establishment windows, which is
+# precisely why they are still segregating today.
+#
+# This is asserted rather than left as a comment because violating it does not
+# fail loudly. It makes the sweep unreachable, and the generator then spends
+# its whole restart budget retrying a stage that cannot succeed -- which is
+# how one run burned 569 restarts before crashing.
+def _check_reachable():
+    from forward import est_threshold, est_window
+    bad = []
+    for sid, _ch, _fr, s_, origin, n_origins, klass in SWEEP_SPEC:
+        if not ACCEPT[sid]["must_complete"]:
+            continue
+        if origin > est_window(s_) or n_origins >= est_threshold(s_):
+            continue
+        bad.append(f"{sid} ({klass}, s={s_}): origin {origin} is shorter than "
+                   f"its establishment window {est_window(s_)} and "
+                   f"{n_origins} copies is below the threshold "
+                   f"{est_threshold(s_)}, so it can neither establish nor "
+                   f"start established")
+    if bad:
+        raise AssertionError("unreachable sweep(s):\n  " + "\n  ".join(bad))
+
+
+_check_reachable()
+
+
 def genome_config():
     from genome import GenomeConfig, default_cold_spots
     return GenomeConfig(
