@@ -289,6 +289,37 @@ def make_params(cfg: GenomeConfig, n_cur: int, total_gens: int, simlen: int):
 # than the whole remaining run.
 
 
+def summarize_rejections(tally: Dict[str, List[dict]]) -> str:
+    """What each sweep actually realized across every rejected attempt.
+
+    When a replicate cannot be accepted, the question is always which windows
+    are wrong and by how much. One sampled log line cannot answer that; the
+    distribution over hundreds of rejections can, and it is the input to
+    retuning origins in context.
+    """
+    if not tally:
+        return "    (no acceptance failures recorded)"
+    import statistics as _st
+    lines = ["    realized values over rejected attempts:"]
+    for sid in sorted(tally, key=lambda x: (len(x), x)):
+        obs = tally[sid]
+        done = [o["done"] for o in obs if o["done"] is not None]
+        freq = [o["freq"] for o in obs]
+        orig = [o["origins"] for o in obs]
+        bits = [f"n={len(obs)}"]
+        if done:
+            bits.append(f"completed {min(done)}/{int(_st.median(done))}/"
+                        f"{max(done)}")
+        if freq:
+            bits.append(f"freq {min(freq):.3f}/{_st.median(freq):.3f}/"
+                        f"{max(freq):.3f}")
+        if orig:
+            bits.append(f"origins {min(orig)}/{int(_st.median(orig))}/"
+                        f"{max(orig)}")
+        lines.append(f"      {sid:<6} " + "  ".join(bits))
+    return "\n".join(lines)
+
+
 @dataclass
 class _Stage:
     gen: int
@@ -388,6 +419,7 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
     attempts = [0] * n_stages
     start_stage = 0
     total_restarts = 0
+    reject_tally: Dict[str, List[dict]] = {}
 
     def backtrack_to(k: int) -> None:
         """Rewind to stage k and forget the failures of everything after it.
@@ -511,7 +543,8 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
             raise RuntimeError(
                 f"gave up after {max_total_restarts} restarts; "
                 f"attempts per stage: "
-                f"{dict(zip((st.plan.sweep_id for st in stages), attempts))}")
+                f"{dict(zip((st.plan.sweep_id for st in stages), attempts))}\n"
+                + summarize_rejections(reject_tally))
 
         if failed_at is not None:
             attempts[failed_at] += 1
@@ -534,6 +567,20 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                         raise RuntimeError(
                             f"{stages[k].plan.sweep_id} never met its acceptance "
                             f"criteria in {max_attempts_per_stage} attempts")
+                    # Tally every acceptance failure, not just the ones a
+                    # sparse log line happens to catch. Tuning origins in
+                    # context is the step that decides whether a replicate is
+                    # reachable at all, and two sampled observations out of
+                    # four hundred restarts is not enough to tune on.
+                    for sid in failing:
+                        r = recorder.real.get(sid)
+                        if r is None:
+                            continue
+                        reject_tally.setdefault(sid, []).append(
+                            dict(done=r.completion_gens_ago if r.completed
+                                 else None,
+                                 freq=float(r.final_freq),
+                                 origins=int(r.n_origins_surviving)))
                     if verbose:
                         live = recorder.snapshot(pop)
                         detail = ", ".join(
