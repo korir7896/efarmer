@@ -70,15 +70,18 @@ def characterise(obs, regions, med_rate, n_current):
     for r in regions:
         b = int(bins[r["peak_index"]])
         lev = bg.get(b) or list(bg.values())[0]
+        local_rate = float(obs["rate"][r["peak_index"]])
         f = CH.features(obs, r, lev)
+        f.update(CH.shape_features(obs, r, lev, local_rate))
         klass = CH.classify(f)
-        s_hat = CH.estimate_s(obs, r, lev["pi"],
-                              float(obs["rate"][r["peak_index"]]), klass)
-        t_hat = CH.estimate_time(f, klass, n_current)
-        calls.append({"chrom": int(r["chrom"]), "position": int(r["position"]),
-                      "class": klass,
-                      "selection_coefficient": float(s_hat) if np.isfinite(s_hat) else 0.01,
-                      "time_gens_ago": None if t_hat is None else float(round(t_hat))})
+        s_hat = CH.estimate_s(f, klass)
+        t_hat = CH.estimate_time(f, klass)
+        call = {"chrom": int(r["chrom"]), "position": int(r["position"]),
+                "class": klass,
+                "selection_coefficient": float(s_hat) if np.isfinite(s_hat) else 0.01}
+        if t_hat is not None:
+            call["time_gens_ago"] = float(round(t_hat))
+        calls.append(call)
     return calls
 
 
