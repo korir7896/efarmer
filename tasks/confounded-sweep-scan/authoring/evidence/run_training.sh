@@ -65,13 +65,32 @@ CONFIGS_EXTRA2=(
   "soft_partial     0.0110     560        150    _s0110c"
 )
 
+# A set of configurations the shipped replicate does NOT use, for testing
+# whether the calibration depends on having been fitted at the shipped
+# sweeps' own (s, origin, n_origins). Every entry differs from all ten
+# shipped configurations in s AND in origin; the ages they realize span
+# roughly the same range.
+CONFIGS_HOLDOUT=(
+  "hard_complete    0.0550     400          1    _ho_s0550"
+  "hard_complete    0.0200    1000          1    _ho_s0200"
+  "hard_complete    0.0130    1800          1    _ho_s0130"
+  "hard_complete    0.0150    2450          1    _ho_s0150"
+  "soft_complete    0.0250     420        100    _ho_s0250"
+  "soft_complete    0.0350     350        100    _ho_s0350"
+  "hard_partial     0.0180     420          1    _ho_s0180"
+  "hard_partial     0.0280     280          1    _ho_s0280"
+  "soft_partial     0.0160     420         80    _ho_s0160"
+  "soft_partial     0.0450     170         30    _ho_s0450"
+)
+
 case "${SET:-main}" in
   main)  CONFIGS=("${CONFIGS_MAIN[@]}") ;;
   extra) CONFIGS=("${CONFIGS_EXTRA[@]}") ;;
   extra2) CONFIGS=("${CONFIGS_EXTRA2[@]}") ;;
+  holdout) CONFIGS=("${CONFIGS_HOLDOUT[@]}") ;;
   all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}"
                   "${CONFIGS_EXTRA2[@]}") ;;
-  *) echo "SET must be main, extra, extra2 or all"; exit 1 ;;
+  *) echo "SET must be main, extra, extra2, holdout or all"; exit 1 ;;
 esac
 
 i=0

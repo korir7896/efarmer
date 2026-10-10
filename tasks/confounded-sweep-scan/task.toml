@@ -123,60 +123,77 @@ the measurements used to set every threshold are in authoring/.
 solution_explanation = """
 Fit the history first, then scan against it.
 
-The reference infers the bottleneck-and-expansion history by simulated method
-of moments: propose a history, simulate it with msprime, and compare the
-binned unfolded spectrum and mean diversity with the observed ones, computed
-over windows left after dropping the lowest-diversity decile so that sweeps
-do not get absorbed into the demography. Every proposal reuses one random
-seed, which turns a noisy objective into a deterministic one and lets a
-coarse random search plus local refinement converge.
+The reference infers the bottleneck-and-expansion history by simulated
+method of moments: propose a history, simulate it with msprime, and compare
+the binned unfolded spectrum and mean diversity with the observed ones,
+computed over windows left after dropping the lowest-diversity decile so
+that sweeps do not get absorbed into the demography. Every proposal reuses
+one random seed, which turns a noisy objective into a deterministic one and
+lets a coarse random search plus local refinement converge.
 
 It then simulates ten neutral replicates under the fitted history using the
-provided recombination map, computes windowed diversity, Tajima's D, H12,
-H2/H1 and the fraction of extreme nSL scores on both the observed genome and
-the null, and converts each observed window to a z-score against null windows
-in the same local-rate bin, combined across six statistics as -2 sum log p.
-Calls are then made at the level of clusters rather than single windows,
-formed at a mild threshold and judged by their total excess mass, with the
-mass cut calibrated by applying the identical procedure to every null
-replicate. A sweep footprint spans one to two megabases, so asking any single
-window inside it to clear a genome-wide per-window cut is the wrong test:
-measured on the shipped replicate the soft sweeps peaked a single point below
-such a cut against a genome-wide median a quarter as large.
+provided recombination map, and scans both the observed genome and the null
+in 50 kb windows at a 10 kb step for diversity, Tajima's D, H12, H2/H1 and
+the fraction of extreme nSL scores. Each observed window becomes a
+rank-based empirical p-value against null windows in the same local-rate
+bin, for six one-sided tests -- diversity low, Tajima's D low AND high, H12
+high, H2/H1 low, extreme-nSL fraction high -- combined across the six as
+-2 sum log p. Both directions of Tajima's D are there because soft sweeps
+push it the opposite way from hard ones; in a Fisher combination a window
+extreme in one tail has a p near one in the other and contributes nothing
+from it, so the pair acts as a two-sided test rather than double-counting.
+
+Calls are made at the level of clusters rather than single windows. A sweep
+footprint spans one to two megabases, so asking any single window inside it
+to clear a genome-wide per-window cut is the wrong test. Clusters are formed
+by runs of windows above the null's 99th percentile of the combined score,
+allowing gaps of up to ten windows, and judged by their total mass, the
+summed excess over that forming threshold. The mass cut is calibrated by
+applying the identical procedure to every null replicate, so the
+false-positive budget is exact and is a budget on clusters, which is what a
+call is. Clusters within 1.5 megabases of each other are then fused by
+taking the union of their windows, because a footprint interrupted by a dip
+in the score otherwise becomes two calls either side of the sweep. Each
+call's reported position is the window of maximum H12 inside it, which is
+the only locator measured to be good for every class.
 
 Run end to end on a genome simulated under the same history and the same
 recombination map but with no selection anywhere, the pipeline reports zero
 sweeps.
 
-Classification is a nearest-centroid rule on four features read at the
-detected peak: diversity and H2/H1 as ratios to background, Tajima's D and
-the extreme-nSL fraction as differences. Single-feature thresholds are not
-enough, and neither axis of the class scheme has a statistic that carries it
-on its own. H2/H1, the textbook hard-versus-soft discriminator, is confounded
-by age: at an old hard sweep recombination has broken up the swept block far
-enough that H2/H1 has recovered into the range a soft sweep occupies.
-Diversity, the obvious complete-versus-partial discriminator, is confounded
-by softness: a soft completed sweep leaves diversity near background, like a
-partial one. The combination separates them where no single feature does, and
-the calibration is leave-one-out rather than in-sample.
+Characterisation then uses fixed constants, fitted offline on single-sweep
+replicates and listed in solution/pipeline/characterize.py. The class comes
+from two logistic rules rather than one rule over four classes: first
+complete against partial, from Tajima's D and the number of segregating
+sites in the window, and then soft against hard with a rule fitted for
+whichever completeness group the first rule chose -- the depth of the
+diversity trough with its widths at two recovery levels for the completed
+ones, and H2/H1 for the partial ones. Fitting softness separately per group
+is what makes H2/H1 usable at all: pooled over completed sweeps of every
+age it is confounded, because at an old hard sweep recombination has broken
+up the swept block and H2/H1 has recovered into the range a soft sweep
+occupies.
 
-The selection coefficient comes from the width of the diversity trough times
-the local recombination rate, with the width measured as the contiguous span
-recovering halfway from the trough's own floor to background rather than
-crossing half of background, which the shallow classes never do. One constant
-per class covers the whole range of strengths because the width scales with
-s, which is also what makes the reported coefficients rank correctly rather
-than merely land in the right decade.
+The selection coefficient comes from a log-linear fit in two measured
+features per class. The backbone is the textbook relation, that a footprint
+extends to about s over the local recombination rate, so every width
+feature is multiplied by the local rate: what strength sets is the genetic
+length of the footprint, not its length in base pairs. On its own, as trough
+width over one constant per class, that relation put 74% of calibration
+replicates inside a factor of 2.5 and ranked them at only 0.32, because a
+soft sweep leaves no trough whose width can be measured; the soft classes
+therefore take their extent from the H12 elevation instead, and each class
+pairs its width with the diversity at the peak.
 
-The completion time comes from diversity recovery at the centre of the
-trough, calibrated as a power law in the residual diversity rather than as a
-proportionality with a per-class correction: one class now spans ages from
-about a hundred to about two thousand generations, and residual diversity is
-not linear in age over that range. It is reported for every sweep called
-complete, because the submission schema requires a number there, but it is
-only meaningful for the single-origin ones, which is also the only place the
-verifier grades it.
+The completion time comes from H12 decay with the footprint extent
+controlling for strength, not from residual diversity: haplotype homozygosity
+at a completed sweep falls back towards background as recombination breaks up
+the swept block, and that dates a sweep better than how far below background
+its diversity still sits. It is reported for every call, whatever class the
+call was given, because the date is read off the footprint rather than off
+the class.
 """
+
 
 verification_explanation = """
 Ground truth is the generator's own configuration plus the realized

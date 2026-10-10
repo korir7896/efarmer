@@ -1,0 +1,4 @@
+override soft_complete -> (0.025, 420, 100)
+soft_complete seed 804000: realized=soft_complete origins_surviving=4 done_ago=48 freq=0.997 h2h1=0.401 bg=0.813 ratio=0.494
+soft_complete seed 804097: realized=soft_complete origins_surviving=3 done_ago=46 freq=0.998 h2h1=0.454 bg=0.828 ratio=0.549
+soft_complete seed 804194: realized=soft_complete origins_surviving=4 done_ago=18 freq=0.987 h2h1=0.672 bg=0.810 ratio=0.829

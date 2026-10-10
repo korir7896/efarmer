@@ -7,11 +7,22 @@ turned out to be rather than what it was asked to be. The feature sets and
 the fits are chosen by held-out score in authoring/evidence/fit_classifier.py
 and authoring/evidence/fit_estimators.py, not assumed.
 
-Scores are leave-one-CONFIGURATION-out throughout. The shipped sweeps sit at
-the very (s, age) configurations the calibration replicates were simulated
-at, so holding out one REPLICATE at a time measures almost nothing: a rule
-that had memorised those few pairs would score perfectly and generalise not
-at all.
+Two things about those replicates are worth stating outright, because they
+are what the constants here are and are not evidence for. They are simulated
+under the TRUE demography, not under a history fitted from data, so these
+constants carry no demographic-inference error -- an analyst doing this for
+real would fit them on simulations of their own fitted history and would.
+And their sweep configurations ARE the shipped sweeps' (s, origin,
+n_origins), so the reference is calibrated at the very points it is then
+graded on.
+
+Scores are therefore leave-one-CONFIGURATION-out throughout: holding out one
+REPLICATE at a time measures almost nothing, since a rule that had memorised
+those few (s, age) pairs would score perfectly and generalise not at all.
+Leaving out the whole configuration is the strongest test available from
+these replicates, and authoring/evidence/holdout_calibration.py goes one
+step further -- it refits every constant on configurations the shipped
+replicate does not use at all, and regrades.
 
 Measured means at the sweep, against each replicate's own background
 (diversity, H12 and H2/H1 as ratios, Tajima's D and the extreme-nSL fraction

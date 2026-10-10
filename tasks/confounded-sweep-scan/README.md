@@ -78,16 +78,19 @@ background exactly as a partial one does.
 
 What does separate the classes is different features on each axis, and for
 softness a different feature depending on completeness. Completeness is
-carried by diversity together with the number of segregating sites in the
-window. Softness among completed sweeps is carried by Tajima's D, which
-several frequent haplotypes push positive where one pushes it negative, with
-the extent of the H12 elevation controlling for the sweep's strength.
-Softness among partial sweeps is carried by H2/H1 after all -- usable there
-precisely because age is not in play, since every partial sweep is still
-rising. Measured leave-one-configuration-out, that gets 82.4% against 72.9%
-for a single nearest-centroid rule over all four classes at once, and 90.6%
-on the softness axis among completed sweeps against 73.7% among partial
-ones.
+carried by Tajima's D together with the number of segregating sites in the
+window: a completed sweep removed variation and left the spectrum skewed
+toward rare variants, while one still rising did neither as strongly.
+Softness among completed sweeps is carried by the depth of the diversity
+trough with its widths at two recovery levels -- one frequent haplotype
+drives diversity to nothing in a narrow core, several leave it shallow and
+broad, so the shape of the trough carries the axis where its depth alone
+does not. Softness among partial sweeps is carried by H2/H1 after all --
+usable there precisely because age is not in play, since every partial sweep
+is still rising. Measured leave-one-configuration-out, that gets 82.4%
+against 72.9% for a single nearest-centroid rule over all four classes at
+once, and 90.6% on the softness axis among completed sweeps against 73.7%
+among partial ones.
 
 H12 collapses for the oldest sweeps, because recombination erodes the swept
 haplotype block, so a scan that leans on it misses them. nSL reads near zero
@@ -200,10 +203,12 @@ history, so the history comes first.
    identical procedure to every null replicate, which keeps the
    false-positive budget exact and makes it a budget on clusters, which is
    what a call is.
-4. **Characterisation** of each called region, calibrated on 48 independent
-   single-sweep replicates simulated under the same history at several
-   strengths per class (51 of them) and grouped by what each sweep actually turned out to
-   be. Every score quoted here is leave-one-CONFIGURATION-out, not
+4. **Characterisation** of each called region by fixed constants, fitted
+   offline on 51 independent single-sweep replicates simulated at several
+   strengths per class and grouped by what each sweep actually turned out to
+   be. Those replicates use the TRUE demography, not a fitted one, and their
+   sweep configurations are the shipped sweeps' own; the Verification
+   section below says what that does and does not establish. Every score quoted here is leave-one-CONFIGURATION-out, not
    leave-one-replicate-out: the shipped sweeps sit at the very (s, age)
    configurations the replicates were simulated at, so holding out one
    replicate at a time would reward a rule that had memorised those few
@@ -211,21 +216,27 @@ history, so the history comes first.
 
    **Class** by one rule per axis rather than one rule over four classes:
    82.4% against 72.9% for a nearest-centroid rule on the same features.
-   Completeness comes from diversity with the number of segregating sites in
-   the window; softness from Tajima's D with the extent of the H12
-   elevation among completed sweeps, and from H2/H1 among partial ones,
-   fitted separately because the axis is much easier among completed sweeps
-   (90.6%) than among those still rising (73.7%).
+   Completeness comes from Tajima's D with the number of segregating sites
+   in the window; softness from the depth of the diversity trough with its
+   widths at two recovery levels among completed sweeps, and from H2/H1
+   among partial ones, fitted separately because the axis is much easier
+   among completed sweeps (90.6%) than among those still rising (73.7%).
+   The three feature sets were chosen by a joint search over the top six
+   candidates per axis, 216 triples, scored four-way: picking each axis on
+   its own accuracy gives 0.745, because the softness rules are fitted
+   inside a completeness group and applied to the PREDICTED group, so the
+   axes interact.
 
-   **Selection coefficient** from a log-linear fit in two measured features
-   per class: 98% within a factor of 2.5 with a rank correlation of 0.83
-   pooled across classes. The textbook relation, footprint extent times the
-   local rate, is the backbone of it, but on its own, as trough width over a
-   per-class constant, it reached only 74% and ranked at 0.32 -- a soft sweep
-   leaves no trough whose width can be measured. The soft classes take their
-   extent from the H12 elevation instead. All width features are scaled by
-   the local recombination rate, because what strength sets is the genetic
-   length of the footprint, not its length in base pairs.
+   **Selection coefficient** from a log-linear fit in the diversity at the
+   peak and one footprint width per class: 98% within a factor of 2.5 with a
+   rank correlation of 0.83 pooled across classes. The textbook relation,
+   footprint extent times the local rate, is the backbone of it, but on its
+   own, as trough width over a per-class constant, it reached only 74% and
+   ranked at 0.32 -- a soft sweep leaves no trough whose width can be
+   measured. The two hard classes take their width from the diversity trough
+   and the two soft ones from the H12 elevation. All width features are
+   scaled by the local recombination rate, because what strength sets is the
+   genetic length of the footprint, not its length in base pairs.
 
    **Completion time** from H12 decay with the footprint extent controlling
    for strength: 15 of 16 inside the verifier's tolerance, rank correlation

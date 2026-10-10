@@ -1,0 +1,4 @@
+override hard_complete -> (0.015, 2450, 1)
+hard_complete seed 803000: realized=hard_complete origins_surviving=1 done_ago=1825 freq=1.000 h2h1=0.878 bg=0.808 ratio=1.087
+hard_complete seed 803097: realized=hard_complete origins_surviving=1 done_ago=1756 freq=1.000 h2h1=0.833 bg=0.803 ratio=1.038
+hard_complete seed 803194: realized=hard_complete origins_surviving=1 done_ago=1708 freq=1.000 h2h1=0.898 bg=0.796 ratio=1.128

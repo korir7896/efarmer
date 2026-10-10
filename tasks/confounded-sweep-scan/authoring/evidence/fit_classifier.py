@@ -15,7 +15,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from fit_estimators import rows
+from fit_estimators import rows  # noqa: F401
 
 FEATS = ["pi_ratio", "pi_min_ratio", "tajd_delta", "h12_ratio", "nsl_delta",
          "snp_ratio", "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "h2h1_ratio"]

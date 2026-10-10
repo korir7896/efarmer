@@ -84,9 +84,9 @@ def high_width(mid, v, bg, centre, mult):
     return float(m[hi] - m[lo])
 
 
-def rows():
+def rows(subdir="training"):
     out = []
-    for f in sorted(glob.glob(os.path.join(HERE, "training", "*.npz"))):
+    for f in sorted(glob.glob(os.path.join(HERE, subdir, "*.npz"))):
         d = np.load(f, allow_pickle=True)
         # Configuration identity, from the filename tag run_training.sh
         # assigns. Leaving out one REPLICATE when three replicates share a

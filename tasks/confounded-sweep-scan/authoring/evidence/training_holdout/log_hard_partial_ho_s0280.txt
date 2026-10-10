@@ -1,0 +1,1 @@
+override hard_partial -> (0.028, 280, 1)
