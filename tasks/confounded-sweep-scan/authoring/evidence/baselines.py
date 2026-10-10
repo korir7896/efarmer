@@ -47,8 +47,8 @@ _REQUIRED_GATES = ("match_window_bp", "dedupe_bp", "N_ancestral_factor",
                    "N_current_factor", "bottleneck_strength_factor",
                    "min_recall_per_class", "max_false_positives",
                    "min_class_accuracy", "s_within_factor", "min_s_accuracy",
-                   "time_rel_tol", "time_abs_tol_gens",
-                   "min_time_accuracy_per_class")
+                   "min_s_rank_corr", "min_matched_for_rank",
+                   "time_rel_tol", "time_abs_tol_gens", "min_time_correct")
 _missing = [k for k in _REQUIRED_GATES if k not in G.GATES]
 _extra = [k for k in G.GATES if k not in _REQUIRED_GATES]
 if _missing:
@@ -169,23 +169,23 @@ def grade(truth, submission):
         ok_s = sum(1 for t, c, _ in pairs
                    if float(t["selection_coefficient"]) / fsf <= c["s"] <= float(t["selection_coefficient"]) * fsf)
         res["s_accuracy"] = (ok_s / len(pairs)) >= G.GATES["min_s_accuracy"]
-        by_class = {}
-        for t, c, _ in pairs:
-            if t["class"] in G.TIMED_CLASSES and t["completion_gens_ago"] is not None:
-                by_class.setdefault(t["class"], []).append((t, c))
-        tok = bool(by_class)
-        for klass, items in by_class.items():
-            good = 0
-            for t, c in items:
-                tt = float(t["completion_gens_ago"])
-                tol = max(G.GATES["time_abs_tol_gens"], G.GATES["time_rel_tol"] * tt)
-                if c["time"] is not None and abs(c["time"] - tt) <= tol:
-                    good += 1
-            if good < max(1, int(round(G.GATES["min_time_accuracy_per_class"] * len(items)))):
-                tok = False
-        res["timing"] = tok
+        res["s_ordering"] = (
+            len(pairs) >= G.GATES["min_matched_for_rank"]
+            and G.spearman([c["s"] for _, c, _ in pairs],
+                           [float(t["selection_coefficient"]) for t, _, _ in pairs])
+            >= G.GATES["min_s_rank_corr"])
+        items = [(t, c) for t, c, _ in pairs
+                 if t["class"] in G.TIMED_CLASSES
+                 and t.get("completion_gens_ago") is not None]
+        good = 0
+        for t, c in items:
+            tt = float(t["completion_gens_ago"])
+            if c["time"] is not None and abs(c["time"] - tt) <= G.time_tolerance(tt):
+                good += 1
+        res["timing"] = good >= G.GATES["min_time_correct"]
     else:
-        res["class_accuracy"] = res["s_accuracy"] = res["timing"] = False
+        res["class_accuracy"] = res["s_accuracy"] = False
+        res["s_ordering"] = res["timing"] = False
 
     res["_n_calls"] = len(calls)
     res["_n_false_positives"] = len(un_c)

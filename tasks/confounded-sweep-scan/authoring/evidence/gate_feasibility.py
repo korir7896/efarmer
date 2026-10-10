@@ -182,6 +182,51 @@ def triviality():
     print(f"time, true values: {sorted(int(t) for t in times)}")
 
 
+def design_guarantee():
+    """Can a constant EVER date three hard_complete sweeps, for any draw?
+
+    The check above uses the realized completion times of one replicate. This
+    one uses the acceptance WINDOWS, so it holds for every replicate the
+    generator would accept rather than for the one that happened.
+
+    The tolerance half-width grows with the true time, so over a window
+    [lo, hi] the set of constants that could cover a sweep somewhere in it is
+    exactly [lo - tol(lo), hi + tol(hi)]. A constant can satisfy a set of
+    sweeps only if their intervals share a point, so it suffices to check
+    every triple.
+    """
+    import itertools
+    need = GATES["min_time_correct"]
+    ids = [sid for sid, r in sorted(C.ACCEPT.items())
+           if r["class"] in TIMED_CLASSES and r["must_complete"]]
+    span = {}
+    for sid in ids:
+        r = C.ACCEPT[sid]
+        lo, hi = float(r["done_min"]), float(r["done_max"])
+        span[sid] = (lo - time_tolerance(lo), hi + time_tolerance(hi))
+    print("\n=== DESIGN GUARANTEE: windows, not one realized replicate ===")
+    for sid in ids:
+        r = C.ACCEPT[sid]
+        a, b = span[sid]
+        print(f"  {sid}: accepted {r['done_min']}-{r['done_max']} gens ago, "
+              f"a constant in [{a:.0f}, {b:.0f}] could date it")
+    worst = 0
+    for combo in itertools.combinations(ids, need):
+        lo = max(span[c][0] for c in combo)
+        hi = min(span[c][1] for c in combo)
+        if lo <= hi:
+            worst = max(worst, len(combo))
+            print(f"  *** {' + '.join(combo)} can all be dated by any constant "
+                  f"in [{lo:.0f}, {hi:.0f}]")
+    if worst == 0:
+        print(f"  no constant can date {need} of the {len(ids)} accepted "
+              f"hard_complete sweeps, for any draw inside the windows")
+    else:
+        raise SystemExit("the acceptance windows do not guarantee the timing "
+                         "gate is non-trivial")
+
+
 if __name__ == "__main__":
     feasibility()
     triviality()
+    design_guarantee()

@@ -113,7 +113,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     #     hundred, so the surviving beneficial haplotypes are few enough to
     #     leave a haplotype signal while still being more than one.
     ("sw09", 1, 0.26,  0.0110,  740,  12, "soft_partial"),
-    ("sw10", 3, 0.22,  0.0600,  170,  12, "soft_partial"),
+    ("sw10", 3, 0.22,  0.0600,  130,  12, "soft_partial"),
 ]
 
 MIN_SWEEP_SPACING = 2_000_000
@@ -143,7 +143,20 @@ POSITION_JITTER = 180_000
 #   s=0.0450 origin  380 x100   8/8 complete, completed 155-287,
 #                                 1-9 surviving origins, soft in 6/8
 #   s=0.0140 origin  450        0/8 complete, final frequency 0.118-0.745
+#   s=0.0140 origin  520        0/8 complete, final frequency 0.112-0.833
+#   s=0.0350 origin  210        0/8 complete, final frequency 0.075-0.824
 #   s=0.0350 origin  230        0/8 complete, final frequency 0.535-0.855
+#   s=0.0600 origin  140 x12    0/8 complete, final frequency 0.850-0.924,
+#                                 5-6 surviving origins, soft in 8/8
+#
+# sw09 (s=0.0110 origin 740 x12) is the one configuration set from the
+# deterministic expectation rather than measured: with twelve founding copies
+# it needs about 250 generations to reach the drift-escape threshold and
+# another 495 to reach 0.7, so 740 generations puts it around two thirds.
+# Its realized frequency is recorded as truth either way, and the generator
+# backtracks on that sweep alone if the draw lands outside the window.
+# sw10's origin is pulled back from the measured 140 to 130 because 140 put
+# the median at 0.896, close enough to completion to risk rejection.
 #
 # Two things that measurement settled. A weak sweep's completion time
 # scatters far more than a strong one's: s=0.0085 completed anywhere in a
@@ -177,9 +190,9 @@ ACCEPT: Dict[str, Dict] = {
     "sw08": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.45, freq_max=0.92),
     "sw09": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.92),
+                 freq_min=0.45, freq_max=0.95),
     "sw10": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.92),
+                 freq_min=0.45, freq_max=0.95),
 }
 # `class` is a keyword, so the dicts above carry `class_`; expose it under the
 # name the rest of the code reads.
