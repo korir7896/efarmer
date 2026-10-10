@@ -206,9 +206,14 @@ def main():
                    for sid in sorted(rec.real)}, fh)
 
     print("\nDONE")
-    print(json.dumps({s["sweep_id"]: [s["class"], s["fixation_gens_ago"],
-                                      round(s["final_frequency"], 3)]
-                      for s in truth["sweeps"]}, indent=2))
+    # Print the GRADED time field. Exact fixation lags completion by
+    # hundreds of generations when a sweep has several origins, so printing
+    # fixation here reads as though acceptance had been violated.
+    print(f"{'id':<6}{'class':<22}{'done_ago':>9}{'freq':>7}{'origins':>8}")
+    for s in truth["sweeps"]:
+        print(f"{s['sweep_id']:<6}{s['class']:<22}"
+              f"{str(s['completion_gens_ago']):>9}"
+              f"{s['final_frequency']:>7.3f}{s['n_origins_surviving']:>8}")
 
 
 if __name__ == "__main__":
