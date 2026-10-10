@@ -8,40 +8,34 @@
       "demog_is_bottleneck": false,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": true,
-      "s_accuracy": true,
-      "timing": true,
-      "_n_calls": 2,
+      "class_accuracy": false,
+      "s_accuracy": false,
+      "s_ordering": false,
+      "timing": false,
+      "_n_calls": 1,
       "_n_false_positives": 0,
       "_recall_detail": {
-        "hard_recent_complete": "2/3(need 3)",
-        "soft_standing": "0/3(need 2)",
-        "partial": "0/2(need 2)",
-        "hard_old_complete": "0/2(need 1)"
+        "hard_complete": "1/4(need 3)",
+        "soft_complete": "0/2(need 1)",
+        "hard_partial": "0/2(need 1)",
+        "soft_partial": "0/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 9476.264483065952,
-        "N_bottleneck": 9476.264483065952,
-        "N_current": 9476.264483065952,
+        "N_ancestral": 9617.050901168546,
+        "N_bottleneck": 9617.050901168546,
+        "N_current": 9617.050901168546,
         "T_bottleneck_start_gens_ago": 3000.0,
         "T_bottleneck_end_gens_ago": 2000.0
       },
       "sweeps": [
         {
-          "chrom": 2,
-          "position": 3175000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048140043763676144,
-          "time_gens_ago": 358.0
-        },
-        {
-          "chrom": 4,
-          "position": 8405000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.03282275711159737,
-          "time_gens_ago": 502.0
+          "chrom": 1,
+          "position": 1695000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022690474199134253,
+          "time_gens_ago": 236.0
         }
       ]
     }
@@ -57,38 +51,39 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
-      "timing": true,
+      "s_ordering": false,
+      "timing": false,
       "_n_calls": 2,
       "_n_false_positives": 0,
       "_recall_detail": {
-        "hard_recent_complete": "2/3(need 3)",
-        "soft_standing": "0/3(need 2)",
-        "partial": "0/2(need 2)",
-        "hard_old_complete": "0/2(need 1)"
+        "hard_complete": "2/4(need 3)",
+        "soft_complete": "0/2(need 1)",
+        "hard_partial": "0/2(need 1)",
+        "soft_partial": "0/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 9476.264483065952,
-        "N_bottleneck": 9476.264483065952,
-        "N_current": 9476.264483065952,
+        "N_ancestral": 9617.050901168546,
+        "N_bottleneck": 9617.050901168546,
+        "N_current": 9617.050901168546,
         "T_bottleneck_start_gens_ago": 3000.0,
         "T_bottleneck_end_gens_ago": 2000.0
       },
       "sweeps": [
         {
-          "chrom": 2,
-          "position": 3155000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048140043763676144,
-          "time_gens_ago": 358.0
+          "chrom": 1,
+          "position": 1725000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.041721725704558295,
+          "time_gens_ago": 223.0
         },
         {
-          "chrom": 4,
-          "position": 8445000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.03282275711159737,
-          "time_gens_ago": 502.0
+          "chrom": 2,
+          "position": 5615000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.024758326488787227,
+          "time_gens_ago": 422.0
         }
       ]
     }
@@ -102,40 +97,34 @@
       "demog_is_bottleneck": false,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": true,
-      "s_accuracy": true,
-      "timing": true,
-      "_n_calls": 2,
+      "class_accuracy": false,
+      "s_accuracy": false,
+      "s_ordering": false,
+      "timing": false,
+      "_n_calls": 1,
       "_n_false_positives": 0,
       "_recall_detail": {
-        "hard_recent_complete": "2/3(need 3)",
-        "soft_standing": "0/3(need 2)",
-        "partial": "0/2(need 2)",
-        "hard_old_complete": "0/2(need 1)"
+        "hard_complete": "1/4(need 3)",
+        "soft_complete": "0/2(need 1)",
+        "hard_partial": "0/2(need 1)",
+        "soft_partial": "0/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 9476.264483065952,
-        "N_bottleneck": 9476.264483065952,
-        "N_current": 9476.264483065952,
+        "N_ancestral": 9617.050901168546,
+        "N_bottleneck": 9617.050901168546,
+        "N_current": 9617.050901168546,
         "T_bottleneck_start_gens_ago": 3000.0,
         "T_bottleneck_end_gens_ago": 2000.0
       },
       "sweeps": [
         {
-          "chrom": 2,
-          "position": 3175000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048140043763676144,
-          "time_gens_ago": 358.0
-        },
-        {
-          "chrom": 4,
-          "position": 8515000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.03282275711159737,
-          "time_gens_ago": 501.0
+          "chrom": 1,
+          "position": 1775000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022878225593976086,
+          "time_gens_ago": 211.0
         }
       ]
     }
@@ -151,31 +140,39 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
+      "s_ordering": false,
       "timing": false,
-      "_n_calls": 1,
+      "_n_calls": 2,
       "_n_false_positives": 0,
       "_recall_detail": {
-        "hard_recent_complete": "0/3(need 3)",
-        "soft_standing": "0/3(need 2)",
-        "partial": "1/2(need 2)",
-        "hard_old_complete": "0/2(need 1)"
+        "hard_complete": "0/4(need 3)",
+        "soft_complete": "0/2(need 1)",
+        "hard_partial": "1/2(need 1)",
+        "soft_partial": "1/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 9476.264483065952,
-        "N_bottleneck": 9476.264483065952,
-        "N_current": 9476.264483065952,
+        "N_ancestral": 9617.050901168546,
+        "N_bottleneck": 9617.050901168546,
+        "N_current": 9617.050901168546,
         "T_bottleneck_start_gens_ago": 3000.0,
         "T_bottleneck_end_gens_ago": 2000.0
       },
       "sweeps": [
         {
-          "chrom": 2,
-          "position": 5555000,
-          "class": "partial",
-          "selection_coefficient": 0.03487064116985376,
-          "time_gens_ago": null
+          "chrom": 3,
+          "position": 2445000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022258949495843304,
+          "time_gens_ago": 370.0
+        },
+        {
+          "chrom": 4,
+          "position": 2825000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.048848024485440775,
+          "time_gens_ago": 344.0
         }
       ]
     }
@@ -189,124 +186,111 @@
       "demog_is_bottleneck": false,
       "recall": true,
       "false_positives": false,
-      "class_accuracy": true,
+      "class_accuracy": false,
       "s_accuracy": true,
+      "s_ordering": false,
       "timing": true,
-      "_n_calls": 14,
+      "_n_calls": 12,
       "_n_false_positives": 4,
       "_recall_detail": {
-        "hard_recent_complete": "3/3(need 3)",
-        "soft_standing": "3/3(need 2)",
-        "partial": "2/2(need 2)",
-        "hard_old_complete": "2/2(need 1)"
+        "hard_complete": "4/4(need 3)",
+        "soft_complete": "1/2(need 1)",
+        "hard_partial": "2/2(need 1)",
+        "soft_partial": "1/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 9476.264483065952,
-        "N_bottleneck": 9476.264483065952,
-        "N_current": 9476.264483065952,
+        "N_ancestral": 9617.050901168546,
+        "N_bottleneck": 9617.050901168546,
+        "N_current": 9617.050901168546,
         "T_bottleneck_start_gens_ago": 3000.0,
         "T_bottleneck_end_gens_ago": 2000.0
       },
       "sweeps": [
         {
           "chrom": 1,
-          "position": 7525000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.025528811086797956,
-          "time_gens_ago": 478.0
+          "position": 1775000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022293236596429494,
+          "time_gens_ago": 195.0
         },
         {
           "chrom": 1,
-          "position": 9375000,
-          "class": "partial",
-          "selection_coefficient": 0.013498312710911134,
-          "time_gens_ago": null
+          "position": 7045000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.018153676775517956,
+          "time_gens_ago": 399.0
         },
         {
           "chrom": 1,
-          "position": 10385000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.01574803149606299,
-          "time_gens_ago": 3150.0
+          "position": 10325000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.02657083245684008,
+          "time_gens_ago": 326.0
         },
         {
           "chrom": 2,
-          "position": 3195000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048869438366156086,
-          "time_gens_ago": 336.0
+          "position": 5575000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.02562566057113864,
+          "time_gens_ago": 442.0
         },
         {
           "chrom": 2,
-          "position": 4315000,
-          "class": "soft_standing",
-          "selection_coefficient": 0.01,
-          "time_gens_ago": null
-        },
-        {
-          "chrom": 2,
-          "position": 5545000,
-          "class": "partial",
-          "selection_coefficient": 0.06636670416197973,
-          "time_gens_ago": null
-        },
-        {
-          "chrom": 2,
-          "position": 9275000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.023622047244094484,
-          "time_gens_ago": 4611.0
+          "position": 10005000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.04328150728802029,
+          "time_gens_ago": 518.0
         },
         {
           "chrom": 3,
-          "position": 2295000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.030621172353455815,
-          "time_gens_ago": 2217.0
+          "position": 2355000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.019645641717094053,
+          "time_gens_ago": 347.0
         },
         {
           "chrom": 3,
-          "position": 3995000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.023622047244094484,
-          "time_gens_ago": 3194.0
+          "position": 7575000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.025,
+          "time_gens_ago": 1393.0
         },
         {
           "chrom": 3,
-          "position": 7735000,
-          "class": "partial",
-          "selection_coefficient": 0.021372328458942626,
-          "time_gens_ago": null
-        },
-        {
-          "chrom": 3,
-          "position": 10315000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.02771699489423778,
-          "time_gens_ago": 4417.0
+          "position": 9705000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.025,
+          "time_gens_ago": 1781.0
         },
         {
           "chrom": 4,
-          "position": 2635000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.03149606299212598,
-          "time_gens_ago": 1319.0
+          "position": 2785000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.03202366924530729,
+          "time_gens_ago": 260.0
         },
         {
           "chrom": 4,
-          "position": 8385000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.034281546316557256,
-          "time_gens_ago": 471.0
+          "position": 4505000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.05191978977603914,
+          "time_gens_ago": 941.0
         },
         {
           "chrom": 4,
-          "position": 9415000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.008748906386701661,
-          "time_gens_ago": 1007.0
+          "position": 8425000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.02560899323458006,
+          "time_gens_ago": 2101.0
+        },
+        {
+          "chrom": 4,
+          "position": 10845000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.025,
+          "time_gens_ago": 1302.0
         }
       ]
     }
@@ -322,80 +306,88 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
-      "timing": true,
-      "_n_calls": 8,
+      "s_ordering": true,
+      "timing": false,
+      "_n_calls": 9,
       "_n_false_positives": 1,
       "_recall_detail": {
-        "hard_recent_complete": "3/3(need 3)",
-        "soft_standing": "2/3(need 2)",
-        "partial": "2/2(need 2)",
-        "hard_old_complete": "0/2(need 1)"
+        "hard_complete": "2/4(need 3)",
+        "soft_complete": "2/2(need 1)",
+        "hard_partial": "2/2(need 1)",
+        "soft_partial": "2/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 11752.887644139584,
-        "N_bottleneck": 4959.207146143786,
-        "N_current": 8766.901878179478,
-        "T_bottleneck_start_gens_ago": 4956.080479999539,
-        "T_bottleneck_end_gens_ago": 771.3182492830634
+        "N_ancestral": 12348.737664756585,
+        "N_bottleneck": 3889.224385079308,
+        "N_current": 8554.723615361963,
+        "T_bottleneck_start_gens_ago": 4351.600195985059,
+        "T_bottleneck_end_gens_ago": 1325.7654148197207
       },
       "sweeps": [
         {
           "chrom": 1,
-          "position": 7445000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.02479941648431801,
-          "time_gens_ago": 451.0
+          "position": 55000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.04645746702411768,
+          "time_gens_ago": 577.0
         },
         {
           "chrom": 1,
-          "position": 10695000,
-          "class": "soft_standing",
-          "selection_coefficient": 0.009333333333333332,
-          "time_gens_ago": null
+          "position": 1775000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022657370162686506,
+          "time_gens_ago": 181.0
+        },
+        {
+          "chrom": 1,
+          "position": 7285000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.013517703329011851,
+          "time_gens_ago": 371.0
+        },
+        {
+          "chrom": 1,
+          "position": 10325000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.027920965369208763,
+          "time_gens_ago": 287.0
         },
         {
           "chrom": 2,
-          "position": 3175000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048869438366156086,
-          "time_gens_ago": 317.0
+          "position": 3245000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.011619627515686397,
+          "time_gens_ago": 258.0
         },
         {
           "chrom": 2,
-          "position": 5645000,
-          "class": "partial",
-          "selection_coefficient": 0.06636670416197973,
-          "time_gens_ago": null
+          "position": 5575000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.025001349231208503,
+          "time_gens_ago": 408.0
         },
         {
           "chrom": 2,
-          "position": 9335000,
-          "class": "soft_standing",
-          "selection_coefficient": 0.036,
-          "time_gens_ago": null
+          "position": 9945000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.044195613582843706,
+          "time_gens_ago": 427.0
         },
         {
           "chrom": 3,
-          "position": 7755000,
-          "class": "partial",
-          "selection_coefficient": 0.0202474690663667,
-          "time_gens_ago": null
-        },
-        {
-          "chrom": 3,
-          "position": 10365000,
-          "class": "soft_standing",
-          "selection_coefficient": 0.050666666666666665,
-          "time_gens_ago": null
+          "position": 2355000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.02012719020536696,
+          "time_gens_ago": 319.0
         },
         {
           "chrom": 4,
-          "position": 8515000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.033552151714077307,
-          "time_gens_ago": 445.0
+          "position": 2725000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.03151248051860817,
+          "time_gens_ago": 237.0
         }
       ]
     }
@@ -411,87 +403,81 @@
       "false_positives": true,
       "class_accuracy": true,
       "s_accuracy": true,
+      "s_ordering": true,
       "timing": true,
-      "_n_calls": 9,
+      "_n_calls": 8,
       "_n_false_positives": 0,
       "_recall_detail": {
-        "hard_recent_complete": "3/3(need 3)",
-        "soft_standing": "3/3(need 2)",
-        "partial": "2/2(need 2)",
-        "hard_old_complete": "1/2(need 1)"
+        "hard_complete": "3/4(need 3)",
+        "soft_complete": "2/2(need 1)",
+        "hard_partial": "2/2(need 1)",
+        "soft_partial": "1/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 11752.887644139584,
-        "N_bottleneck": 4959.207146143786,
-        "N_current": 8766.901878179478,
-        "T_bottleneck_start_gens_ago": 4956.080479999539,
-        "T_bottleneck_end_gens_ago": 771.3182492830634
+        "N_ancestral": 12348.737664756585,
+        "N_bottleneck": 3889.224385079308,
+        "N_current": 8554.723615361963,
+        "T_bottleneck_start_gens_ago": 4351.600195985059,
+        "T_bottleneck_end_gens_ago": 1325.7654148197207
       },
       "sweeps": [
         {
           "chrom": 1,
-          "position": 7445000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.025528811086797956,
-          "time_gens_ago": 446.0
+          "position": 1775000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022489328262621393,
+          "time_gens_ago": 188.0
         },
         {
           "chrom": 1,
-          "position": 10385000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.01574803149606299,
-          "time_gens_ago": 2937.0
+          "position": 7285000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.013426183363567502,
+          "time_gens_ago": 384.0
         },
         {
-          "chrom": 2,
-          "position": 3195000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048869438366156086,
+          "chrom": 1,
+          "position": 10325000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.026953152562062627,
           "time_gens_ago": 314.0
         },
         {
           "chrom": 2,
-          "position": 5545000,
-          "class": "partial",
-          "selection_coefficient": 0.06636670416197973,
-          "time_gens_ago": null
+          "position": 5575000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.02547985072201057,
+          "time_gens_ago": 423.0
         },
         {
           "chrom": 2,
-          "position": 9415000,
-          "class": "soft_standing",
-          "selection_coefficient": 0.018666666666666665,
-          "time_gens_ago": null
+          "position": 9945000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.043896392559164873,
+          "time_gens_ago": 442.0
         },
         {
           "chrom": 3,
-          "position": 7745000,
-          "class": "partial",
-          "selection_coefficient": 0.021372328458942626,
-          "time_gens_ago": null
-        },
-        {
-          "chrom": 3,
-          "position": 10325000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.02771699489423778,
-          "time_gens_ago": 4119.0
+          "position": 2355000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.019977913777396838,
+          "time_gens_ago": 331.0
         },
         {
           "chrom": 4,
-          "position": 2525000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.03149606299212598,
-          "time_gens_ago": 1230.0
+          "position": 2725000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.03373520389278011,
+          "time_gens_ago": 249.0
         },
         {
           "chrom": 4,
-          "position": 8385000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.033552151714077307,
-          "time_gens_ago": 439.0
+          "position": 8425000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.025102574684396688,
+          "time_gens_ago": 2024.0
         }
       ]
     }
@@ -505,75 +491,69 @@
       "demog_is_bottleneck": true,
       "recall": false,
       "false_positives": true,
-      "class_accuracy": true,
+      "class_accuracy": false,
       "s_accuracy": true,
-      "timing": true,
-      "_n_calls": 7,
+      "s_ordering": false,
+      "timing": false,
+      "_n_calls": 6,
       "_n_false_positives": 1,
       "_recall_detail": {
-        "hard_recent_complete": "3/3(need 3)",
-        "soft_standing": "0/3(need 2)",
-        "partial": "2/2(need 2)",
-        "hard_old_complete": "1/2(need 1)"
+        "hard_complete": "2/4(need 3)",
+        "soft_complete": "0/2(need 1)",
+        "hard_partial": "2/2(need 1)",
+        "soft_partial": "1/2(need 1)"
       }
     },
     "submission": {
       "demography": {
-        "N_ancestral": 11752.887644139584,
-        "N_bottleneck": 4959.207146143786,
-        "N_current": 8766.901878179478,
-        "T_bottleneck_start_gens_ago": 4956.080479999539,
-        "T_bottleneck_end_gens_ago": 771.3182492830634
+        "N_ancestral": 12348.737664756585,
+        "N_bottleneck": 3889.224385079308,
+        "N_current": 8554.723615361963,
+        "T_bottleneck_start_gens_ago": 4351.600195985059,
+        "T_bottleneck_end_gens_ago": 1325.7654148197207
       },
       "sweeps": [
         {
           "chrom": 1,
-          "position": 7445000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.02479941648431801,
-          "time_gens_ago": 451.0
+          "position": 1775000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.022589283456131693,
+          "time_gens_ago": 193.0
         },
         {
           "chrom": 1,
-          "position": 9375000,
-          "class": "partial",
-          "selection_coefficient": 0.013498312710911134,
-          "time_gens_ago": null
+          "position": 10325000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.02689207329543369,
+          "time_gens_ago": 304.0
         },
         {
           "chrom": 2,
-          "position": 3195000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.048869438366156086,
-          "time_gens_ago": 317.0
+          "position": 5575000,
+          "class": "hard_complete",
+          "selection_coefficient": 0.025042276438838468,
+          "time_gens_ago": 433.0
         },
         {
           "chrom": 2,
-          "position": 5545000,
-          "class": "partial",
-          "selection_coefficient": 0.06636670416197973,
-          "time_gens_ago": null
+          "position": 11305000,
+          "class": "soft_partial",
+          "selection_coefficient": 0.00345068338016306,
+          "time_gens_ago": 984.0
         },
         {
           "chrom": 3,
-          "position": 7745000,
-          "class": "partial",
-          "selection_coefficient": 0.0202474690663667,
-          "time_gens_ago": null
+          "position": 2335000,
+          "class": "hard_partial",
+          "selection_coefficient": 0.021471946745071285,
+          "time_gens_ago": 359.0
         },
         {
           "chrom": 4,
-          "position": 2525000,
-          "class": "hard_old_complete",
-          "selection_coefficient": 0.03149606299212598,
-          "time_gens_ago": 1245.0
-        },
-        {
-          "chrom": 4,
-          "position": 8385000,
-          "class": "hard_recent_complete",
-          "selection_coefficient": 0.033552151714077307,
-          "time_gens_ago": 445.0
+          "position": 2805000,
+          "class": "soft_complete",
+          "selection_coefficient": 0.029509403168213492,
+          "time_gens_ago": 293.0
         }
       ]
     }

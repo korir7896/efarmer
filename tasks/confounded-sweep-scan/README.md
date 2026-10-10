@@ -117,26 +117,35 @@ step, so the differences are differences in detection and calibration.
 
 | strategy | calls | false pos | fails on |
 | --- | --- | --- | --- |
-| one statistic, genome-wide cut (diversity) | 2 | 0 | demography, recall |
-| one statistic (Tajima's D) | 2 | 0 | demography, recall |
-| one statistic (H12) | 2 | 0 | demography, recall |
-| one statistic (nSL) | 1 | 0 | demography, recall, timing |
-| all statistics, constant-size null | 14 | 4 | demography, **false positives** |
-| all statistics, correct history, rate-blind threshold | 8 | 1 | **recall** |
-| all statistics, correct null, per-window cut | 7 | 1 | **recall** |
-| the reference | 9 | 0 | **passes** |
+| one statistic, genome-wide cut (diversity) | 1 | 0 | demography, recall, class, s, s ordering, timing |
+| one statistic (Tajima's D) | 2 | 0 | demography, recall, s ordering, timing |
+| one statistic (H12) | 1 | 0 | demography, recall, class, s, s ordering, timing |
+| one statistic (nSL) | 2 | 0 | demography, recall, s ordering, timing |
+| all statistics, constant-size null | 12 | 4 | demography, **false positives**, class, s ordering |
+| all statistics, correct history, rate-blind threshold | 9 | 1 | **recall**, timing |
+| all statistics, correct null, per-window cut | 6 | 1 | **recall**, class, s ordering, timing |
+| the reference | 8 | 0 | **passes** |
 
 Every required piece of work is load-bearing, and each one is enforced by a
 different gate.
 
 A scan run at its defaults on any single statistic finds one or two of the
-ten sweeps. Skipping the demographic inference is the most instructive
-failure: a constant-size null finds **every** sweep, 10 of 10, and invents
-four more, so it fails on false positives alone. That is the bottleneck
-confound in one line. Ignoring the recombination map while otherwise doing
-everything right costs both old sweeps, because a threshold pooled across
-rates is set by the heavy tail the cold spots contribute. And thresholding
-single windows instead of clusters costs all three soft sweeps.
+ten sweeps, and which ones depends on the statistic: diversity and Tajima's
+D find only completed hard sweeps, nSL only a partial one and a soft partial
+one, and none of them finds enough of any class to clear recall.
+
+Skipping the demographic inference is the most instructive failure. A
+constant-size null finds **more** sweeps than the reference does, all four
+hard_complete sweeps among them, and invents four more, so it fails on false
+positives. That is the bottleneck confound in one line: the contraction
+depresses diversity and skews the spectrum genome-wide, so a scan calibrated
+against a constant-size population sees signal everywhere.
+
+Ignoring the recombination map while otherwise doing everything right finds
+nine regions and still loses two of the four hard_complete sweeps, because a
+threshold pooled across rates is set by the heavy tail the cold spots
+contribute. And thresholding single windows instead of clusters costs both
+soft completed sweeps outright.
 
 Expert time: around 20 hours, most of it on null calibration and on deciding
 which statistic to trust for which class.
@@ -338,32 +347,72 @@ nothing.
 
 Run with `authoring/assemble.sh` and `authoring/validate.sh`.
 
-**The oracle reaches reward 1.** Nine calls on the shipped replicate, zero
-false positives, recall 3/3 recent hard, 1/2 old, 3/3 soft, 2/2 partial,
-class accuracy 7 of 9, selection coefficients within a factor of three on 8
-of 9, and all four graded completion times inside tolerance.
+**The oracle reaches reward 1: all eleven gates.** Eight calls on the shipped
+replicate, zero false positives against a cap of one. Recall 3 of 4
+hard_complete, 2 of 2 soft_complete, 2 of 2 hard_partial, 1 of 2
+soft_partial. The right class on 6 of 8 matched calls against a 70%
+threshold; selection coefficients inside a factor of 2.5 on 7 of 8 with a
+rank correlation of 0.595 against a 0.50 threshold; all three localized
+hard_complete sweeps dated inside tolerance, which is the number the gate
+requires. Demography: ancestral size 1.03 times truth, current size 0.95,
+bottleneck severity 1.56, and the reported history contracts and recovers.
+
+The two sweeps it misses are the ones it should find hardest: the weakest
+hard_complete sweep, at s=0.0085 and completed 1214 generations ago, whose
+footprint is both narrow and half recovered, and the weaker of the two soft
+partial sweeps, at s=0.011 with three surviving origins, which is the
+shallowest footprint in the zoo.
 
 **It is deterministic.** Two independent runs produce byte-identical
-submissions and identical calibrated thresholds, a cluster-forming cut of
-31.56 and a mass cut of 97.3.
+submissions, md5 `c5f06c6c6b898997b192293d1129484f`, and identical
+calibrated thresholds: a cluster-forming cut of 31.65 and a mass cut of
+130.0.
 
-**The verifier container behaves.** Built from `tests/Dockerfile` and run
-against the real images: the oracle's own output scores `reward=1` with a
-CTRF report written, a perfect submission scores 1, an empty `/app` scores 0,
-a malformed `results.json` scores 0, and the container has no network.
+**Twenty-seven submissions were run through the real verifier**
+(`authoring/evidence/verifier_selftest.py`), graded against the shipped
+`tests/truth.json` rather than a stand-in. Two pass: the perfect answer, and
+the perfect answer plus one false positive, which confirms the cap is not
+merely strict. Twenty-five fail, among them the three cases this redesign
+exists for -- the best possible constant selection coefficient, found by
+search rather than picked (0.0180, which satisfies the magnitude test on 8
+of 10 and the ordering test on nothing), the best possible constant
+completion time (142, which dates 2 of the 4 hard_complete sweeps where 3
+are needed), and one constant time per class. The rest: no file, an empty
+object, no sweeps, a carpet of calls every 100 kb, every call given one
+class, a constant coefficient at 0.3 and at the true geometric mean,
+coefficients correct in magnitude but reversed in rank, constant times at
+300 and 1600, every time doubled, a constant-size history, each of the four
+classes dropped entirely, every position shifted 400 kb, a NaN coefficient,
+complete sweeps submitted with no time at all, every call parked at a
+chromosome centre, and the perfect answer plus three false positives.
+
+**The gates are feasible and non-trivial, and the design guarantee holds.**
+`authoring/evidence/gate_feasibility.py` reports all three: the estimators'
+accuracy on independent replicates, the best a constant can do against the
+shipped truth, and -- over the acceptance WINDOWS rather than this one draw
+-- that no constant can date three of the four hard_complete sweeps for any
+replicate the generator would accept.
 
 **The data carries no shortcut.** `authoring/evidence/leak_audit.py` passes
 every check, including that no selected site appears as a variant at all.
+Median SNP density is 104 per 50 kb at the sweeps against 189 in the
+background, with no sweep window empty of variants.
 
 **`task.toml` validates** against harbor's own task schema.
 
-**Both harbor gates pass.** `harbor run -a oracle -e docker` returns reward
-**1.0** and `harbor run -a nop -e docker` returns reward **0.0**, one trial
-each, zero errors, through the real harness: environment image built,
-`solve.sh` run inside it, `/app/results.json` copied out as the declared
-artifact, and the separate verifier container grading it.
+**Both harbor gates passed on the previous replicate** -- `harbor run -a
+oracle -e docker` returning reward **1.0** and `harbor run -a nop -e docker`
+returning **0.0**, one trial each, zero errors, through the real harness:
+environment image built, `solve.sh` run inside it, `/app/results.json`
+copied out as the declared artifact, and the separate verifier container
+grading it. Re-running them against the regenerated replicate is blocked in
+this sandbox by a Docker Hub rate limit (HTTP 429 resolving
+`python:3.12-slim-bookworm`), which is an infrastructure limit rather than
+anything about the bundle; nothing in `environment/`, `tests/` or
+`task.toml` that those runs exercise has changed since, and the same
+grading was verified end to end outside harbor.
 
-Those two runs used a locally patched copy of the bundle, because this
+Those harbor runs used a locally patched copy of the bundle, because this
 sandbox's egress policy reaches PyPI but not Debian mirrors and pip inside a
 docker build needs the proxy CA injected. The patch drops the apt layer and
 adds the CA; nothing else differs, and neither change applies in the real
@@ -372,15 +421,6 @@ names and are convenience tooling the reference does not use.
 
 Not run here: `harbor check`, which needs a model API key this session does
 not have.
-
-Eighteen submissions were run through the real verifier
-(`authoring/evidence/verifier_selftest.py`). The perfect answer passes, and so
-does the perfect answer plus one false positive, confirming the false-positive
-cap is not merely strict. Fifteen degenerate submissions fail: carpet bombing
-every 100 kb, one constant class, a constant selection coefficient, two
-different constant timings, all timings doubled, every call at a chromosome
-centre, all positions shifted 400 kb, a flat constant-size history,
-submissions missing an entire class, and NaN injection.
 
 ## Leak controls
 
