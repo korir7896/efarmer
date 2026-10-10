@@ -289,6 +289,55 @@ def make_params(cfg: GenomeConfig, n_cur: int, total_gens: int, simlen: int):
 # than the whole remaining run.
 
 
+def summarize_stage_failures(tally: Dict[str, List[dict]]) -> str:
+    """Why a sweep could not be established, counted by cause.
+
+    "failed to establish" is three different diagnoses wearing one name, and
+    they call for opposite fixes. If the allele is being lost, the sweep is
+    simply improbable and wants more origins or a stronger s. If it survives
+    but is short of its count at the deadline, the deadline is too early for
+    the s it was given. If it survives with enough copies but too few
+    distinct origins, the softness requirement is what is unreachable, and
+    the fix is more origins, not a longer window. If the mutation cannot be
+    inserted at all, nothing about the plan is wrong and no number of retries
+    will help -- that is a simulator-level refusal at that position.
+    """
+    if not tally:
+        return "    (no stage-level failures recorded)"
+    out = []
+    for sid in sorted(tally):
+        rows = tally[sid]
+        causes: Dict[str, int] = {}
+        for r in rows:
+            causes[r["why"]] = causes.get(r["why"], 0) + 1
+        out.append(f"    {sid}: {len(rows)} failure(s); "
+                   + ", ".join(f"{k} x{v}" for k, v in sorted(causes.items())))
+        short = [r for r in rows if r["why"] == "short at deadline"]
+        if short:
+            cnt = sorted(r["count"] for r in short)
+            org = sorted(r["surviving_origins"] for r in short)
+            blocked: Dict[str, int] = {}
+            for r in short:
+                blocked[r["blocked_by"]] = blocked.get(r["blocked_by"], 0) + 1
+            out.append(
+                f"      at deadline: count {cnt[0]}/{cnt[len(cnt)//2]}/{cnt[-1]} "
+                f"(need {short[0]['need_count']}), surviving origins "
+                f"{org[0]}/{org[len(org)//2]}/{org[-1]} "
+                f"(need {short[0]['need_origins']}); blocked by "
+                + ", ".join(f"{k} x{v}" for k, v in sorted(blocked.items())))
+        lost = [r for r in rows if r["why"] == "allele lost"]
+        if lost:
+            g = sorted(r["gens_since_origin"] for r in lost)
+            out.append(f"      lost after {g[0]}/{g[len(g)//2]}/{g[-1]} "
+                       f"generations (min/median/max)")
+        spans = [r for r in rows if r.get("tree_span_refusals")]
+        if spans:
+            tot = sum(r["tree_span_refusals"] for r in spans)
+            out.append(f"      simulator refused {tot} insertion(s) at this "
+                       f"position across {len(spans)} attempt(s)")
+    return "\n".join(out)
+
+
 def summarize_rejections(tally: Dict[str, List[dict]]) -> str:
     """What each sweep actually realized across every rejected attempt.
 
@@ -331,6 +380,7 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                 plans: Sequence[SweepPlan], seed: int,
                 simplification_interval: int = 100,
                 max_attempts_per_stage: int = 800,
+                stage_report_every: int = 50,
                 max_total_restarts: int = 40_000,
                 chunk: int = 25,
                 min_soft_origins: int = 5,
@@ -393,34 +443,103 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
         recorder.real = copy.deepcopy(real)
         return copy.deepcopy(pop_)
 
-    def add_stage(pop_, st: _Stage):
-        keys = []
-        for _ in range(st.plan.n_origins):
-            try:
-                idx = pop_.add_mutation(
-                    rng,
-                    window=(float(st.plan.position), float(st.plan.position) + 1.0),
-                    ndescendants=1,
-                    data=fwdpy11.NewMutationData(effect_size=st.plan.s,
-                                                 dominance=st.plan.h))
-            except RuntimeError as e:
-                # fwdpy11 refuses the insertion when the marginal tree at that
-                # position has no span it can use ("invalid tree span of <=
-                # 0.0"). It is rare -- one occurrence in 569 restarts -- and
-                # it is a property of the state the run happens to be in, not
-                # of the plan, so the right response is to treat this origin
-                # as lost and let the driver retry the stage. Crashing the
-                # whole generation instead throws away hours of forward
-                # simulation for a transient condition.
-                if "tree span" not in str(e):
-                    raise
-                continue
+    # Half-widths tried, in order, when the simulator refuses to insert at
+    # the planned position. See _resolve_position.
+    SEARCH_HALF_WIDTHS = (0.5, 8.0, 64.0, 512.0, 4096.0)
+
+    def _insert(pop_, st: _Stage, lo: float, hi: float):
+        """One origin somewhere in [lo, hi), or None if the simulator refuses.
+
+        Re-raises anything that is not the tree-span refusal: a different
+        RuntimeError means something is actually wrong and must not be
+        silently retried at another position.
+        """
+        try:
+            return pop_.add_mutation(
+                rng, window=(lo, hi), ndescendants=1,
+                data=fwdpy11.NewMutationData(effect_size=st.plan.s,
+                                             dominance=st.plan.h))
+        except RuntimeError as e:
+            if "tree span" not in str(e):
+                raise
+            return None
+
+    def _resolve_position(pop_, st: _Stage):
+        """A position at this locus that the simulator will actually accept.
+
+        fwdpy11 raises "invalid tree span of <= 0.0" when the marginal tree
+        covering the requested window gives it nothing to place a mutation
+        on. Whether that happens is a property of the tree sequence at that
+        instant, so it is deterministic within a restart: backtracking
+        restores the same population and re-requests the same single base
+        pair, which is refused again. Measured on this zoo, sw14 was refused
+        all fourteen of its origins on every one of 800 consecutive attempts
+        and killed a 40-minute run -- not because the sweep was improbable,
+        but because that one base pair was unusable.
+
+        Treating the refusal as a lost origin, which is what this did
+        before, cannot recover from that: retrying the same base pair is
+        guaranteed to fail the same way. So widen the window instead. A
+        sweep's locus is an arbitrary point in a neutral genome and the
+        acceptance windows are in generations and frequencies, not base
+        pairs, so moving the site a few kilobases changes nothing that is
+        graded: 4 kb at the base rate is 4e-05 Morgans, against the 250 kb
+        the verifier allows a call to be out by.
+
+        The position that is actually used is returned and recorded as the
+        sweep's position, so the sealed truth says where the mutation IS
+        rather than where it was asked for. In the normal case the planned
+        base pair is accepted and the two are identical; this only ever
+        moves a sweep that could not otherwise exist.
+        """
+        planned = float(st.plan.position)
+        for half in SEARCH_HALF_WIDTHS:
+            idx = _insert(pop_, st, planned - half + 0.5, planned + half + 0.5)
             if idx is not None:
-                keys.append(pop_.mutations[idx].key)
-        if not keys:
+                return idx, float(pop_.mutations[idx].pos), half
+        return None, planned, None
+
+    def add_stage(pop_, st: _Stage):
+        idx, pos, half = _resolve_position(pop_, st)
+        if idx is None:
+            stage_tally.setdefault(st.plan.sweep_id, []).append(
+                {"why": "no position at this locus was accepted",
+                 "tree_span_refusals": len(SEARCH_HALF_WIDTHS),
+                 "n_origins": st.plan.n_origins})
             return False
+        keys = [pop_.mutations[idx].key]
+        # Report only a real widening. fwdpy11 chooses the base pair itself
+        # inside whatever window it is given, so even the narrowest window
+        # can come back one base pair from the planned one; that is not a
+        # refusal and saying so would bury the message that matters. It also
+        # means the planned position and the mutation's position were never
+        # quite the same thing, which is why the realized one is what gets
+        # recorded.
+        if half > SEARCH_HALF_WIDTHS[0] and verbose:
+            print(f"  {st.plan.sweep_id}: the simulator refused every window "
+                  f"up to {SEARCH_HALF_WIDTHS[SEARCH_HALF_WIDTHS.index(half) - 1]:.0f} bp "
+                  f"around the planned position; using {pos:,.0f}, "
+                  f"{abs(pos - float(st.plan.position)):,.0f} bp away",
+                  flush=True)
+        # Every remaining origin goes at the position the first one actually
+        # took, not at the planned one. They have to share a single site to
+        # be independent origins of the SAME allele, which is what makes the
+        # sweep soft; letting each pick its own position inside a widened
+        # window would scatter them across a few kilobases and the sweep
+        # would be fourteen separate sweeps.
+        span_fail = 0
+        for _ in range(st.plan.n_origins - 1):
+            k = _insert(pop_, st, pos, pos + 1.0)
+            if k is None:
+                span_fail += 1
+                continue
+            keys.append(pop_.mutations[k].key)
+        if span_fail:
+            stage_tally.setdefault(st.plan.sweep_id, []).append(
+                {"why": "partial insertion", "tree_span_refusals": span_fail,
+                 "inserted": len(keys), "n_origins": st.plan.n_origins})
         recorder.track(st.plan.sweep_id, keys, SweepRealization(
-            sweep_id=st.plan.sweep_id, position=st.plan.position,
+            sweep_id=st.plan.sweep_id, position=pos,
             s=st.plan.s, h=st.plan.h, n_origins_introduced=len(keys),
             intended_class=st.plan.intended_class,
             origin_gen_forward=st.gen, origin_gens_ago=total_gens - st.gen))
@@ -435,6 +554,13 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
     start_stage = 0
     total_restarts = 0
     reject_tally: Dict[str, List[dict]] = {}
+    # Why each stage-level (establishment) failure happened, as opposed to
+    # reject_tally, which records why a whole replicate was not accepted.
+    # Without this a stage that fails every attempt reports only its name,
+    # and "failed to establish" covers three different causes: the mutation
+    # could not be inserted at all, the allele was lost, or it survived but
+    # missed the count or the surviving-origin requirement at its deadline.
+    stage_tally: Dict[str, List[dict]] = {}
 
     def backtrack_to(k: int) -> None:
         """Rewind to stage k and forget the failures of everything after it.
@@ -495,6 +621,10 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                 st = stages[stage_of[sid]]
                 total, done, surviving = snap_counts[sid]
                 if total == 0 and not done:
+                    stage_tally.setdefault(sid, []).append(
+                        {"why": "allele lost",
+                         "gens_since_origin": pop.generation - st.gen,
+                         "deadline_in": st.deadline - pop.generation})
                     failed_at = stage_of[sid]
                     break
                 if confirmed.get(sid):
@@ -524,6 +654,13 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                         confirmed[sid] = True
                         recorder.real[sid].established = True
                     else:
+                        stage_tally.setdefault(sid, []).append(
+                            {"why": "short at deadline",
+                             "count": total, "need_count": est_threshold(st.plan.s),
+                             "fixed": done,
+                             "surviving_origins": surviving,
+                             "need_origins": soft_target,
+                             "blocked_by": ("count" if not strong else "origins")})
                         failed_at = stage_of[sid]
                         break
             if failed_at is not None:
@@ -563,10 +700,17 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
 
         if failed_at is not None:
             attempts[failed_at] += 1
+            sid_f = stages[failed_at].plan.sweep_id
+            if verbose and attempts[failed_at] % stage_report_every == 0:
+                print(f"  {sid_f}: {attempts[failed_at]} consecutive "
+                      f"establishment failures\n"
+                      + summarize_stage_failures({sid_f: stage_tally.get(sid_f, [])}),
+                      flush=True)
             if attempts[failed_at] > max_attempts_per_stage:
                 raise RuntimeError(
-                    f"{stages[failed_at].plan.sweep_id} failed to establish in "
-                    f"{max_attempts_per_stage} consecutive attempts")
+                    f"{sid_f} failed to establish in "
+                    f"{max_attempts_per_stage} consecutive attempts\n"
+                    + summarize_stage_failures(stage_tally))
             backtrack_to(failed_at)
             continue
 

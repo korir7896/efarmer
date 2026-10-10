@@ -57,6 +57,14 @@ def main():
                     help="skip replicate acceptance (plumbing smoke test only)")
     ap.add_argument("--seed-offset", type=int, default=0,
                     help="replicate index, for independent probe runs")
+    ap.add_argument("--max-attempts", type=int, default=800,
+                    help="establishment attempts per sweep before giving up; "
+                         "lower it on a diagnostic probe so a sweep that is "
+                         "failing systematically reports its cause in minutes "
+                         "rather than after the full budget")
+    ap.add_argument("--stage-report-every", type=int, default=50,
+                    help="print the accumulated establishment-failure causes "
+                         "for a sweep every this many consecutive failures")
     ap.add_argument("--quick", action="store_true",
                     help="small smoke-test scale, not the shipped replicate")
     args = ap.parse_args()
@@ -95,7 +103,9 @@ def main():
         seed = C.MASTER_SEED + 1000 * args.seed_offset
         t0 = time.time()
         _, rec, el = run_forward(cfg, n_cur, t_forward, plans, seed=seed,
-                                 traj_thin=10, accept_fn=None)
+                                 traj_thin=10, accept_fn=None,
+                                 max_attempts_per_stage=args.max_attempts,
+                                 stage_report_every=args.stage_report_every)
         ok, problems = S.check_acceptance(rec.real)
         print(f"\nforward {el:.0f}s  seed {seed}  accepted={ok}")
         print(f"{'id':<6}{'scheduled':<16}{'realized':<16}{'s':>8}"
@@ -120,6 +130,8 @@ def main():
         t0 = time.time()
         ts, rec, el = run_forward(cfg, n_cur, t_forward, plans, seed=seed,
                                   traj_thin=10,
+                                  max_attempts_per_stage=args.max_attempts,
+                                  stage_report_every=args.stage_report_every,
                                   accept_fn=None if args.no_accept
                                   else S.failing_sweeps)
         ok, problems = S.check_acceptance(rec.real)

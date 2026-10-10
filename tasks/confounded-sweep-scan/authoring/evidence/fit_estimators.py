@@ -37,51 +37,73 @@ def smooth(v, k=15):
     return out
 
 
+def grid_step(mid) -> float:
+    """One step of the scan grid, used as the floor on every width.
+
+    A contiguous run of windows is measured as the distance between the
+    centres of its first and last window, so a run ONE window wide measures
+    zero, and so does a statistic that never crosses its threshold at all.
+    Both mean "narrower than this scan can resolve", which is a measurement,
+    not a missing value -- but these estimators are log-linear in the widths,
+    and log(0) discards the replicate from the fit and leaves the shipped
+    model unable to score that sweep. Reporting one step instead keeps the
+    quantity monotone in the right direction (a weaker sweep has a narrower
+    footprint) and keeps it finite. The floor is read off the grid rather
+    than hard-coded so it stays correct if the scan resolution changes.
+    """
+    m = np.sort(np.asarray(mid, float))
+    d = np.diff(m)
+    d = d[d > 0]
+    return float(np.median(d)) if d.size else 1.0
+
+
 def contiguous_width(mid, v, bg, centre, frac):
     """Span of the contiguous run around the centre below floor+frac*(bg-floor)."""
     vs = smooth(v)
+    step = grid_step(mid)
     near = (np.abs(mid - centre) <= 1_200_000) & np.isfinite(vs)
     if not near.any():
-        return 0.0
+        return step
     floor = float(vs[near].min())
     level = floor + frac * (bg - floor)
     order = np.argsort(mid); m, vv = mid[order], vs[order]
     below = np.isfinite(vv) & (vv < level)
     if not below.any():
-        return 0.0
+        return step
     i0 = int(np.argmin(np.abs(m - centre)))
     if not below[i0]:
         cand = np.where(below)[0]
         i0 = int(cand[np.argmin(np.abs(m[cand] - centre))])
         if abs(m[i0] - centre) > 600_000:
-            return 0.0
+            return step
     lo = hi = i0
     while lo - 1 >= 0 and below[lo - 1]:
         lo -= 1
     while hi + 1 < len(m) and below[hi + 1]:
         hi += 1
-    return float(m[hi] - m[lo])
+    return max(float(m[hi] - m[lo]), step)
 
 
 def high_width(mid, v, bg, centre, mult):
     """Span of the contiguous run around the centre ABOVE mult*background."""
     vs = smooth(v)
+    step = grid_step(mid)
     order = np.argsort(mid); m, vv = mid[order], vs[order]
     above = np.isfinite(vv) & (vv > mult * bg)
     if not above.any():
-        return 0.0
+        return step
     i0 = int(np.argmin(np.abs(m - centre)))
     if not above[i0]:
         cand = np.where(above)[0]
         i0 = int(cand[np.argmin(np.abs(m[cand] - centre))])
         if abs(m[i0] - centre) > 600_000:
-            return 0.0
+            return step
     lo = hi = i0
     while lo - 1 >= 0 and above[lo - 1]:
         lo -= 1
     while hi + 1 < len(m) and above[hi + 1]:
         hi += 1
-    return float(m[hi] - m[lo])
+    return max(float(m[hi] - m[lo]), step)
 
 
 def rows(subdir="training"):
@@ -243,6 +265,7 @@ def score_t(cands, data):
     for rate, rho, combo, n_ok in results[:10]:
         print(f"    {'+'.join(combo):<36} inside tolerance: {rate:.2f}  "
               f"rho {rho:+.2f}  (n={n_ok})")
+    return results[0][2] if results else None
 
 
 # Selected by leave-one-configuration-out score over all 37 calibration
@@ -252,13 +275,29 @@ def score_t(cands, data):
 # (pi_ratio, w_pi_75) for soft_complete, which scores a rank correlation of
 # 0.10-0.29 on the wider set: it was chosen on noise, and refitting it away
 # from those ten points returns an almost flat model.
+# Chosen on held-out accuracy first and rank correlation second, from the
+# tables score_s() and score_t() print over all 120 replicates. Three of the
+# four s models take rate_ratio, which is the whole reason the cold-spot
+# replicates exist: a footprint measured in base pairs is wider where the
+# local recombination rate is lower, so a width-based strength estimate that
+# ignores the rate reads a cold-spot sweep as stronger than it is.
+#
+# soft_complete is the one place where the best-accuracy and best-ordering
+# models differ: w_pi_50+w_pi_75 reaches 0.95 within tolerance but orders the
+# class at rho +0.32, while snp_ratio+w_pi_50+rate_ratio gives up four points
+# of accuracy for rho +0.54. The POOLED rank correlation is what the verifier
+# scores, this class contributes three of the fifteen shipped sweeps, and one
+# of those three sits in a cold spot -- so the model that reads the rate wins
+# on both counts.
 CHOSEN_S = {
-    "hard_complete": ("pi_min_ratio", "w_pi_50"),    # rho 0.85, n=28/28
-    "hard_partial":  ("pi_ratio", "w_h12_15"),       # rho 0.65, n=19/21
-    "soft_complete": ("h12_ratio", "w_h12_15"),      # rho 0.40, n=26/26
-    "soft_partial":  ("w_h12_2", "w_h12_15"),        # rho 0.87, n=24/24
+    "hard_complete": ("w_h12_2", "w_h12_15", "rate_ratio"),   # 0.90, rho +0.55
+    "hard_partial":  ("snp_ratio", "w_h12_15", "rate_ratio"), # 1.00, rho +0.83
+    "soft_complete": ("snp_ratio", "w_pi_50", "rate_ratio"),  # 0.91, rho +0.54
+    "soft_partial":  ("w_pi_50", "w_h12_15", "rate_ratio"),   # 1.00, rho +0.66
 }
-CHOSEN_T = ("h12_ratio", "w_pi_50")
+# Two features, not three: h12_ratio+w_snp_50+rate_ratio scores the same 0.88
+# at a slightly worse rho, so the extra width term buys nothing.
+CHOSEN_T = ("h12_ratio", "rate_ratio")
 
 
 def fit(data, combo, target, cls=None, completed=False):
@@ -274,13 +313,15 @@ def fit(data, combo, target, cls=None, completed=False):
     return rs, coef, y, held
 
 
-def emit(data):
-    print("\n=== CHOSEN ESTIMATORS ===")
+def emit(data, chosen_s=None, chosen_t=None, tag=""):
+    chosen_s = chosen_s or CHOSEN_S
+    chosen_t = chosen_t or CHOSEN_T
+    print(f"\n=== CHOSEN ESTIMATORS{tag} ===")
     print("# s_hat = exp(a) * prod(feature_i ** b_i), one fit per class.")
     print("S_MODEL = {")
     pooled_hat, pooled_true = [], []
     for c in CLASSES:
-        combo = CHOSEN_S[c]
+        combo = chosen_s[c]
         rs, coef, y, held = fit(data, combo, "s_true", cls=c)
         ok = np.isfinite(held)
         err = np.exp(np.abs(held[ok] - y[ok]))
@@ -300,12 +341,12 @@ def emit(data):
           f"(gates: {GATES['min_s_accuracy']:.2f} and "
           f"{GATES['min_s_rank_corr']:.2f})")
 
-    rs, coef, y, held = fit(data, CHOSEN_T, "t_true",
+    rs, coef, y, held = fit(data, chosen_t, "t_true",
                             cls="hard_complete", completed=True)
     ok = np.isfinite(held)
     tt = np.exp(y[ok]); th = np.exp(held[ok])
     inside = np.abs(th - tt) <= np.array([time_tolerance(x) for x in tt])
-    print(f"\nT_MODEL = dict(feats={list(CHOSEN_T)!r}, "
+    print(f"\nT_MODEL = dict(feats={list(chosen_t)!r}, "
           f"coef=[{', '.join(f'{v:.5g}' for v in coef)}])")
     print(f"#   n={len(rs)} hard_complete, t_true {int(tt.min())}-{int(tt.max())}; "
           f"held-out inside tolerance on {int(inside.sum())}/{len(tt)} = "
@@ -331,6 +372,27 @@ if __name__ == "__main__":
     keys = ["pi_ratio", "pi_min_ratio", "h12_ratio", "snp_ratio",
             "w_pi_50", "w_pi_75", "w_h12_2", "w_h12_15", "w_snp_50",
             "rate_ratio"]
+    # Drop any predictor that is not strictly positive on every replicate.
+    # These models are log-linear, so a feature of zero is not a weak
+    # measurement, it is log(0): the fit silently discards that replicate and
+    # the shipped estimator cannot score that sweep at all. w_h12_2 and
+    # w_h12_15 are exactly this case -- contiguous_high_width() returns 0.0
+    # when H12 never rises above its multiple of background around the
+    # centre, which happens for 13 of 42 hard_complete replicates at the 2x
+    # threshold. A model built on one of them scored 0.90 within tolerance on
+    # the 29 replicates where it was defined and could not estimate s for the
+    # weakest completed sweep in the shipped zoo. Measuring the candidates
+    # rather than listing them keeps this honest if the width code changes.
+    if "--allow-zero-width" not in sys.argv:
+        dropped = [k for k in keys
+                   if not all(np.isfinite(r[k]) and r[k] > 0 for r in data)]
+        if dropped:
+            counts = {k: sum(1 for r in data
+                             if np.isfinite(r[k]) and r[k] > 0) for k in dropped}
+            print("  excluded as not strictly positive on every replicate: "
+                  + ", ".join(f"{k} ({counts[k]}/{len(data)})"
+                              for k in dropped))
+        keys = [k for k in keys if k not in set(dropped)]
     singles = [(k,) for k in keys]
     pairs = [c for c in itertools.combinations(keys, 2)]
     # Triples that include rate_ratio only: a (level, width, rate) model is
@@ -339,6 +401,120 @@ if __name__ == "__main__":
     triples = [c + ("rate_ratio",)
                for c in itertools.combinations(
                    [k for k in keys if k != "rate_ratio"], 2)]
+    if "--cold-transfer" in sys.argv:
+        # The question the cold spots were put there to ask, posed the way an
+        # analyst would actually meet it: calibrate a width-based strength
+        # estimator on BASE-RATE simulations only -- which is what you get if
+        # you simulate your null at the genome's average recombination rate,
+        # as both agent transcripts on the previous instance did -- and then
+        # apply it to the sweeps that sit inside a wide cold spot.
+        #
+        # This is NOT the same question as --no-rate, and the two answers
+        # differ. A rate-blind model FITTED on a mixture of base-rate and
+        # cold-spot replicates absorbs the stretching into its coefficients
+        # and loses almost nothing. A rate-blind model fitted at the base
+        # rate alone has never seen a stretched footprint, and the error it
+        # makes on one is the real cost of ignoring the map.
+        base = [r for r in data if abs(r["rate_ratio"] - 1.0) < 1e-9]
+        cold = [r for r in data if abs(r["rate_ratio"] - 1.0) >= 1e-9]
+        print(f"\n### COLD-SPOT TRANSFER: fit on {len(base)} base-rate "
+              f"replicates, test on {len(cold)} cold-spot replicates ###")
+        f = GATES["s_within_factor"]
+        # Two arms, and the difference between them is the point.
+        #
+        #   base-only   trained on base-rate replicates alone. Note that
+        #               rate_ratio is identically 1.0 in every one of those
+        #               rows, so log(rate_ratio) is a column of zeros and its
+        #               coefficient is not identifiable: a "rate-aware" model
+        #               trained here IS the rate-blind model, numerically.
+        #               That is why this arm is reported with the rate term
+        #               dropped -- carrying it would print the same numbers
+        #               under a name that implies a correction is happening.
+        #               The lesson is that the rate exponent cannot be learned
+        #               without simulating a cold spot.
+        #   plus-cold   the reference's own situation: trained on the
+        #               base-rate replicates plus the cold-spot replicates
+        #               from OTHER configurations, held out by configuration
+        #               so no test sweep's own configuration is in its
+        #               training set.
+        for name, combo_of, use_cold in (
+                ("base-rate calibration only, rate term dropped "
+                 "(the shortcut)",
+                 lambda c: tuple(k for k in CHOSEN_S[c] if k != "rate_ratio"),
+                 False),
+                ("base-rate plus other configurations' cold spots "
+                 "(the reference)", lambda c: CHOSEN_S[c], True)):
+            print(f"\n  {name}")
+            allerr = []
+            for c in CLASSES:
+                combo = combo_of(c)
+                def usable(rows):
+                    return [r for r in rows if r["cls"] == c
+                            and np.isfinite(r["s_true"]) and r["s_true"] > 0
+                            and all(np.isfinite(r[k]) and r[k] > 0
+                                    for k in combo)]
+                te = usable(cold)
+                if not te:
+                    print(f"    {c:<14} (no cold-spot replicates)")
+                    continue
+                pred, yt = [], []
+                for r in te:
+                    tr = usable(base)
+                    if use_cold:
+                        tr = tr + [q for q in usable(cold)
+                                   if q["cfg"] != r["cfg"]]
+                    if len(tr) < len(combo) + 2:
+                        continue
+                    X = np.log(np.array([[q[k] for k in combo] for q in tr],
+                                        float))
+                    y = np.log(np.array([q["s_true"] for q in tr], float))
+                    A = np.column_stack([np.ones(len(tr))] + list(X.T))
+                    coef, *_ = np.linalg.lstsq(A, y, rcond=None)
+                    xr = np.log(np.array([r[k] for k in combo], float))
+                    pred.append(float(np.concatenate([[1.0], xr]) @ coef))
+                    yt.append(float(np.log(r["s_true"])))
+                if not pred:
+                    print(f"    {c:<14} (not enough training replicates)")
+                    continue
+                pred = np.array(pred); yt = np.array(yt)
+                # Signed, in the direction that matters: a stretched footprint
+                # read without the rate looks like a stronger sweep, so the
+                # bias should be positive if that is what is happening.
+                bias = float(np.exp(np.mean(pred - yt)))
+                err = np.exp(np.abs(pred - yt))
+                allerr += list(err)
+                print(f"    {c:<14} n={len(te):<3} median error "
+                      f"{float(np.median(err)):.2f}x  worst "
+                      f"{float(err.max()):.2f}x  mean bias {bias:.2f}x  "
+                      f"within {f}: {float((err <= f).mean()):.2f}")
+            if allerr:
+                a = np.array(allerr)
+                print(f"    {'POOLED':<14} n={len(a):<3} median error "
+                      f"{float(np.median(a)):.2f}x  worst {float(a.max()):.2f}x"
+                      f"{'':19}within {f}: {float((a <= f).mean()):.2f}")
+        sys.exit(0)
+    if "--no-rate" in sys.argv:
+        # What the best strength and age models can do when they are NOT
+        # allowed to see the local recombination rate. This is the shortcut
+        # both agent transcripts on the previous instance took -- read
+        # strength off the physical width of the footprint -- and the three
+        # sweeps sitting inside wide cold spots are what it costs. Printing
+        # it is the only way the claim "the rate correction is required, not
+        # decorative" is a measurement rather than an assertion.
+        singles = [c for c in singles if "rate_ratio" not in c]
+        pairs = [c for c in pairs if "rate_ratio" not in c]
+        triples = []
+        print("\n### RATE-BLIND: rate_ratio withheld from every model ###")
+        best_s = score_s(singles + pairs, data)
+        best_t = score_t(singles + pairs, data)
+        # The per-class tables above are not the comparison that matters: the
+        # verifier scores a single POOLED accuracy and a single POOLED rank
+        # correlation over every matched call. So emit the best rate-blind
+        # model per class and pool it exactly as the rate-aware one is
+        # pooled, which is the only like-for-like number.
+        emit(data, chosen_s=best_s, chosen_t=best_t,
+             tag=", RATE-BLIND, best available per class")
+        sys.exit(0)
     if "--emit" in sys.argv:
         emit(data)
     else:
