@@ -172,32 +172,45 @@ def triviality():
     # rather than assert it: over every match set the recall gates permit,
     # draw random reported coefficients and count how often they clear the
     # gate. The worst case over match sets is the number that matters.
+    # A constant with noise added passes magnitude and spread, so only the
+    # ordering gate stands against it -- and at this few matched calls a
+    # random order clears the threshold some of the time. Measure that rather
+    # than assert it.
+    #
+    # The escape rate depends only on the NUMBER of matched calls, not on
+    # which sweeps they are: a random answer's rank correlation against any
+    # fixed set of n distinct truths has the same null distribution. So this
+    # enumerates the distinct match-set SIZES the recall gates permit rather
+    # than all of the match sets, which is the same measurement a few
+    # thousand times cheaper.
     rng = random.Random(20_240_101)
-    trials = 20_000
-    by_n, worst_esc, worst_n = {}, 0.0, 0
-    for combo in itertools.product(*choices):
-        vals = [v for part in combo for v in part]
-        n = len(vals)
+    trials = 40_000
+    sizes = sorted({len([v for part in combo for v in part])
+                    for combo in itertools.product(*choices)})
+    by_n = {}
+    for n in sizes:
+        truth_vals = list(range(n))          # any n distinct values will do
         hits = 0
         for _ in range(trials):
             rep = [rng.random() for _ in range(n)]
-            if spearman(rep, vals) >= GATES["min_s_rank_corr"]:
+            if spearman(rep, truth_vals) >= GATES["min_s_rank_corr"]:
                 hits += 1
-        esc = hits / trials
-        by_n[n] = max(by_n.get(n, 0.0), esc)
-        if esc > worst_esc:
-            worst_esc, worst_n = esc, n
+        by_n[n] = hits / trials
     print("s, constant plus noise: passes magnitude and spread, so only the "
           "ordering gate stands against it. Measured over "
-          f"{trials} random answers per match set, worst case by match-set "
-          "size:")
-    for n in sorted(by_n):
+          f"{trials} random answers per match-set size:")
+    for n in sizes:
+        rate = by_n[n]
+        how_often = f"about one in {1 / rate:.1f}" if rate else "never observed"
         print(f"    {n} matched calls: clears the ordering gate "
-              f"{by_n[n]:.3f} of the time (about one in {1 / by_n[n]:.1f})")
-    print(f"    worst case over every match set: {worst_esc:.3f} at "
-          f"{worst_n} matched calls. That is the honest limit of what ten "
-          f"instances support -- the ordering gate excludes a constant with "
-          f"certainty and a jittered constant only most of the time.")
+              f"{rate:.4f} of the time ({how_often})")
+    worst_n = max(by_n, key=lambda k: by_n[k])
+    print(f"    worst case over every match set the recall gates permit: "
+          f"{by_n[worst_n]:.4f} at {worst_n} matched calls, against a "
+          f"threshold of {GATES['min_s_rank_corr']:.2f}. That is the honest "
+          f"limit of what fifteen instances support -- the ordering gate "
+          f"excludes a constant with certainty and a jittered constant with "
+          f"this probability.")
 
     dated = [s for s in truth["sweeps"] if s["class"] in TIMED_CLASSES
              and s.get("completion_gens_ago") is not None]

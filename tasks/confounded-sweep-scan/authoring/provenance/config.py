@@ -140,7 +140,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
     # --- soft, complete: many origins, recent enough that several survive --
-    ("sw06", 1, 0.600,  0.0220,  700, 130, "soft_complete"),
+    ("sw06", 1, 0.600,  0.0220,  700, 300, "soft_complete"),
     ("sw07", 3, 0.460,  0.0500,  420,  80, "soft_complete"),
     ("sw08", 4, 0.3429, 0.0095, 1500, 150, "soft_complete"),   # COLD, weakest
     # --- hard, partial: one origin, still segregating ---------------------

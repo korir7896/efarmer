@@ -52,20 +52,31 @@ GATES: Dict[str, Any] = {
     # are the loose ones at 31 kb median and 211 kb worst, because their
     # diversity dip is shallow and only H12 locates them at all.
     #
-    # Widening this cannot let a sloppy answer through: true sweeps are at
-    # least 2 Mb apart, so there is no ambiguity about which one a call
-    # belongs to, and spraying calls is caught by the false-positive cap
-    # rather than by the window.
+    # The window cannot be ambiguous even though two sweep PAIRS now sit 753
+    # and 826 kb apart: half of the smaller separation is 376 kb, so a call
+    # within 250 kb of one of them is outside the window of the other, and
+    # match() assigns greedily by ascending distance with each true sweep
+    # taken at most once. Widening it cannot let a sloppy answer through
+    # either -- spraying calls is caught by the dedupe radius and the
+    # false-positive cap, not by the window.
     "match_window_bp": 250_000,
     # Two calls closer together than this are collapsed before grading, so an
-    # agent cannot manufacture recall by carpeting a region with calls.
+    # agent cannot manufacture recall by carpeting a region with calls. It is
+    # deliberately equal to the match window and well under the 753 kb
+    # minimum separation of the close pairs, so resolving a pair is possible
+    # but requires actually resolving it.
     "dedupe_bp": 250_000,
 
     # --- demography ---
     # Sizes are graded multiplicatively. N_ancestral and N_current are
     # identifiable from the site-frequency spectrum given the mutation rate.
-    "N_ancestral_factor": 1.60,
-    "N_current_factor": 1.60,
+    # Tightened from 1.60: two independent agent transcripts recovered both
+    # sizes to within 8% and 24% respectively, so 1.60 was not measuring
+    # anything. The sample is 40 diploids rather than 50, which costs the fit
+    # some precision, so this is not tightened as far as those transcripts
+    # alone would allow.
+    "N_ancestral_factor": 1.50,
+    "N_current_factor": 1.50,
     # The DEPTH and DURATION of a bottleneck are not separately identifiable
     # from the spectrum: a short severe contraction and a longer milder one
     # leave almost the same coalescent signature, because what the genealogy
@@ -74,7 +85,7 @@ GATES: Dict[str, Any] = {
     # land on.  So the gate is on the identifiable combination, and the
     # reported history must still be a real contraction followed by a
     # recovery (test_bottleneck_is_a_bottleneck).
-    "bottleneck_strength_factor": 2.50,
+    "bottleneck_strength_factor": 2.20,
     # The bottleneck's TIMING is not graded at all.  Measured on four
     # independent neutral replicates with known truth, a competent
     # spectrum-based fit recovered the expansion time at 0.64, 0.68, 1.31 and
@@ -82,29 +93,37 @@ GATES: Dict[str, Any] = {
     # and a tolerance loose enough to admit 2.63 is wide enough to be
     # meaningless. The objective has a broad flat minimum spanning roughly
     # 1500 to 4000 generations for a truth of 3000, so this is a property of
-    # the information in a site frequency spectrum from 100 haplotypes, not
-    # of the search. Methods that use linkage or sequentially-Markov
+    # the information in a site frequency spectrum from a sample this size,
+    # not of the search. Methods that use linkage or sequentially-Markov
     # inference date bottlenecks far better, but a gate cannot demand a
     # capability the reference lacks and still be guaranteed passable.
-    #
-    # What remains is still substantive: both sizes to within 60%, the
-    # bottleneck's integrated severity to within a factor of 2.5, and a
-    # history that genuinely contracts and recovers. A constant-size answer
-    # fails on severity and on structure.
 
     # --- detection ---
-    # Per-class minimum recall, as a count over the true sweeps of that class.
+    # Per-class minimum recall, as a count over the true sweeps of that
+    # class. The zoo carries 5 hard_complete, 3 soft_complete, 4 hard_partial
+    # and 3 soft_partial, so this floor is ten matched calls out of fifteen
+    # true sweeps -- against six out of ten in the version two agent
+    # transcripts cleared with slack to spare.
+    #
+    # hard_complete is set to 4 of 5 because the timing gate is graded over
+    # the matched hard_complete sweeps and needs four of them: recall has to
+    # supply what timing grades.
     "min_recall_per_class": {
-        "hard_complete": 3,
-        "soft_complete": 1,
-        "hard_partial": 1,
-        "soft_partial": 1,
+        "hard_complete": 4,
+        "soft_complete": 2,
+        "hard_partial": 2,
+        "soft_partial": 2,
     },
-    # Unmatched calls allowed genome-wide. Cold-spot calls count here.
+    # Unmatched calls allowed genome-wide. Cold-spot calls count here, and
+    # there are now three deep narrow cold spots carrying no sweep at all,
+    # over 70 Mb rather than 48, so the budget is spent faster.
     "max_false_positives": 1,
 
     # --- characterisation, over matched calls only ---
-    "min_class_accuracy": 0.70,
+    # Raised from 0.70: at ten matched calls 0.75 allows two errors where
+    # 0.70 allowed three, and one agent transcript scored 9 of 9 on the
+    # previous zoo, which a 70% gate cannot distinguish from 7 of 9.
+    "min_class_accuracy": 0.75,
     # Selection coefficients are graded three ways, and all three must hold.
     #
     # MAGNITUDE: at least this fraction within a multiplicative factor.
@@ -114,38 +133,31 @@ GATES: Dict[str, Any] = {
     # ORDER: Spearman rank correlation against the truth. A constant is all
     #   ties, which scores zero by the convention in grading.spearman().
     #
-    # The honest limit of these three is worth stating, because nine matched
-    # calls is not many. A constant is excluded with certainty, by two of the
-    # three. A constant with noise added to it passes magnitude and spread,
-    # and is caught only by the rank gate, which at nine points has a null
-    # standard deviation of 0.35 -- so it escapes roughly one time in five.
-    #
-    # The deterministic alternative was measured and rejected. Tightening the
-    # factor until no constant can pass the magnitude test needs f <= 1.5:
-    # gate_feasibility.py enumerates all 135 match sets the recall gates
-    # permit and the best any constant achieves is 0.667 at f = 1.5 but 1.000
-    # at f = 1.8, because the recall gates allow a match set whose true
-    # coefficients span only 3.2 (0.025 to 0.080). At f = 1.5 the reference
-    # scores 0.778, one error from failing, and a second independent
-    # implementation scores 0.286. A gate that only one method can clear, by
-    # one instance, is worse than one that a noisy cheat escapes one time in
-    # five.
-    "s_within_factor": 2.50,
-    "min_s_accuracy": 0.70,
-    "min_s_spread": 2.00,
-    "min_s_rank_corr": 0.30,
-    "min_matched_for_rank": 5,
+    # The true coefficients span a factor of 12.0 across the zoo, and s is
+    # non-monotone in sweep age, so the rank gate cannot be earned by dating
+    # sweeps instead of measuring their strength. Three of the fifteen sweeps
+    # sit inside a wide recombination cold spot, where reading s off physical
+    # footprint width overestimates it about threefold; scaling width by the
+    # local rate recovers it. That is what the magnitude and rank gates
+    # together are for.
+    "s_within_factor": 2.20,
+    "min_s_accuracy": 0.75,
+    "min_s_spread": 3.00,
+    "min_s_rank_corr": 0.50,
+    "min_matched_for_rank": 8,
     # Timing is graded only over sweeps whose TRUE class is hard_complete --
     # grading against the true class, not the reported one, so a
-    # misclassification is not punished twice. Their true completion times in
-    # the shipped replicate are spread so that every tolerance window is
-    # disjoint from every other except one overlapping pair, which caps any
-    # single constant at two of the four. Requiring three therefore cannot be
-    # met without dating the sweeps individually, and since class no longer
+    # misclassification is not punished twice. The five realized completion
+    # times are 130, 348, 791, 1662 and 2498 generations ago, spaced so that
+    # no three tolerance windows have a point in common: the best a single
+    # constant can do is two of the five, for any draw the generator would
+    # accept, which gate_feasibility.design_guarantee() checks over the
+    # acceptance windows rather than over this one replicate. Requiring four
+    # therefore cannot be met by one constant, and since class no longer
     # carries age, a class-conditional constant is just a constant here.
-    "time_rel_tol": 0.50,
-    "time_abs_tol_gens": 150,
-    "min_time_correct": 3,
+    "time_rel_tol": 0.40,
+    "time_abs_tol_gens": 120,
+    "min_time_correct": 4,
 }
 
 
