@@ -77,51 +77,70 @@ def realized_class(r: SweepRealization) -> str:
     This is the definition the verifier grades against, and it is a function
     of the simulation's recorded trajectory -- never of a solver's output.
 
-    Softness is defined as two or more surviving independent origins of the
-    beneficial allele, which is the standard definition of a multiple-origin
-    soft sweep and is exactly what the haplotype statistics respond to.
+    Two independent binary properties, crossed:
+
+      * COMPLETE if the beneficial allele passed forward.COMPLETION_FREQ
+        (0.98), PARTIAL if it is still below that at the present;
+      * SOFT if two or more independent origins of the allele are still
+        represented in the population, HARD if exactly one is. That is the
+        standard definition of a multiple-origin soft sweep and is exactly
+        what the haplotype statistics respond to.
+
+    A sweep's AGE is deliberately not part of its class. An earlier version
+    split the completed hard sweeps into "recent" and "old" at a fixed
+    boundary, which meant class carried age: a submission could satisfy the
+    timing gate with one constant per class without dating anything. Age is
+    now graded only as a continuous quantity.
     """
-    if not r.completed:
-        return "partial"
-    if r.n_origins_surviving >= 2:
-        return "soft_standing"
-    boundary = C.ACCEPT["hard_recent_complete"]["fix_ago_max"]
-    return ("hard_recent_complete" if r.completion_gens_ago <= boundary
-            else "hard_old_complete")
+    hard = r.n_origins_surviving < 2
+    done = r.completed
+    return ("hard_complete" if (hard and done) else
+            "hard_partial" if (hard and not done) else
+            "soft_complete" if done else "soft_partial")
 
 
 def check_acceptance(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str]]:
-    """Does this replicate realize every intended class?"""
+    """Does this replicate realize what each sweep was scheduled to be?
+
+    Acceptance is per sweep, not per class, because the four hard_complete
+    sweeps are scheduled to finish at four widely separated times and each
+    has its own window. The windows are what keep the graded completion
+    times far enough apart that no single number can satisfy the timing gate
+    (see authoring/evidence/gate_feasibility.py, which checks exactly that
+    against the realized truth).
+    """
     problems: List[str] = []
     for sid, r in sorted(reals.items()):
-        rule = C.ACCEPT[r.intended_class]
-        if rule["must_fix"]:
+        rule = C.ACCEPT[sid]
+        want = rule["class"]
+        if rule["must_complete"]:
             if not r.completed:
                 problems.append(
-                    f"{sid} ({r.intended_class}): did not complete, freq={r.final_freq:.3f}")
+                    f"{sid} ({want}): did not complete, freq={r.final_freq:.3f}")
                 continue
-            if not (rule["fix_ago_min"] <= r.completion_gens_ago <= rule["fix_ago_max"]):
+            if not (rule["done_min"] <= r.completion_gens_ago <= rule["done_max"]):
                 problems.append(
-                    f"{sid} ({r.intended_class}): completed {r.completion_gens_ago} "
-                    f"gens ago, want [{rule['fix_ago_min']},{rule['fix_ago_max']}]")
-            if r.intended_class == "soft_standing" and r.n_origins_surviving < 2:
-                problems.append(
-                    f"{sid}: only {r.n_origins_surviving} surviving origin(s), "
-                    f"so the sweep is not soft")
-            if r.intended_class != "soft_standing" and r.n_origins_surviving > 1:
-                problems.append(
-                    f"{sid}: {r.n_origins_surviving} surviving origins on a sweep "
-                    f"meant to be hard")
+                    f"{sid} ({want}): completed {r.completion_gens_ago} "
+                    f"gens ago, want [{rule['done_min']},{rule['done_max']}]")
         else:
             if r.completed:
-                problems.append(f"{sid} ({r.intended_class}): completed, wanted partial")
+                problems.append(f"{sid} ({want}): completed, wanted partial")
                 continue
             if not (rule["freq_min"] <= r.final_freq <= rule["freq_max"]):
                 problems.append(
-                    f"{sid} ({r.intended_class}): freq {r.final_freq:.3f}, "
+                    f"{sid} ({want}): freq {r.final_freq:.3f}, "
                     f"want [{rule['freq_min']},{rule['freq_max']}]")
-        if realized_class(r) != r.intended_class:
-            problems.append(f"{sid}: realized class {realized_class(r)} != intended {r.intended_class}")
+        if want.startswith("soft") and r.n_origins_surviving < 2:
+            problems.append(
+                f"{sid}: only {r.n_origins_surviving} surviving origin(s), "
+                f"so the sweep is not soft")
+        if want.startswith("hard") and r.n_origins_surviving > 1:
+            problems.append(
+                f"{sid}: {r.n_origins_surviving} surviving origins on a sweep "
+                f"meant to be hard")
+        if realized_class(r) != want:
+            problems.append(
+                f"{sid}: realized class {realized_class(r)} != scheduled {want}")
     return (len(problems) == 0), problems
 
 

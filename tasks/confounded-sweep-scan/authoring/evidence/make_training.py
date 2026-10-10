@@ -32,12 +32,17 @@ WIN, STEP = 50_000, 10_000
 CHROM_LEN = C.CHROM_LEN
 SWEEP_POS = 6_143_879          # a non-round position near the middle
 
-# (label, s, origin_gens_ago, n_origins)
+# Default (s, origin_gens_ago, n_origins) per class. The shipped zoo spreads
+# s over a factor of 9.4 WITHIN as well as across classes, and the features
+# that classify a sweep depend on s, so calibration runs several
+# configurations per class rather than one: these defaults are overridden
+# from the command line by authoring/evidence/run_training.sh, which is the
+# record of what was actually simulated.
 CLASS_CONFIGS = {
-    "hard_recent_complete": (0.035, 750, 1),
-    "hard_old_complete":    (0.028, 2150, 1),
-    "soft_standing":        (0.032, 600, 100),
-    "partial":              (0.018, 430, 1),
+    "hard_complete": (0.030, 710, 1),
+    "soft_complete": (0.045, 380, 100),
+    "hard_partial":  (0.014, 530, 1),
+    "soft_partial":  (0.060, 170, 12),
 }
 
 

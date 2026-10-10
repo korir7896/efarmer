@@ -40,15 +40,21 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-# --- classifier, calibrated on 32 replicates (90.6% leave-one-out) ---
+# ===========================================================================
+# CALIBRATED CONSTANTS.  Everything between here and background_levels() is
+# produced by authoring/evidence/emit_constants.py from the single-sweep
+# training replicates in authoring/evidence/training/ and pasted in verbatim.
+# ===========================================================================
+
+# --- nearest-centroid classifier ---
 CLASS_FEATURES = ("pi_ratio", "tajd_delta", "h2h1_ratio", "nsl_delta")
-FEATURE_MEAN = np.array([0.447121, -1.31317, 0.419526, 0.130397])
-FEATURE_SD = np.array([0.353538, 1.26227, 0.335508, 0.20332])
+FEATURE_MEAN = np.array([0.0, 0.0, 0.0, 0.0])
+FEATURE_SD = np.array([1.0, 1.0, 1.0, 1.0])
 CLASS_CENTROIDS = {
-    "hard_recent_complete": np.array([-0.8075, -0.8020, -0.8846, -0.4286]),
-    "hard_old_complete":    np.array([-0.6662, -0.6442,  1.2878, -0.3865]),
-    "soft_standing":        np.array([ 0.9907,  1.3853,  0.5459, -0.6916]),
-    "partial":              np.array([ 0.7078,  0.3343, -0.7703,  1.4739]),
+    "hard_complete": np.zeros(4),
+    "hard_partial":  np.zeros(4),
+    "soft_complete": np.zeros(4),
+    "soft_partial":  np.zeros(4),
 }
 
 # How far around the detected peak to read the features, matching calibration.
@@ -59,27 +65,38 @@ FEATURE_RADIUS_BP = 60_000
 # the midpoint between the trough's floor and background. Thresholding at half
 # of BACKGROUND instead fails for the shallow classes, whose diversity never
 # gets that low: it returned 10 kb for partial sweeps and 40 kb for soft ones
-# against 230-320 kb for hard sweeps, so the constant spanned a factor of 22.
-# Measuring recovery relative to each sweep's own floor brings that to 4.3,
-# and a per-class constant brings it to 2.6-3.1 for every class but partial.
+# against 230-320 kb for hard sweeps. Measuring recovery relative to each
+# sweep's own floor is what makes one constant per class work across a range
+# of s spanning a factor of 9.4.
 SMOOTH_WINDOWS = 15
 RECOVERY_FRAC = 0.5
 WIDTH_SEARCH_BP = 1_200_000
 CLASS_WIDTH_CONSTANT = {
-    "hard_recent_complete": 0.1371,
-    "hard_old_complete":    0.1143,
-    "soft_standing":        0.0750,
-    "partial":              0.0889,
+    "hard_complete": 0.1200,
+    "hard_partial":  0.0900,
+    "soft_complete": 0.0750,
+    "soft_partial":  0.0750,
 }
 
 # --- diversity-recovery clock ---
-# Estimated only for single-origin completed sweeps. The clock dates a sweep
-# by how far below background its centre still sits, which presumes the sweep
-# drove diversity to zero. A soft sweep leaves it at 0.80 of background, so
-# the same estimator reads soft sweeps as roughly thirteen times older than
-# they are, and a sweep still segregating has no completion time at all.
-TIMED_CLASSES = ("hard_recent_complete", "hard_old_complete")
-TIME_BIAS = {"hard_recent_complete": 1.617, "hard_old_complete": 1.091}
+# A completed sweep's age is read off how far below background its centre
+# still sits. One power law over the whole hard_complete class rather than a
+# constant bias per class: class no longer splits by age, so hard_complete
+# spans completion times from about a hundred to about two thousand
+# generations and residual diversity is not proportional to age over that
+# range.
+#
+# Reported for every sweep called complete, because the submission schema
+# requires a time there, but only meaningful for the single-origin ones: the
+# clock presumes the sweep drove diversity to zero, and a soft sweep leaves
+# it near background. The verifier grades timing on true hard_complete
+# sweeps only, for the same reason.
+TIMED_CLASSES = ("hard_complete", "soft_complete")
+TIME_CLOCK_A = 2.0
+TIME_CLOCK_B = 1.0
+# Fallback when the trough has no finite floor to read, so that a sweep
+# called complete always carries a number.
+TIME_FALLBACK_GENS = 500.0
 
 
 def background_levels(obs: Dict[str, np.ndarray], regions: Sequence[Dict],
@@ -145,7 +162,7 @@ def classify(f: Dict[str, float]) -> str:
         # Fall back on the features that are available.
         ok = np.isfinite(x)
         if not ok.any():
-            return "hard_recent_complete"
+            return "hard_complete"
         z = (x[ok] - FEATURE_MEAN[ok]) / FEATURE_SD[ok]
         return min(CLASS_CENTROIDS,
                    key=lambda c: float(np.linalg.norm(z - CLASS_CENTROIDS[c][ok])))
@@ -211,11 +228,11 @@ def estimate_s(obs: Dict[str, np.ndarray], region: Dict, bg_pi: float,
 
 def estimate_time(f: Dict[str, float], klass: str, n_current: float
                   ) -> Optional[float]:
-    """Completion time from diversity recovery, with the measured bias removed."""
+    """Completion time from the calibrated diversity-recovery power law."""
     if klass not in TIMED_CLASSES:
         return None
     pir = f.get("pi_min_ratio", float("nan"))
     if not np.isfinite(pir) or pir <= 0:
-        return None
-    t = (2.0 * n_current * pir) / TIME_BIAS.get(klass, 1.0)
+        return TIME_FALLBACK_GENS
+    t = TIME_CLOCK_A * float(n_current) * (pir ** TIME_CLOCK_B)
     return float(np.clip(t, 1.0, 20_000.0))

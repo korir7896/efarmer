@@ -93,14 +93,21 @@ def main():
         gap = hi.min() - lo.max()
         print(f"      {'SEPARABLE, gap %.3f' % gap if gap > 0 else 'OVERLAPS by %.3f' % -gap}")
 
-    report("soft vs everything else",
-           ["hard_recent_complete", "hard_old_complete", "partial"],
-           ["soft_standing"], "tajima_d")
-    report("old vs everything else (hard only)",
-           ["hard_old_complete"],
-           ["hard_recent_complete", "partial"], "h12")
-    report("partial vs recent hard",
-           ["hard_recent_complete"], ["partial"], "pi")
+    # The two axes of the class scheme, one feature at a time. Each is the
+    # statistic that is supposed to carry that axis on its own; the point of
+    # the report is that none of them does.
+    report("soft vs hard, on Tajima's D",
+           ["hard_complete", "hard_partial"],
+           ["soft_complete", "soft_partial"], "tajima_d")
+    report("soft vs hard, on H2/H1",
+           ["hard_complete", "hard_partial"],
+           ["soft_complete", "soft_partial"], "h2_h1")
+    report("complete vs partial, on diversity",
+           ["hard_complete", "soft_complete"],
+           ["hard_partial", "soft_partial"], "pi")
+    report("complete vs partial, on extreme-nSL fraction",
+           ["hard_complete", "soft_complete"],
+           ["hard_partial", "soft_partial"], "nsl_frac")
 
     # ------------------------------------------------------------------
     # estimator calibration

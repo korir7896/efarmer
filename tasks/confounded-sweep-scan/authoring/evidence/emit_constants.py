@@ -17,7 +17,7 @@ BG = {"pi": "bg_pi", "tajima_d": "bg_tajd", "h2_h1": "bg_h2h1",
       "nsl_frac": "bg_nsl"}
 RATIO = {"pi", "h2_h1"}
 AT = 60_000
-CLASSES = ["hard_recent_complete", "hard_old_complete", "soft_standing", "partial"]
+CLASSES = ["hard_complete", "hard_partial", "soft_complete", "soft_partial"]
 
 
 def contiguous_width(mid, v, bg, centre, frac=0.5):
@@ -96,31 +96,95 @@ def main():
     print("}")
 
     print("\n# --- s from the contiguous diversity trough ---")
-    print(f"# {'class':<24}{'n':>3}{'s_true':>9}{'width kb':>10}{'w*r/s':>9}")
-    ratios = []
+    # The estimator is  s_hat = width * local_rate / k[class].  Per class,
+    # k is the median of width*r/s over that class's replicates; the spread of
+    # that ratio is the estimator's multiplicative error, and the rank
+    # correlation below is what the verifier's ordering gate measures.
+    print(f"# {'class':<16}{'n':>3}{'s range':>16}{'k':>9}"
+          f"{'p10/p90 of w*r/s':>20}")
+    print("CLASS_WIDTH_CONSTANT = {")
+    kk = {}
     for c in CLASSES:
         rs = [r for r in rows if r["cls"] == c and r["width"] > 0]
         if not rs:
             continue
-        w = np.median([r["width"] for r in rs])
-        st = np.median([r["s_true"] for r in rs])
-        ratio = w * C.BASE_REC_RATE / st
-        ratios += [r["width"] * C.BASE_REC_RATE / r["s_true"] for r in rs]
-        print(f"# {c:<24}{len(rs):>3}{st:>9.3f}{w/1000:>10.0f}{ratio:>9.3f}")
-    print(f"WIDTH_RATE_OVER_S = {np.median(ratios):.4f}   "
-          f"# median over all {len(ratios)} replicates, "
-          f"spread {np.percentile(ratios,10):.3f}-{np.percentile(ratios,90):.3f}")
-
-    print("\n# --- diversity-recovery clock, bias per datable class ---")
-    print("TIME_BIAS = {")
-    for c in ("hard_recent_complete", "hard_old_complete"):
-        rs = [r for r in rows if r["cls"] == c and r["completed"]
-              and np.isfinite(r["t_true"]) and np.isfinite(r["pi_min_ratio"])]
-        if not rs:
-            continue
-        b = np.median([(2.0 * C.N_CURRENT * r["pi_min_ratio"]) / r["t_true"] for r in rs])
-        print(f'    "{c}": {b:.3f},   # n={len(rs)}')
+        ratio = np.array([r["width"] * C.BASE_REC_RATE / r["s_true"] for r in rs])
+        k = float(np.median(ratio))
+        kk[c] = k
+        st = sorted(r["s_true"] for r in rs)
+        print(f'    "{c}": {k:.4f},'.ljust(30)
+              + f"# n={len(rs):<3} s {st[0]:.4f}-{st[-1]:.4f}"
+              + f"  spread {np.percentile(ratio,10)/k:.2f}-"
+              + f"{np.percentile(ratio,90)/k:.2f}x")
     print("}")
+
+    # Achieved accuracy of that estimator on the calibration set, which is
+    # the number the verifier's s gates have to be set below.
+    got, tru = [], []
+    for r in rows:
+        k = kk.get(r["cls"])
+        if k is None or r["width"] <= 0:
+            continue
+        got.append(r["width"] * C.BASE_REC_RATE / k)
+        tru.append(r["s_true"])
+    if got:
+        got_a, tru_a = np.array(got), np.array(tru)
+        err = np.maximum(got_a / tru_a, tru_a / got_a)
+        for f in (2.0, 2.5, 3.0):
+            print(f"#   within a factor of {f}: "
+                  f"{int((err <= f).sum())}/{len(err)} "
+                  f"= {(err <= f).mean():.3f}")
+        print(f"#   rank correlation with truth: {_spearman(got_a, tru_a):.3f} "
+              f"over {len(got_a)} replicates")
+
+    print("\n# --- diversity-recovery clock ---")
+    # One power law over all hard_complete replicates rather than a constant
+    # bias per class. The classes no longer split by age, so a single
+    # hard_complete class now spans completion times from about 100 to about
+    # 2100 generations and the relation between residual diversity and age is
+    # not proportional over that range.
+    rs = [r for r in rows if r["cls"] == "hard_complete" and r["completed"]
+          and np.isfinite(r["t_true"]) and np.isfinite(r["pi_min_ratio"])
+          and r["pi_min_ratio"] > 0]
+    if len(rs) >= 4:
+        x = np.log(np.array([r["pi_min_ratio"] for r in rs]))
+        y = np.log(np.array([r["t_true"] for r in rs]))
+        B, logA = np.polyfit(x, y, 1)
+        A = float(np.exp(logA)) / C.N_CURRENT
+        pred = np.exp(logA + B * x)
+        tru_t = np.array([r["t_true"] for r in rs])
+        rel = np.abs(pred - tru_t) / tru_t
+        within = np.abs(pred - tru_t) <= np.maximum(0.5 * tru_t, 150.0)
+        print(f"TIME_CLOCK_A = {A:.5g}   # t_hat = A * N_current * pi_min_ratio**B")
+        print(f"TIME_CLOCK_B = {B:.5g}")
+        print(f"#   fitted on n={len(rs)} hard_complete replicates, "
+              f"t_true {int(tru_t.min())}-{int(tru_t.max())}")
+        print(f"#   median relative error {np.median(rel):.3f}; "
+              f"inside max(50%, 150 gens) on {int(within.sum())}/{len(rs)}")
+        print(f"#   rank correlation with truth: {_spearman(pred, tru_t):.3f}")
+    else:
+        print("# not enough hard_complete replicates to fit the clock")
+
+
+def _rankdata(v):
+    v = np.asarray(v, float)
+    order = np.argsort(v, kind="stable")
+    r = np.empty(v.size, float)
+    i = 0
+    while i < v.size:
+        j = i
+        while j + 1 < v.size and v[order[j + 1]] == v[order[i]]:
+            j += 1
+        r[order[i:j + 1]] = (i + j) / 2.0 + 1.0
+        i = j + 1
+    return r
+
+
+def _spearman(a, b):
+    ra, rb = _rankdata(a), _rankdata(b)
+    if ra.std() == 0 or rb.std() == 0:
+        return 0.0
+    return float(np.corrcoef(ra, rb)[0, 1])
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ BG = {"pi": "bg_pi", "tajima_d": "bg_tajd", "h12": "bg_h12",
       "h2_h1": "bg_h2h1", "nsl_frac": "bg_nsl"}
 RATIO = {"pi", "h12", "h2_h1"}
 AT = 60_000
-CLASSES = ["hard_recent_complete", "hard_old_complete", "soft_standing", "partial"]
+CLASSES = ["hard_complete", "hard_partial", "soft_complete", "soft_partial"]
 
 
 def build():

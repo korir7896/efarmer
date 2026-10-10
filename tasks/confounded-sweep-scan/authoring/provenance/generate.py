@@ -76,9 +76,9 @@ def main():
         # own miniature zoo, purely to smoke-test the pipeline end to end.
         from forward import SweepPlan
         plans = [
-            SweepPlan("sw01", 2_013_457, 0.05, 0.5, 300, 1, "hard_recent_complete"),
-            SweepPlan("sw06", 5_907_311, 0.05, 0.5, 400, 20, "soft_standing"),
-            SweepPlan("sw09", 6_803_229, 0.03, 0.5, 260, 1, "partial"),
+            SweepPlan("sw01", 2_013_457, 0.05, 1.0, 300, 1, "hard_complete"),
+            SweepPlan("sw06", 5_907_311, 0.05, 1.0, 400, 20, "soft_complete"),
+            SweepPlan("sw09", 6_803_229, 0.03, 1.0, 260, 1, "hard_partial"),
         ]
     else:
         plans = S.build_plans(cfg, C.MASTER_SEED)
