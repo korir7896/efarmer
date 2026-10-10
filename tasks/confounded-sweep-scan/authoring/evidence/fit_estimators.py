@@ -85,8 +85,20 @@ def high_width(mid, v, bg, centre, mult):
 
 
 def rows(subdir="training"):
+    """Feature rows from one or more calibration directories.
+
+    `subdir` may be a single name or an iterable of names. The shipped
+    constants are fitted on BOTH training/ and training_holdout/, so the
+    configuration space they are validated across is far wider than the ten
+    the shipped replicate uses -- which is what makes leave-one-
+    configuration-out scoring mean something.
+    """
+    subdirs = [subdir] if isinstance(subdir, str) else list(subdir)
     out = []
-    for f in sorted(glob.glob(os.path.join(HERE, subdir, "*.npz"))):
+    files = []
+    for sd in subdirs:
+        files += sorted(glob.glob(os.path.join(HERE, sd, "*.npz")))
+    for f in files:
         d = np.load(f, allow_pickle=True)
         # Configuration identity, from the filename tag run_training.sh
         # assigns. Leaving out one REPLICATE when three replicates share a
@@ -95,6 +107,7 @@ def rows(subdir="training"):
         # four (s, age) pairs scores perfectly and generalises not at all.
         # Leaving out a whole configuration is the honest test.
         cfg_tag = os.path.basename(f).rsplit("_", 1)[0]
+        shipped_cfg = "_ho_" not in cfg_tag
         mid = d["mid"].astype(float)
         centre = float(d["sweep_pos"])
         near = np.abs(mid - centre) <= AT
@@ -113,6 +126,7 @@ def rows(subdir="training"):
 
         r = dict(
             cfg=cfg_tag,
+            shipped_cfg=shipped_cfg,
             cls=str(d["realized_class"]),
             s_true=float(d["s_true"]),
             completed=bool(d["completed"].item()) if "completed" in d.files else False,

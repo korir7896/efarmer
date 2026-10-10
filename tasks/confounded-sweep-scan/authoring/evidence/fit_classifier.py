@@ -300,8 +300,16 @@ def search_joint(data, combos_c, combos_sc, combos_sp, top=6):
     return best[0] if best else None
 
 
+ALL_DIRS = ("training", "training_holdout")
+
 if __name__ == "__main__":
-    data = rows()
+    data = rows(ALL_DIRS if "--shipped-only" not in sys.argv else "training")
+    if "--holdout-only" in sys.argv:
+        data = [r for r in data if not r["shipped_cfg"]]
+    print(f"calibration set: {len(data)} replicates, "
+          f"{len(set(r['cfg'] for r in data))} configurations, "
+          f"{len(set(r['cfg'] for r in data if not r['shipped_cfg']))} of them "
+          f"not used by the shipped replicate")
     singles = [(k,) for k in FEATS]
     pairs = list(itertools.combinations(FEATS, 2))
     triples = list(itertools.combinations(FEATS, 3))
