@@ -179,25 +179,33 @@ fitted history and compared rate-bin by rate-bin fires not at all.
 ## Verification
 
 `tests/test_sweep_scan.py` grades `/app/results.json` against a sealed static
-truth file. Pure python, no simulation at grading time, no network.
+truth file. Pure python, no simulation at grading time, no network, and no
+numpy or scipy: the verifier image carries pytest and nothing else.
 
 Ground truth is the generator's configuration plus the realized trajectory
 the forward simulation recorded: scheduled position, selection coefficient,
-the generation the allele passed 98% frequency, final frequency, and the
-number of independent origins surviving to the present. Nothing in it comes
-from a solver.
+the generation the allele passed 0.98, final frequency, and the number of
+independent origins surviving to the present. Nothing in it comes from a
+solver.
 
-Calls are deduplicated, then matched to true sweeps greedily by ascending
-distance within a window taken from measured localisation spread. Gates are
-conjunctive: ancestral and current size within a factor; the bottleneck's
-duration-over-depth within a factor; expansion time within a fraction; a
-structural check that the history contracts and recovers; per-class recall;
-a cap on calls matching no true sweep, with cold-spot calls counting against
-it; class accuracy over matched calls; selection coefficients within a
-factor; and completion time within tolerance, graded separately inside each
-completed class.
+Calls are deduplicated at 250 kb, then matched to true sweeps greedily by
+ascending distance, same chromosome, within 250 kb. The gates are
+conjunctive:
 
-Two decisions are worth naming.
+| gate | threshold |
+| --- | --- |
+| `N_ancestral`, `N_current` | each within a factor of 1.6 |
+| bottleneck `duration / N_bottleneck` | within a factor of 2.5 |
+| history is a real contraction and recovery | structural |
+| recall, `hard_complete` | at least 3 of 4 |
+| recall, each other class | at least 1 of 2 |
+| calls matching no true sweep | at most 1, cold spots included |
+| class, over matched calls | at least 70% correct |
+| `s` magnitude, over matched calls | at least 70% within a factor of 2.5 |
+| `s` ordering, over matched calls | rank correlation at least 0.50 |
+| completion time, true `hard_complete` sweeps | at least 3 inside max(50%, 150 generations) |
+
+Four decisions are worth naming.
 
 **Bottleneck depth is graded only in combination, and its timing not at
 all.** Depth and duration are not separately identifiable from the spectrum,
@@ -208,20 +216,68 @@ same four fits placed the expansion at 0.64, 0.68, 1.31 and 2.63 times its
 true time, so one in four fails a 40% tolerance while any tolerance admitting
 2.63 is vacuous. The objective has a broad flat minimum spanning roughly 1500
 to 4000 generations for a truth of 3000, which is the information content of
-a spectrum from 100 haplotypes rather than a failure of the search.
+a spectrum from 100 haplotypes rather than a failure of the search. There is
+no gate on expansion time, and nothing in the instruction asks for one to be
+graded.
 
-**Completion time is graded only for single-origin sweeps.** Diversity
-recovery dates a sweep by how far below background its centre still sits,
-which presumes the sweep drove diversity to zero. A soft sweep leaves it at
-0.74 of background, and the same estimator reads such sweeps as roughly
-eighteen times older than they are.
+**A sweep's age is not part of its class.** An earlier version of this task
+split the completed hard sweeps into `hard_recent_complete` and
+`hard_old_complete` at a fixed boundary. That put age inside the class
+label, and the consequence was that one constant per class satisfied the
+timing gate without dating anything: the review of that version said so, and
+it was right. The classes are now the two binary properties a scan can be
+asked to recover, crossed, and age is graded only as a continuous quantity.
 
-**Timing is graded per class.** Graded in aggregate it was satisfiable by a
-constant: the recent and soft sweeps finish within a few hundred generations
-of each other, so a flat 300 covered six of the eight gradable sweeps and
-cleared any aggregate threshold. Per class no constant works, because the old
-sweeps finish roughly five times further back while the tolerance is about
-half.
+**Completion time is graded only where it is estimable.** Diversity recovery
+dates a sweep by how far below background its centre still sits, which
+presumes the sweep drove diversity to zero. A soft sweep never did, so the
+clock has no zero to start from. Timing is therefore graded over the sweeps
+whose TRUE class is `hard_complete` -- the true class, not the reported one,
+so a misclassification is not punished twice -- and the four of them in the
+shipped replicate completed far enough apart that no single number lands
+inside more than two of their tolerance windows.
+
+**Selection coefficients are graded twice, on magnitude and on order.** The
+magnitude test alone is not enough and the bundle does not pretend
+otherwise: `authoring/evidence/gate_feasibility.py` searches for the single
+coefficient that satisfies the most magnitude tests and reports it. The
+ordering test is what cannot be satisfied without measuring strength. A
+constant produces nothing but ties, which score zero by the convention in
+`grading.spearman`, so no constant passes whatever its value, and neither
+does an answer whose coefficients are real numbers unrelated to the data.
+
+### Where the thresholds come from
+
+Worth separating, because the three bounds rest on different evidence and
+only one of them involves the reference solution.
+
+**That the gates are passable** is measured on independent single-sweep
+replicates, one chromosome and one sweep each, simulated under the same
+history at several strengths per class -- data the shipped genome had no
+part in. `gate_feasibility.py` reports how often the estimators land inside
+each gate on those replicates, and every pass fraction is set below what was
+measured there. The demography gates rest on four independent neutral
+replicates with known truth, again not the shipped one.
+
+**That the gates are not trivially passable** is established without
+reference to the reference at all. `gate_feasibility.py` searches for the
+best possible constant selection coefficient and the best possible constant
+completion time against the shipped truth and reports what each achieves;
+`verifier_selftest.py` runs those and twenty-odd other degenerate
+submissions through the real verifier.
+
+**The ablation table above is neither of those, and should not be read as
+justifying a threshold.** Every row in it is handed the reference's own
+classification and estimation step, deliberately, so that the rows differ
+only in detection and calibration. It shows which pieces of the detection
+pipeline are load-bearing. It says nothing about whether a different
+classifier or a different estimator would clear the characterisation gates,
+and no threshold was set from it.
+
+What none of this establishes is that a method unlike the reference would
+pass. The claim is narrower: every gate is met by at least one honest
+method, measured out of sample, and none is met by an answer that estimates
+nothing.
 
 ## Validation performed
 
@@ -284,56 +340,3 @@ variation, as in any real scan. Selected positions are also jittered off
 round coordinates, fwdpy11 individual metadata (which carries each
 individual's fitness and so labels carriers) is scrubbed, only present-day
 samples are exported, and no tree sequence is shipped.
-
-## What is not here
-
-`instruction.md` and the author-facts block in `task.toml`
-(`author_name`, `author_email`, `author_organization`, `author_profile`,
-`conflicts_of_interest`, `relevant_experience`) are deliberately absent or
-blank. The instruction has to be the author's own words, and the pipeline
-screens it for generated text; the author facts are claims about a real
-person. Both are the author's to write.
-
-The instruction must state, at minimum: the absolute output path
-`/app/results.json`; the exact JSON schema, including that `time_gens_ago` is
-the completion time of a sweep and null for one still segregating; that
-selection is additive with per-allele advantage s; the mutation rate; and the
-four class names exactly as the verifier expects them
-(`hard_recent_complete`, `hard_old_complete`, `soft_standing`, `partial`).
-All of this is also stated in `environment/data/README_DATA.txt`, which the
-agent can read, but the brief should not rely on that alone.
-
-The file must be plain prose with no Markdown headings, and must end with a
-blank line followed by exactly this sentence, matching the integer
-`[agent].timeout_sec` of 21600 in `task.toml`:
-
-```
-You have 21600 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.
-```
-
-The schema the verifier expects is:
-
-```json
-{
-  "demography": {
-    "N_ancestral": 12000,
-    "N_bottleneck": 800,
-    "N_current": 9000,
-    "T_bottleneck_start_gens_ago": 3400,
-    "T_bottleneck_end_gens_ago": 3000
-  },
-  "sweeps": [
-    {
-      "chrom": 1,
-      "position": 7447962,
-      "class": "hard_recent_complete",
-      "selection_coefficient": 0.035,
-      "time_gens_ago": 300
-    }
-  ]
-}
-```
-
-`position` is 1-based within its chromosome. `time_gens_ago` is the
-generation before present at which the sweep completed, and null for a sweep
-still segregating. At most 200 calls are accepted.

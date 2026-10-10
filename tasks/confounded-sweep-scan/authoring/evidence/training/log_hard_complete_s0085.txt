@@ -1,0 +1,2 @@
+override hard_complete -> (0.0085, 2300, 1)
+hard_complete seed 602000: realized=hard_complete origins_surviving=1 done_ago=1186 freq=1.000 h2h1=0.903 bg=0.804 ratio=1.124
