@@ -14,7 +14,7 @@ cd /tests || exit 0
 
 python -m pytest test_sweep_scan.py \
     -p no:cacheprovider \
-    --ctrf "$LOGDIR/ctrf-report.json" \
+    --ctrf "$LOGDIR/ctrf.json" \
     -v > "$LOGDIR/pytest.log" 2>&1
 STATUS=$?
 

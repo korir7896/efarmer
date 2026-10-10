@@ -7,22 +7,40 @@ Every threshold lives in GATES, so the whole specification of "correct" is
 visible in one place.  The values are set from the measured spread of
 competent methods (see authoring/evidence/), not from the reference
 solution's own error.
+
+Classes
+-------
+The four classes are the two independent binary properties of a sweep that a
+genome scan can actually be asked to recover, crossed:
+
+  * COMPLETE if the beneficial allele reached frequency >= 0.98 in the
+    population, PARTIAL if it is still segregating below that;
+  * SOFT if two or more independent origins of the beneficial allele (separate
+    mutations at the same site, each on its own haplotype background) are
+    still present today, HARD if exactly one is.
+
+Nothing in the class labels encodes the sweep's age.  An earlier version split
+the completed hard sweeps into "recent" and "old" at a fixed number of
+generations, which made the age of a sweep partly a function of its class and
+so let a class-conditional constant satisfy the timing gate without dating
+anything.  Age is now graded only as a continuous quantity, over sweeps whose
+true class is hard_complete, whose true completion times in the shipped
+replicate span a factor of twenty.
 """
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing", "partial")
-COMPLETE_CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing")
+CLASSES = ("hard_complete", "hard_partial", "soft_complete", "soft_partial")
+COMPLETE_CLASSES = ("hard_complete", "soft_complete")
 # Completion time is graded only for single-origin completed sweeps.
 # Diversity recovery dates a sweep by how far below background its centre
 # still sits, which presumes the sweep drove diversity to zero. A soft sweep
-# never did: its measured diversity at the centre is 0.74 of background, so
-# the recovery clock has no zero to start from and reads a soft sweep as
-# roughly eighteen times older than it is. Grading a quantity that no
-# estimator recovers would be grading noise.
-TIMED_CLASSES = ("hard_recent_complete", "hard_old_complete")
+# never did, so the recovery clock has no zero to start from and reads a soft
+# sweep as an order of magnitude older than it is. Grading a quantity that no
+# known estimator recovers would be grading noise.
+TIMED_CLASSES = ("hard_complete",)
 
 GATES: Dict[str, Any] = {
     # --- matching ---
@@ -75,31 +93,46 @@ GATES: Dict[str, Any] = {
     # fails on severity and on structure.
 
     # --- detection ---
-    # Per-class minimum recall, as (numerator, denominator) over the true
-    # sweeps of that class.
+    # Per-class minimum recall, as a count over the true sweeps of that class.
     "min_recall_per_class": {
-        "hard_recent_complete": 3,
-        "soft_standing": 2,
-        "partial": 2,
-        "hard_old_complete": 1,
+        "hard_complete": 3,
+        "soft_complete": 1,
+        "hard_partial": 1,
+        "soft_partial": 1,
     },
     # Unmatched calls allowed genome-wide. Cold-spot calls count here.
     "max_false_positives": 1,
 
     # --- characterisation, over matched calls only ---
     "min_class_accuracy": 0.70,
-    "s_within_factor": 3.0,
+    # Selection coefficients are graded two ways, and both must hold.
+    #
+    # MAGNITUDE: within a multiplicative factor. The true coefficients in the
+    # shipped replicate span a factor of 9.4, so a factor-of-2.5 window
+    # (a span of 6.25) cannot contain all of them, but it can contain most,
+    # which is why the magnitude test alone is not enough.
+    #
+    # ORDER: Spearman rank correlation between the reported and true
+    # coefficients over matched calls. A single constant, or any answer that
+    # does not actually measure strength, produces no usable ordering: all
+    # ties give a correlation of zero by the convention below. This is the
+    # gate that makes the s estimates discriminate rather than merely land in
+    # the right decade.
+    "s_within_factor": 2.50,
     "min_s_accuracy": 0.70,
-    # Timing is graded on completed sweeps, where fixation time is the
-    # estimable quantity, and it is graded PER CLASS.  Graded in aggregate it
-    # is satisfiable by a constant: the recent and soft sweeps fix within a
-    # few hundred generations of each other, so one number covers six of the
-    # eight gradable sweeps and clears any aggregate threshold.  Per class, a
-    # constant cannot work, because the old sweeps fix roughly five times
-    # further back than the recent ones while the tolerance is ~50%.
+    "min_s_rank_corr": 0.50,
+    "min_matched_for_rank": 5,
+    # Timing is graded only over sweeps whose TRUE class is hard_complete --
+    # grading against the true class, not the reported one, so a
+    # misclassification is not punished twice. Their true completion times in
+    # the shipped replicate are spread so that every tolerance window is
+    # disjoint from every other except one overlapping pair, which caps any
+    # single constant at two of the four. Requiring three therefore cannot be
+    # met without dating the sweeps individually, and since class no longer
+    # carries age, a class-conditional constant is just a constant here.
     "time_rel_tol": 0.50,
     "time_abs_tol_gens": 150,
-    "min_time_accuracy_per_class": 0.50,
+    "min_time_correct": 3,
 }
 
 
@@ -165,12 +198,18 @@ def parse_submission(obj: Any, n_chrom: int, chrom_len: int) -> Tuple[Dict, List
         if not (0.0 < s < 1.0):
             raise SchemaError(f"sweeps[{i}]['selection_coefficient']={s} outside (0,1)")
         t = c.get("time_gens_ago", None)
+        if kl in COMPLETE_CLASSES and t is None:
+            # Required, not optional: a sweep the submission itself calls
+            # complete has a completion time, and that time is graded.
+            raise SchemaError(
+                f"sweeps[{i}] has class {kl!r} and so must carry a numeric "
+                f"'time_gens_ago'")
         if t is not None:
             if not _finite(t):
                 raise SchemaError(f"sweeps[{i}]['time_gens_ago'] is neither null nor finite")
             t = float(t)
-            if t < 0:
-                raise SchemaError(f"sweeps[{i}]['time_gens_ago'] is negative")
+            if t <= 0:
+                raise SchemaError(f"sweeps[{i}]['time_gens_ago'] must be positive")
         calls.append({"i": i, "chrom": ch, "position": p, "class": kl,
                       "s": s, "time": t})
     return dem, calls
@@ -215,3 +254,46 @@ def match(truth_sweeps: List[Dict], calls: List[Dict], window: int
     un_t = [t for t in truth_sweeps if t["sweep_id"] not in used_t]
     un_c = [c for c in calls if c["i"] not in used_c]
     return matched, un_t, un_c
+
+
+def spearman(x: Sequence[float], y: Sequence[float]) -> float:
+    """Rank correlation, ties averaged. Returns 0.0 when either side is constant.
+
+    Pure python on purpose: the verifier image carries pytest and nothing
+    else, so grading must not import numpy or scipy.
+    """
+    n = len(x)
+    if n != len(y) or n < 3:
+        return 0.0
+
+    def ranks(v: Sequence[float]) -> List[float]:
+        order = sorted(range(n), key=lambda i: v[i])
+        r = [0.0] * n
+        i = 0
+        while i < n:
+            j = i
+            while j + 1 < n and v[order[j + 1]] == v[order[i]]:
+                j += 1
+            avg = (i + j) / 2.0 + 1.0
+            for k in range(i, j + 1):
+                r[order[k]] = avg
+            i = j + 1
+        return r
+
+    rx, ry = ranks(x), ranks(y)
+    mx = sum(rx) / n
+    my = sum(ry) / n
+    sxy = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    sxx = sum((a - mx) ** 2 for a in rx)
+    syy = sum((b - my) ** 2 for b in ry)
+    if sxx <= 0 or syy <= 0:
+        # One side has no variation at all -- a constant answer. There is no
+        # ordering to score, so it scores nothing.
+        return 0.0
+    return sxy / math.sqrt(sxx * syy)
+
+
+def time_tolerance(t_true: float) -> float:
+    """Half-width of the accepted window around a true completion time."""
+    return max(GATES["time_rel_tol"] * float(t_true),
+               float(GATES["time_abs_tol_gens"]))

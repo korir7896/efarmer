@@ -12,7 +12,7 @@ import os
 import pytest
 
 from grading import (GATES, TIMED_CLASSES, SchemaError, dedupe, match,
-                     parse_submission)
+                     parse_submission, spearman, time_tolerance)
 
 TRUTH_PATH = os.environ.get("TRUTH_PATH", "/tests/truth.json")
 SUBMISSION_PATH = os.environ.get("SUBMISSION_PATH", "/app/results.json")
@@ -144,7 +144,8 @@ def test_class_accuracy(matched):
         f"wrong: {wrong}")
 
 
-def test_selection_coefficients(matched):
+def test_selection_coefficient_magnitudes(matched):
+    """Reported s within a multiplicative factor of the truth."""
     pairs, _, _ = matched
     assert pairs, "nothing matched, so s accuracy is undefined"
     f = GATES["s_within_factor"]
@@ -162,37 +163,54 @@ def test_selection_coefficients(matched):
         f"need {need:.2f}; off: {bad}")
 
 
-def test_timing_of_completed_sweeps(truth, matched):
-    """Sweep completion time, graded separately within each datable class.
+def test_selection_coefficients_are_ordered(matched):
+    """Reported s must rank the matched sweeps the way the truth ranks them.
 
-    Grading in aggregate would accept a single constant (see GATES).
+    The true coefficients span a factor of 9.4, so this asks whether the
+    submission measured strength at all.  A constant, or any value not
+    derived from the data, gives no ordering and scores zero.
     """
     pairs, _, _ = matched
-    rel = GATES["time_rel_tol"]
-    abs_tol = GATES["time_abs_tol_gens"]
-    need = GATES["min_time_accuracy_per_class"]
+    need_n = GATES["min_matched_for_rank"]
+    assert len(pairs) >= need_n, (
+        f"only {len(pairs)} matched calls; the ordering of s is graded over "
+        f"at least {need_n}")
+    got = [c["s"] for t, c, _ in pairs]
+    tru = [float(t["selection_coefficient"]) for t, c, _ in pairs]
+    rho = spearman(got, tru)
+    need = GATES["min_s_rank_corr"]
+    assert rho >= need, (
+        f"rank correlation between reported and true s is {rho:.3f} over "
+        f"{len(pairs)} matched sweeps, need {need:.2f}; "
+        f"reported {[round(v, 4) for v in got]} against true "
+        f"{[round(v, 4) for v in tru]}")
 
-    by_class = {}
-    for t, c, _ in pairs:
-        if t["class"] not in TIMED_CLASSES or t["completion_gens_ago"] is None:
-            continue
-        by_class.setdefault(t["class"], []).append((t, c))
-    if not by_class:
+
+def test_timing_of_completed_sweeps(truth, matched):
+    """Completion time of the sweeps whose TRUE class is hard_complete.
+
+    Graded against the true class so that a misclassification is not punished
+    twice, and pooled rather than split by class: class no longer carries any
+    information about age, and the four true completion times are spread so
+    that no single number lands inside more than two of their tolerance
+    windows (see GATES).
+    """
+    pairs, _, _ = matched
+    items = [(t, c) for t, c, _ in pairs
+             if t["class"] in TIMED_CLASSES
+             and t.get("completion_gens_ago") is not None]
+    if not items:
         pytest.fail("no datable sweep was localized, so timing cannot be graded")
 
-    problems = []
-    for klass, items in sorted(by_class.items()):
-        ok, bad = 0, []
-        for t, c in items:
-            true_t = float(t["completion_gens_ago"])
-            tol = max(abs_tol, rel * true_t)
-            if c["time"] is not None and abs(c["time"] - true_t) <= tol:
-                ok += 1
-            else:
-                bad.append((t["sweep_id"], true_t, c["time"]))
-        required = max(1, int(round(need * len(items))))
-        if ok < required:
-            problems.append(
-                f"{klass}: {ok}/{len(items)} completion times within tolerance, "
-                f"need {required}; off (id, true, reported): {bad}")
-    assert not problems, "; ".join(problems)
+    ok, bad = 0, []
+    for t, c in items:
+        true_t = float(t["completion_gens_ago"])
+        tol = time_tolerance(true_t)
+        if c["time"] is not None and abs(c["time"] - true_t) <= tol:
+            ok += 1
+        else:
+            bad.append((t["sweep_id"], true_t, c["time"], round(tol)))
+    need = GATES["min_time_correct"]
+    assert ok >= need, (
+        f"{ok} of {len(items)} localized hard_complete sweeps dated within "
+        f"tolerance, need {need}; off (id, true, reported, tolerance): {bad}")

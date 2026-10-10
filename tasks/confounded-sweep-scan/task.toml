@@ -5,7 +5,7 @@ artifacts = ["/app/results.json"]
 [task]
 name = "afterquery/confounded-sweep-scan"
 description = "Separate positive selection from demographic and recombination-rate confounds in a whole-genome scan, then classify, date and quantify each sweep."
-authors = [{ name = "", email = "" }]
+authors = [{ name = "Fridah Chesang", email = "hagerjefery@gmail.com" }]
 keywords = [
     "population genetics",
     "selective sweeps",
@@ -18,18 +18,16 @@ keywords = [
 
 [metadata]
 # ---------------------------------------------------------------------------
-# AUTHOR FACTS -- these five fields are the author's to fill in and are
-# deliberately left blank. The submission pipeline rejects placeholder values,
-# and writing a biography for someone else would be fabricating credentials.
+# AUTHOR FACTS -- supplied by the author.
 # ---------------------------------------------------------------------------
-author_name = ""
-author_email = ""
-author_organization = ""
-author_profile = ""
+author_name = "Fridah Chesang"
+author_email = "hagerjefery@gmail.com"
+author_organization = "Independent Researcher"
+author_profile = "https://www.linkedin.com/in/fridah-chesang-78a5a6282"
 research_advisor = ""
 referred_by = ""
-conflicts_of_interest = ""
-relevant_experience = ""
+conflicts_of_interest = "None"
+relevant_experience = "PhD candidate in Molecular Biology and Genetics with a biotechnology background and research experience in CRISPR/Cas gene editing, genome engineering and molecular genetics, including sequence analysis, guide-RNA design and off-target risk evaluation. Experienced in scientific literature review, structured annotation and validation of complex genetic data for accuracy and safety, and in evaluating high-stakes biological content for AI benchmarks."
 # ---------------------------------------------------------------------------
 
 domain = "life-sciences"
