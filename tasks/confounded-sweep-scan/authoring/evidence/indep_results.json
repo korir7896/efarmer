@@ -1,0 +1,74 @@
+{
+  "demography": {
+    "N_ancestral": 9468.425857611623,
+    "N_bottleneck": 5424.998444599271,
+    "N_current": 11360.263822891806,
+    "T_bottleneck_end_gens_ago": 412.7782287401573,
+    "T_bottleneck_start_gens_ago": 2739.027658808957
+  },
+  "sweeps": [
+    {
+      "chrom": 1,
+      "class": "hard_complete",
+      "position": 1775000,
+      "selection_coefficient": 0.057315436241610736,
+      "time_gens_ago": 373.0
+    },
+    {
+      "chrom": 1,
+      "class": "hard_partial",
+      "position": 3985000,
+      "selection_coefficient": 0.00986422018348624,
+      "time_gens_ago": 4370.0
+    },
+    {
+      "chrom": 1,
+      "class": "hard_partial",
+      "position": 10325000,
+      "selection_coefficient": 0.027743119266055046,
+      "time_gens_ago": 1742.0
+    },
+    {
+      "chrom": 2,
+      "class": "hard_complete",
+      "position": 5575000,
+      "selection_coefficient": 0.017852348993288587,
+      "time_gens_ago": 684.0
+    },
+    {
+      "chrom": 2,
+      "class": "soft_complete",
+      "position": 10005000,
+      "selection_coefficient": 0.02,
+      "time_gens_ago": 2743.0
+    },
+    {
+      "chrom": 3,
+      "class": "hard_partial",
+      "position": 2355000,
+      "selection_coefficient": 0.015412844036697246,
+      "time_gens_ago": 2205.0
+    },
+    {
+      "chrom": 3,
+      "class": "hard_partial",
+      "position": 7705000,
+      "selection_coefficient": 0.015412844036697246,
+      "time_gens_ago": 3108.0
+    },
+    {
+      "chrom": 4,
+      "class": "soft_complete",
+      "position": 2725000,
+      "selection_coefficient": 0.019999999999999997,
+      "time_gens_ago": 3196.0
+    },
+    {
+      "chrom": 4,
+      "class": "hard_complete",
+      "position": 7515000,
+      "selection_coefficient": 0.004697986577181207,
+      "time_gens_ago": 1115.0
+    }
+  ]
+}

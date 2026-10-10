@@ -460,7 +460,11 @@ order of how much they tell you.
    out-of-configuration replicates. It shares the windowed statistics and
    the VCF reader, which are measurement rather than method.
 
-   It clears **10 of the 12 gates**. It passes all four demography gates
+   Its submission goes through the **real verifier**, in the verifier
+   container with `--network none`, not through any authoring grader:
+   `authoring/evidence/indep_results.json` is the file, and the ctrf report
+   from that run names which gate functions passed. It clears **10 of the 12
+   gates**. It passes all four demography gates
    with a visibly different history, a shallow long bottleneck of 5425 for
    2326 generations against the truth's deep short 800 for 400 -- which is
    the non-identifiability the duration-over-depth gate was designed around,
@@ -469,10 +473,13 @@ order of how much they tell you.
    correlation of 0.847 on its seven matched calls -- level with the
    reference's 0.850 on nine, from a completely different estimator.
 
-   It fails two. The false-positive cap, 2 against 1, one of them at the
-   edge of a cold spot its quantile rate bins do not fully absorb. And
-   timing, 0 of 3, systematically: 373 against 133, 684 against 292, 3108
-   against 1214, each about 2.5 times too old. That is the
+   It fails exactly two, and the verifier's own messages say which. The
+   false-positive cap: `2 reported sweeps match no true sweep (limit 1):
+   [(1, 3985000), (4, 7515000)]`, one of them at the edge of a cold spot its
+   quantile rate bins do not fully absorb. And timing: `0 of 3 localized
+   hard_complete sweeps dated within tolerance`, systematically -- 373
+   against 133, 684 against 292, 3108 against 1214, each about 2.5 times too
+   old. That is the
    diversity-recovery clock, which the reference measured at 9 of 16 against
    36 of 40 for H12 decay. **So the timing gate separates a good clock from
    a poor one, which is what a gate should do -- and no independent
@@ -516,10 +523,21 @@ false-positive budget, so it is not beyond reach -- the reference declines it
 to stay inside the cap, which is a judgement call rather than a limit.
 
 **What none of this establishes** is that an arbitrary correct method clears
-every gate. One independent implementation was built and scored and cleared
-ten of twelve. Its two failures are traceable to specific weaker components
-rather than to the thresholds, which is informative but is not a proof
-either way.
+every gate. One structurally independent implementation was built, scored by
+the real verifier, and cleared ten of twelve. Its two failures are traceable
+to specific weaker components -- a detector whose rate bins leak at a cold
+spot edge, and a clock the reference had already measured as the worse of
+two -- rather than to the thresholds. That is informative, and it is one
+implementation, not a proof either way.
+
+Two gates in particular have been cleared by exactly one method each. Timing
+is cleared by the reference and by its holdout-recalibrated variant, both of
+which use the H12-decay clock, and by nothing else here. The false-positive
+cap is cleared by every version of the reference and by neither of the
+detection ablations nor the independent solver. If a reviewer wants one
+number for how much this bundle has been stress-tested, it is that: twelve
+gates, three methods, and no gate cleared by a method that estimates
+nothing.
 
 ## Validation performed
 
@@ -549,8 +567,9 @@ footprint is both narrow and half recovered. At a false-positive budget of
 and a class accuracy below the gate -- see the budget table above.
 
 **It is deterministic.** Two independent runs produce byte-identical
-submissions, md5 `MD5SUM`, and identical calibrated thresholds: a
-cluster-forming cut of 31.65 and a mass cut of 73.9.
+submissions, md5 `be9f76f169bdd5fe20abf85c695117ef`, and identical
+calibrated thresholds: a cluster-forming cut of 31.65 and a mass cut of
+73.9.
 
 **Twenty-eight submissions were run through the real verifier**
 (`authoring/evidence/verifier_selftest.py`), graded against the shipped
@@ -607,6 +626,13 @@ eleven names because the two demography-size parameters share one. A socket
 call from inside the container fails with a resolver error, so it really has
 no network, and `import numpy` fails, so the verifier really does run on
 pytest and the standard library alone.
+
+The same container scored the structurally independent solver's submission,
+`authoring/evidence/indep_results.json`: `reward=0`, with the ctrf report
+naming nine of the eleven gate functions passed and exactly two failed,
+`test_false_positives` and `test_timing_of_completed_sweeps`. That is the
+10-of-12 scorecard above, produced by the shipped verifier rather than by an
+authoring script.
 
 **Both harbor gates pass.** `harbor run -a oracle -e docker` returns reward
 **1.0** and `harbor run -a nop -e docker` returns **0.0**, one trial each,

@@ -315,8 +315,12 @@ solver -- Nelder-Mead on four moments instead of L2 on a binned spectrum,
 a sliding macro-window mean of rank scores instead of a Fisher combination
 judged by cluster mass, linear discriminant analysis for the class, the
 Tajima's D trough width for s, and a diversity-recovery clock -- calibrated
-only on configurations the shipped replicate does not use. It clears 10 of
-the 12 gates, including all four demography gates with a visibly different
+only on configurations the shipped replicate does not use. Its submission is
+scored by the REAL verifier, in the verifier container with no network, not
+by any authoring grader: the file is authoring/evidence/indep_results.json
+and the ctrf report from that run names which gate functions passed. It
+clears 10 of the 12 gates, including all four demography gates with a
+visibly different
 history and all three coefficient gates with a rank correlation of 0.847,
 level with the reference's own 0.850 from a completely different estimator. It fails the false-positive cap, 2 against 1, and timing, 0 of
 3, because its diversity-recovery clock dates every sweep about 2.5 times too
