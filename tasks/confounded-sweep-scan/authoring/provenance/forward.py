@@ -300,6 +300,7 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                 plans: Sequence[SweepPlan], seed: int,
                 simplification_interval: int = 100,
                 max_attempts_per_stage: int = 800,
+                max_total_restarts: int = 40_000,
                 chunk: int = 25,
                 min_soft_origins: int = 5,
                 accept_fn=None,
@@ -386,6 +387,26 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
 
     attempts = [0] * n_stages
     start_stage = 0
+    total_restarts = 0
+
+    def backtrack_to(k: int) -> None:
+        """Rewind to stage k and forget the failures of everything after it.
+
+        Resetting the downstream counters is the whole point. A stage's
+        attempt count is evidence that THAT stage cannot be realized from the
+        state it starts in; once an earlier stage is re-run, every later
+        stage starts from a different population and its old failures say
+        nothing. Without the reset the counters accumulate across restarts
+        and the first merely-improbable sweep downstream of a fussy one
+        exhausts its budget: measured on this zoo, 29 acceptance restarts at
+        sw09 ran sw07's establishment counter to 800 and killed the run,
+        although sw07 establishes in about one attempt in thirty and had
+        succeeded on every one of those 29 passes.
+        """
+        nonlocal start_stage
+        for j in range(k + 1, n_stages):
+            attempts[j] = 0
+        start_stage = k
 
     while True:
         pop = restore(snaps[start_stage])
@@ -473,18 +494,25 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                       f"{[x for x in recorder.tracked if not confirmed.get(x)]}",
                       flush=True)
 
+        total_restarts += 1
+        if total_restarts > max_total_restarts:
+            raise RuntimeError(
+                f"gave up after {max_total_restarts} restarts; "
+                f"attempts per stage: "
+                f"{dict(zip((st.plan.sweep_id for st in stages), attempts))}")
+
         if failed_at is not None:
             attempts[failed_at] += 1
             if attempts[failed_at] > max_attempts_per_stage:
                 raise RuntimeError(
                     f"{stages[failed_at].plan.sweep_id} failed to establish in "
-                    f"{max_attempts_per_stage} attempts")
-            start_stage = failed_at
+                    f"{max_attempts_per_stage} consecutive attempts")
+            backtrack_to(failed_at)
             continue
 
         # reached the present with every sweep established
         if accept_fn is not None:
-            ok, failing = accept_fn(recorder.real)
+            ok, failing, problems = accept_fn(recorder.real)
             if not ok:
                 ks = [stage_of[sid] for sid in failing if sid in stage_of]
                 if ks:
@@ -495,9 +523,11 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                             f"{stages[k].plan.sweep_id} never met its acceptance "
                             f"criteria in {max_attempts_per_stage} attempts")
                     if verbose:
-                        print(f"  backtracking to {stages[k].plan.sweep_id}: "
-                              f"{failing}", flush=True)
-                    start_stage = k
+                        print(f"  backtracking to {stages[k].plan.sweep_id} "
+                              f"(restart {total_restarts}, attempt "
+                              f"{attempts[k]}): " + "; ".join(problems),
+                              flush=True)
+                    backtrack_to(k)
                     continue
         break
 

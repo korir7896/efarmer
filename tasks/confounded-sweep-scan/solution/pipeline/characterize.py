@@ -1,41 +1,42 @@
 """Classify each detected sweep and estimate its strength and age.
 
-Everything here is calibrated on 32 independent single-sweep replicates
-simulated under the same history, grouped by what each sweep ACTUALLY turned
-out to be rather than what it was asked to be (see
-authoring/evidence/eval_classifier.py and gate_feasibility.py).
+Everything here is calibrated on 48 independent single-sweep replicates
+simulated under the same history at several strengths per class
+(authoring/evidence/run_training.sh), grouped by what each sweep ACTUALLY
+turned out to be rather than what it was asked to be. The feature sets and
+the fits are chosen by held-out score in authoring/evidence/fit_classifier.py
+and authoring/evidence/fit_estimators.py, not assumed.
 
-Why a nearest-centroid rule rather than thresholds
---------------------------------------------------
-Single-feature thresholds looked clean on eight replicates and stopped being
-clean on thirty-two. Tajima's D appeared to separate soft sweeps with a gap
-of 0.46; with seven soft replicates instead of four it overlaps by 1.59. The
-best single feature gives 69% leave-one-out accuracy. Four features together
-give 90.6%, so the information is there but spread across them.
+Scores are leave-one-CONFIGURATION-out throughout. The shipped sweeps sit at
+the very (s, age) configurations the calibration replicates were simulated
+at, so holding out one REPLICATE at a time measures almost nothing: a rule
+that had memorised those few pairs would score perfectly and generalise not
+at all.
 
-Measured means (ratios to background for diversity and H2/H1, differences for
-Tajima's D and the extreme-nSL fraction):
+Measured means at the sweep, against each replicate's own background
+(diversity, H12 and H2/H1 as ratios, Tajima's D and the extreme-nSL fraction
+as differences):
 
-    realized class          pi     Tajima D       H2/H1         nSL    n
-    hard, recent, done   0.162       -2.326       0.123       0.043    9
-    hard, old, done      0.212       -2.126       0.852       0.052    8
-    soft, done           0.797       +0.435       0.603      -0.010    7
-    partial              0.697       -0.891       0.161       0.430    8
+    realized class     diversity   Tajima D    H12   H2/H1     nSL    n
+    hard_complete          0.119      -2.44  7.409   0.084   +0.01   16
+    hard_partial           0.801      -0.63  6.596   0.104   +0.41    9
+    soft_complete          0.798      +0.54  4.266   0.691   -0.02   15
+    soft_partial           0.775      -0.23  5.374   0.575   +0.22    8
 
-Each class is distinguished by a different combination. A recent hard sweep
-is low on everything. An old hard sweep looks the same except H2/H1 has
-recovered to 0.85, because recombination has broken up the swept block. A
-soft sweep barely depresses diversity at all, at 0.80 of background, and
-pushes Tajima's D positive from the excess of intermediate-frequency variants
-that several frequent haplotypes create. A partial sweep is the only class
-with a strong nSL signal, because it is the only one still segregating and so
-the only one carrying a long young haplotype.
-
-Note that H2/H1 earns its place by separating old from recent hard sweeps,
-not hard from soft as it usually would.
+Neither axis of the class scheme has a statistic that carries it alone.
+H2/H1, the textbook hard-versus-soft discriminator, runs from 0.009 to 1.012
+of background across the hard_complete replicates, swallowing the 0.025 to
+0.861 the soft completed ones occupy: at an old hard sweep recombination has
+broken up the swept block and H2/H1 has recovered. Diversity, the obvious
+complete-versus-partial discriminator, runs from 0.011 to 0.719 across
+hard_complete and from 0.383 to 1.167 across hard_partial, so it overlaps
+too. The medians above separate; the distributions do not. What works is one
+rule per axis, with softness fitted separately inside each completeness
+group, where H2/H1 is usable again because every partial sweep is young.
 """
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -46,56 +47,102 @@ import numpy as np
 # training replicates in authoring/evidence/training/ and pasted in verbatim.
 # ===========================================================================
 
-# --- nearest-centroid classifier ---
-CLASS_FEATURES = ("pi_ratio", "tajd_delta", "h2h1_ratio", "nsl_delta")
-FEATURE_MEAN = np.array([0.0, 0.0, 0.0, 0.0])
-FEATURE_SD = np.array([1.0, 1.0, 1.0, 1.0])
-CLASS_CENTROIDS = {
-    "hard_complete": np.zeros(4),
-    "hard_partial":  np.zeros(4),
-    "soft_complete": np.zeros(4),
-    "soft_partial":  np.zeros(4),
+# --- classifier: the two axes of the class scheme, one rule each ---
+# A single nearest-centroid rule over all four classes at once scores 72.9%
+# held out. The scheme is two independent binary properties, so two binary
+# rules do better: 81.2%, measured leave-one-CONFIGURATION-out, which is the
+# honest test here because the shipped sweeps sit at the very configurations
+# the calibration replicates were simulated at and a rule that memorised
+# those few (s, age) pairs would otherwise score perfectly.
+#
+# Softness is fitted separately inside each completeness group, because the
+# axis is far easier among completed sweeps (90.3%) than among the ones still
+# rising (70.6%): the frequent haplotypes a completed soft sweep leaves have
+# had time to become frequent, while a partial sweep's are still a minority
+# of the sample however many of them there are.
+#
+# What carries each axis:
+#   completeness -- diversity and the number of segregating sites in the
+#     window. A completed sweep removed variation; one still rising did not.
+#   softness, completed -- Tajima's D, which several frequent haplotypes push
+#     positive where one pushes it negative, with the extent of the H12
+#     elevation controlling for the sweep's strength.
+#   softness, partial -- H2/H1, the textbook hard-versus-soft discriminator,
+#     which is usable here only because age is not in play: every partial
+#     sweep is still rising. Pooled over completed sweeps of all ages it is
+#     confounded, which is why it does not appear in the rule above.
+CLASS_RULES = {
+    "complete": dict(
+        feats=["pi_ratio", "snp_ratio"],
+        mean=[0.54269, 0.637164],
+        sd=[0.368902, 0.273559],
+        weights=[2.04762, 2.70651, -7.01809]),          # n=48, in-sample 0.958
+    "soft_given_complete": dict(
+        feats=["tajd_delta", "w_h12_2"],
+        mean=[-1.07438, 1.08613e+06],
+        sd=[1.62347, 1.04221e+06],
+        weights=[0.182405, 3.30968, 0.822253]),         # n=31, in-sample 0.903
+    "soft_given_partial": dict(
+        feats=["h2h1_ratio"],
+        mean=[0.370496],
+        sd=[0.291512],
+        weights=[-0.119288, 0.861283]),                 # n=17, in-sample 0.765
 }
 
 # How far around the detected peak to read the features, matching calibration.
 FEATURE_RADIUS_BP = 60_000
 
-# --- s from the width of the diversity trough ---
-# The width is the contiguous run of windows whose smoothed diversity is below
-# the midpoint between the trough's floor and background. Thresholding at half
-# of BACKGROUND instead fails for the shallow classes, whose diversity never
-# gets that low: it returned 10 kb for partial sweeps and 40 kb for soft ones
-# against 230-320 kb for hard sweeps. Measuring recovery relative to each
-# sweep's own floor is what makes one constant per class work across a range
-# of s spanning a factor of 9.4.
+# --- s and age from the shape of the footprint ---
+# Both estimators are log-linear fits in two measured features, chosen by
+# held-out score in authoring/evidence/fit_estimators.py rather than assumed.
+#
+# The first version of this used one relation for s, trough width times the
+# local recombination rate over a per-class constant, which is the textbook
+# one: the swept region extends to roughly s/r. It put 74% of calibration
+# replicates inside a factor of 2.5 but ranked them at only 0.32, because a
+# soft sweep leaves diversity near background and has no trough whose width
+# can be measured. Adding a second feature, and taking the swept extent from
+# the H12 elevation rather than the diversity dip where diversity is flat,
+# brings that to 98% and 0.82.
+#
+# Width features are scaled by the local recombination rate: what carries the
+# strength is the GENETIC length of the footprint, so a sweep sitting in a
+# cold spot leaves a physically wider one at the same s. The calibration
+# genome is at the base rate throughout, so the scaling is 1 there and the
+# coefficients are unchanged by it.
 SMOOTH_WINDOWS = 15
 RECOVERY_FRAC = 0.5
 WIDTH_SEARCH_BP = 1_200_000
-CLASS_WIDTH_CONSTANT = {
-    "hard_complete": 0.1200,
-    "hard_partial":  0.0900,
-    "soft_complete": 0.0750,
-    "soft_partial":  0.0750,
+BASE_RATE = 1e-8
+
+S_MODEL = {
+    "hard_complete": dict(feats=["pi_ratio", "w_pi_50"],
+                          coef=[-9.0909, -0.34032, 0.36376]),
+    "hard_partial":  dict(feats=["pi_ratio", "w_h12_15"],
+                          coef=[-10.386, 0.38234, 0.48695]),
+    "soft_complete": dict(feats=["pi_ratio", "w_pi_75"],
+                          coef=[-14.132, 0.29848, 0.82655]),
+    "soft_partial":  dict(feats=["pi_ratio", "w_h12_2"],
+                          coef=[-17.722, 0.089672, 1.0223]),
 }
+# Per-class median s, used only when a feature the model needs is missing --
+# a footprint with no measurable extent at all.
+S_FALLBACK = {"hard_complete": 0.026, "hard_partial": 0.022,
+              "soft_complete": 0.028, "soft_partial": 0.025}
 
 # --- diversity-recovery clock ---
-# A completed sweep's age is read off how far below background its centre
-# still sits. One power law over the whole hard_complete class rather than a
-# constant bias per class: class no longer splits by age, so hard_complete
-# spans completion times from about a hundred to about two thousand
-# generations and residual diversity is not proportional to age over that
-# range.
+# Age comes from H12 decay with the footprint extent controlling for
+# strength, not from residual diversity alone. H12 at a completed sweep falls
+# back towards background as recombination breaks up the swept block, which
+# is a cleaner clock than the depth of the diversity trough: measured
+# held-out across configurations, 15 of 16 completion times land inside the
+# verifier's tolerance against 9 of 16 for the diversity-depth version.
 #
 # Reported for every sweep called complete, because the submission schema
-# requires a time there, but only meaningful for the single-origin ones: the
-# clock presumes the sweep drove diversity to zero, and a soft sweep leaves
-# it near background. The verifier grades timing on true hard_complete
-# sweeps only, for the same reason.
+# requires a number there, but only meaningful for the single-origin ones:
+# the verifier grades timing on true hard_complete sweeps only.
 TIMED_CLASSES = ("hard_complete", "soft_complete")
-TIME_CLOCK_A = 2.0
-TIME_CLOCK_B = 1.0
-# Fallback when the trough has no finite floor to read, so that a sweep
-# called complete always carries a number.
+T_MODEL = dict(feats=["h12_ratio", "w_pi_75"], coef=[5.2993, -0.92298, 0.17419])
 TIME_FALLBACK_GENS = 500.0
 
 
@@ -113,7 +160,8 @@ def background_levels(obs: Dict[str, np.ndarray], regions: Sequence[Dict],
         if sel.sum() < 30:
             sel = (rate_bins == b)
         lev = {}
-        for stat in ("pi", "tajima_d", "h12", "h2_h1", "nsl_frac"):
+        for stat in ("pi", "tajima_d", "h12", "h2_h1", "nsl_frac",
+                     "n_snps"):
             v = obs[stat].astype(float)[sel]
             v = v[np.isfinite(v)]
             lev[stat] = float(np.median(v)) if v.size else float("nan")
@@ -146,6 +194,8 @@ def features(obs: Dict[str, np.ndarray], region: Dict,
     f["h12_ratio"] = at_peak("h12") / bg["h12"] if bg["h12"] else float("nan")
     f["h2h1_ratio"] = at_peak("h2_h1") / bg["h2_h1"] if bg["h2_h1"] else float("nan")
     f["nsl_delta"] = at_peak("nsl_frac") - bg["nsl_frac"]
+    f["snp_ratio"] = (at_peak("n_snps") / bg["n_snps"]
+                      if bg.get("n_snps") else float("nan"))
 
     # Deepest diversity near the peak: used for dating, not classification.
     v = obs["pi"].astype(float)
@@ -155,20 +205,36 @@ def features(obs: Dict[str, np.ndarray], region: Dict,
     return f
 
 
+def _logistic(rule: Dict, feat: Dict[str, float]) -> Optional[float]:
+    """P(label) under a standardized logistic rule, or None if a feature is
+    missing. A width of zero is a measurement, not a gap, so only a
+    non-finite value counts as missing."""
+    xs = []
+    for k, mu, sd in zip(rule["feats"], rule["mean"], rule["sd"]):
+        x = feat.get(k, float("nan"))
+        if not np.isfinite(x):
+            return None
+        xs.append((float(x) - mu) / sd)
+    w = rule["weights"]
+    z = float(w[0]) + sum(float(b) * v for b, v in zip(w[1:], xs))
+    return 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, z))))
+
+
 def classify(f: Dict[str, float]) -> str:
-    """Nearest calibrated centroid in standardized feature space."""
-    x = np.array([f.get(k, np.nan) for k in CLASS_FEATURES], dtype=float)
-    if not np.all(np.isfinite(x)):
-        # Fall back on the features that are available.
-        ok = np.isfinite(x)
-        if not ok.any():
-            return "hard_complete"
-        z = (x[ok] - FEATURE_MEAN[ok]) / FEATURE_SD[ok]
-        return min(CLASS_CENTROIDS,
-                   key=lambda c: float(np.linalg.norm(z - CLASS_CENTROIDS[c][ok])))
-    z = (x - FEATURE_MEAN) / FEATURE_SD
-    return min(CLASS_CENTROIDS,
-               key=lambda c: float(np.linalg.norm(z - CLASS_CENTROIDS[c])))
+    """Completeness first, then softness with the rule for that group.
+
+    Falls back on the commoner label for an axis whose features are missing,
+    which is better than refusing to answer: a call with no class at all
+    fails the schema, and the commoner label is right more often than not.
+    """
+    p_complete = _logistic(CLASS_RULES["complete"], f)
+    complete = True if p_complete is None else p_complete >= 0.5
+    rule = CLASS_RULES["soft_given_complete" if complete
+                       else "soft_given_partial"]
+    p_soft = _logistic(rule, f)
+    soft = False if p_soft is None else p_soft >= 0.5
+    return ("soft_" if soft else "hard_") + ("complete" if complete
+                                             else "partial")
 
 
 def _smooth_median(v: np.ndarray, k: int) -> np.ndarray:
@@ -182,57 +248,113 @@ def _smooth_median(v: np.ndarray, k: int) -> np.ndarray:
     return out
 
 
-def trough_width(obs: Dict[str, np.ndarray], region: Dict, bg_pi: float) -> float:
-    """Contiguous width of the diversity trough, relative to its own floor."""
-    same = obs["chrom"] == region["chrom"]
-    idx = np.where(same)[0]
-    if idx.size == 0 or not np.isfinite(bg_pi) or bg_pi <= 0:
-        return 0.0
-    order = idx[np.argsort(obs["mid"][idx])]
-    mid = obs["mid"][order]
-    vs = _smooth_median(obs["pi"].astype(float)[order], SMOOTH_WINDOWS)
-    centre = float(obs["mid"][int(region["peak_index"])])
-
-    near = (np.abs(mid - centre) <= WIDTH_SEARCH_BP) & np.isfinite(vs)
-    if not near.any():
-        return 0.0
-    floor = float(vs[near].min())
-    level = floor + RECOVERY_FRAC * (bg_pi - floor)
-    below = np.isfinite(vs) & (vs < level)
-    if not below.any():
+def _run_around(mid: np.ndarray, flag: np.ndarray, centre: float) -> float:
+    """Span of the contiguous run of flagged windows containing the centre."""
+    if not flag.any():
         return 0.0
     i0 = int(np.argmin(np.abs(mid - centre)))
-    if not below[i0]:
-        cand = np.where(below)[0]
+    if not flag[i0]:
+        cand = np.where(flag)[0]
         i0 = int(cand[np.argmin(np.abs(mid[cand] - centre))])
         if abs(mid[i0] - centre) > 600_000:
             return 0.0
-    lo = i0
-    while lo - 1 >= 0 and below[lo - 1]:
+    lo = hi = i0
+    while lo - 1 >= 0 and flag[lo - 1]:
         lo -= 1
-    hi = i0
-    while hi + 1 < len(mid) and below[hi + 1]:
+    while hi + 1 < len(mid) and flag[hi + 1]:
         hi += 1
     return float(mid[hi] - mid[lo])
 
 
-def estimate_s(obs: Dict[str, np.ndarray], region: Dict, bg_pi: float,
-               local_rate: float, klass: str) -> float:
-    """s from the trough width times the local recombination rate."""
-    w = trough_width(obs, region, bg_pi)
-    k = CLASS_WIDTH_CONSTANT.get(klass, 0.1)
-    if w <= 0 or not np.isfinite(local_rate) or local_rate <= 0 or k <= 0:
-        return float("nan")
-    return float(np.clip(w * local_rate / k, 1e-4, 0.5))
+def contiguous_low_width(mid: np.ndarray, v: np.ndarray, bg: float,
+                         centre: float, frac: float) -> float:
+    """Width of the contiguous dip around the centre, relative to its floor.
+
+    The level is floor + frac*(background - floor), not frac*background:
+    thresholding on a fraction of BACKGROUND fails for the shallow classes,
+    whose diversity never gets that low. It returned 10 kb for partial
+    sweeps and 40 kb for soft ones against 230-320 kb for hard sweeps.
+    """
+    order = np.argsort(mid)
+    m = mid[order]
+    vs = _smooth_median(v[order].astype(float), SMOOTH_WINDOWS)
+    near = (np.abs(m - centre) <= WIDTH_SEARCH_BP) & np.isfinite(vs)
+    if not near.any() or not np.isfinite(bg):
+        return 0.0
+    floor = float(vs[near].min())
+    level = floor + frac * (bg - floor)
+    return _run_around(m, np.isfinite(vs) & (vs < level), centre)
 
 
-def estimate_time(f: Dict[str, float], klass: str, n_current: float
-                  ) -> Optional[float]:
-    """Completion time from the calibrated diversity-recovery power law."""
+def contiguous_high_width(mid: np.ndarray, v: np.ndarray, bg: float,
+                          centre: float, mult: float) -> float:
+    """Width of the contiguous run around the centre above mult*background."""
+    order = np.argsort(mid)
+    m = mid[order]
+    vs = _smooth_median(v[order].astype(float), SMOOTH_WINDOWS)
+    if not np.isfinite(bg) or bg <= 0:
+        return 0.0
+    return _run_around(m, np.isfinite(vs) & (vs > mult * bg), centre)
+
+
+def shape_features(obs: Dict[str, np.ndarray], region: Dict,
+                   bg: Dict[str, float], local_rate: float) -> Dict[str, float]:
+    """Footprint extents the estimators are fitted on, in genetic units.
+
+    Each width is multiplied by the local recombination rate over the base
+    rate, because what a sweep's strength sets is the genetic length of its
+    footprint; the same sweep inside a cold spot covers more base pairs.
+    """
+    same = obs["chrom"] == region["chrom"]
+    idx = np.where(same)[0]
+    out = {k: 0.0 for k in ("w_pi_50", "w_pi_75", "w_h12_15", "w_h12_2")}
+    if idx.size == 0:
+        return out
+    mid = obs["mid"][idx]
+    centre = float(obs["mid"][int(region["peak_index"])])
+    scale = (float(local_rate) / BASE_RATE
+             if np.isfinite(local_rate) and local_rate > 0 else 1.0)
+    pi = obs["pi"][idx]
+    h12 = obs["h12"][idx]
+    out["w_pi_50"] = contiguous_low_width(mid, pi, bg.get("pi", np.nan),
+                                          centre, 0.50) * scale
+    out["w_pi_75"] = contiguous_low_width(mid, pi, bg.get("pi", np.nan),
+                                          centre, 0.75) * scale
+    out["w_h12_15"] = contiguous_high_width(mid, h12, bg.get("h12", np.nan),
+                                            centre, 1.5) * scale
+    out["w_h12_2"] = contiguous_high_width(mid, h12, bg.get("h12", np.nan),
+                                           centre, 2.0) * scale
+    return out
+
+
+def _loglinear(model: Dict, feat: Dict[str, float]) -> Optional[float]:
+    """exp(a) * prod(x_i ** b_i), or None if a feature is missing."""
+    coef = model["coef"]
+    total = float(coef[0])
+    for k, b in zip(model["feats"], coef[1:]):
+        x = feat.get(k, float("nan"))
+        if not np.isfinite(x) or x <= 0:
+            return None
+        total += float(b) * math.log(float(x))
+    return math.exp(total)
+
+
+def estimate_s(feat: Dict[str, float], klass: str) -> float:
+    """Selection coefficient from the class's fitted footprint model."""
+    f = feat
+    model = S_MODEL.get(klass)
+    val = _loglinear(model, f) if model else None
+    if val is None:
+        val = S_FALLBACK.get(klass, 0.025)
+    return float(np.clip(val, 1e-4, 0.5))
+
+
+def estimate_time(feat: Dict[str, float], klass: str) -> Optional[float]:
+    """Completion time from H12 decay, with the footprint extent controlling
+    for strength. None for the classes that have no completion time."""
     if klass not in TIMED_CLASSES:
         return None
-    pir = f.get("pi_min_ratio", float("nan"))
-    if not np.isfinite(pir) or pir <= 0:
-        return TIME_FALLBACK_GENS
-    t = TIME_CLOCK_A * float(n_current) * (pir ** TIME_CLOCK_B)
-    return float(np.clip(t, 1.0, 20_000.0))
+    val = _loglinear(T_MODEL, feat)
+    if val is None:
+        val = TIME_FALLBACK_GENS
+    return float(np.clip(val, 1.0, 20_000.0))

@@ -24,104 +24,77 @@ sys.path.insert(0, os.path.join(TASK, "tests"))
 
 import config as C
 from grading import GATES, TIMED_CLASSES, spearman, time_tolerance
-from pipeline.characterize import (CLASS_WIDTH_CONSTANT, RECOVERY_FRAC,
-                                   SMOOTH_WINDOWS, TIME_CLOCK_A, TIME_CLOCK_B)
+from pipeline.characterize import S_MODEL, T_MODEL, _loglinear
 
 CLASSES = ["hard_complete", "hard_partial", "soft_complete", "soft_partial"]
 
 
-def smooth(v, k=SMOOTH_WINDOWS):
-    out = np.full(v.size, np.nan); h = k // 2
-    for i in range(v.size):
-        a, b = max(0, i - h), min(v.size, i + h + 1)
-        seg = v[a:b][np.isfinite(v[a:b])]
-        if seg.size:
-            out[i] = np.median(seg)
-    return out
+def predictors():
+    """The features the fitted estimators take, per training replicate.
 
-
-def trough_width(mid, v, bg, centre, frac=RECOVERY_FRAC):
-    vs = smooth(v)
-    near = (np.abs(mid - centre) <= 1_200_000) & np.isfinite(vs)
-    if not near.any():
-        return 0.0
-    vmin = float(vs[near].min()); level = vmin + frac * (bg - vmin)
-    order = np.argsort(mid); m, vv = mid[order], vs[order]
-    below = np.isfinite(vv) & (vv < level)
-    if not below.any():
-        return 0.0
-    i0 = int(np.argmin(np.abs(m - centre)))
-    if not below[i0]:
-        cand = np.where(below)[0]
-        i0 = int(cand[np.argmin(np.abs(m[cand] - centre))])
-        if abs(m[i0] - centre) > 600_000:
-            return 0.0
-    lo = i0
-    while lo - 1 >= 0 and below[lo - 1]:
-        lo -= 1
-    hi = i0
-    while hi + 1 < len(m) and below[hi + 1]:
-        hi += 1
-    return float(m[hi] - m[lo])
+    Measured with the same functions the reference uses, imported from it, so
+    this cannot drift away from what the pipeline actually computes.
+    """
+    sys.path.insert(0, HERE)
+    from fit_estimators import rows
+    return rows()
 
 
 def feasibility():
-    per = {c: {"s_ok": 0, "s_n": 0, "t_ok": 0, "t_n": 0,
-               "s_est": [], "t_est": []} for c in CLASSES}
-    all_s_hat, all_s_true = [], []
-    for f in sorted(glob.glob(os.path.join(HERE, "training", "*.npz"))):
-        d = np.load(f, allow_pickle=True)
-        cls = str(d["realized_class"])
-        if cls not in per:
-            continue
-        mid = d["mid"]; v = d["pi"].astype(float); bg = float(d["bg_pi"])
-        centre = float(d["sweep_pos"]); s_true = float(d["s_true"])
-
-        w = trough_width(mid, v, bg, centre)
-        if w > 0:
-            s_hat = w * C.BASE_REC_RATE / CLASS_WIDTH_CONSTANT[cls]
-            per[cls]["s_n"] += 1
-            per[cls]["s_est"].append(s_hat / s_true)
-            all_s_hat.append(s_hat); all_s_true.append(s_true)
-            if s_true / GATES["s_within_factor"] <= s_hat <= s_true * GATES["s_within_factor"]:
-                per[cls]["s_ok"] += 1
-
-        if cls in TIMED_CLASSES and "completed" in d.files and bool(d["completed"].item()):
-            t_true = float(d["completion_gens_ago"])
-            near = (np.abs(mid - centre) <= 1_000_000) & np.isfinite(v)
-            if near.any() and bg:
-                pir = float(v[near].min()) / bg
-                t_hat = TIME_CLOCK_A * C.N_CURRENT * (pir ** TIME_CLOCK_B)
-                per[cls]["t_n"] += 1
-                per[cls]["t_est"].append(t_hat / t_true)
-                if abs(t_hat - t_true) <= time_tolerance(t_true):
-                    per[cls]["t_ok"] += 1
-
+    data = predictors()
     print("=== FEASIBLE: the reference's estimators on independent replicates ===")
     print(f"selection coefficient, within a factor of {GATES['s_within_factor']} "
           f"of truth (gate: {GATES['min_s_accuracy']:.0%} of matched calls):")
     print(f"  {'class':<16}{'pass':>10}{'rate':>8}{'median est/true':>18}")
+    all_hat, all_true = [], []
     for c in CLASSES:
-        p = per[c]
-        if p["s_n"]:
-            print(f"  {c:<16}{p['s_ok']}/{p['s_n']:<8}{p['s_ok']/p['s_n']:>7.0%}"
-                  f"{np.median(p['s_est']):>18.2f}")
-    tot_ok = sum(per[c]["s_ok"] for c in CLASSES)
-    tot_n = sum(per[c]["s_n"] for c in CLASSES)
-    if tot_n:
-        print(f"  {'ALL':<16}{tot_ok}/{tot_n:<8}{tot_ok/tot_n:>7.0%}")
-        rho = spearman(all_s_hat, all_s_true)
-        print(f"  rank correlation with truth {rho:.3f} over {tot_n} replicates "
+        rs = [r for r in data if r["cls"] == c]
+        ok = n = 0
+        ratios = []
+        for r in rs:
+            hat = _loglinear(S_MODEL[c], r)
+            if hat is None:
+                continue
+            n += 1
+            ratios.append(hat / r["s_true"])
+            all_hat.append(hat); all_true.append(r["s_true"])
+            if (r["s_true"] / GATES["s_within_factor"] <= hat
+                    <= r["s_true"] * GATES["s_within_factor"]):
+                ok += 1
+        if n:
+            print(f"  {c:<16}{ok}/{n:<8}{ok/n:>7.0%}{np.median(ratios):>18.2f}")
+    if all_true:
+        err = np.maximum(np.array(all_hat) / np.array(all_true),
+                         np.array(all_true) / np.array(all_hat))
+        n = len(err)
+        print(f"  {'ALL':<16}{int((err <= GATES['s_within_factor']).sum())}/{n:<8}"
+              f"{(err <= GATES['s_within_factor']).mean():>7.0%}")
+        print(f"  rank correlation with truth "
+              f"{spearman(all_hat, all_true):.3f} over {n} replicates "
               f"(gate: {GATES['min_s_rank_corr']:.2f})")
+        print("  NOTE: fitted on these same replicates. The honest, "
+              "leave-one-configuration-out\n"
+              "        numbers are in authoring/evidence/fit_estimators.py.")
 
     print(f"\ncompletion time, within max({GATES['time_abs_tol_gens']} gens, "
-          f"{GATES['time_rel_tol']:.0%}) of truth:")
-    print(f"  {'class':<16}{'pass':>10}{'rate':>8}{'median est/true':>18}")
-    for c in CLASSES:
-        p = per[c]
-        if p["t_n"]:
-            print(f"  {c:<16}{p['t_ok']}/{p['t_n']:<8}{p['t_ok']/p['t_n']:>7.0%}"
-                  f"{np.median(p['t_est']):>18.2f}")
+          f"{GATES['time_rel_tol']:.0%}) of truth "
+          f"(gate: {GATES['min_time_correct']} of the matched hard_complete "
+          f"sweeps):")
+    rs = [r for r in data if r["cls"] in TIMED_CLASSES and r["completed"]
+          and np.isfinite(r["t_true"])]
+    ok = n = 0
+    ratios = []
+    for r in rs:
+        hat = _loglinear(T_MODEL, r)
+        if hat is None:
+            continue
+        n += 1
+        ratios.append(hat / r["t_true"])
+        if abs(hat - r["t_true"]) <= time_tolerance(r["t_true"]):
+            ok += 1
+    if n:
+        print(f"  hard_complete   {ok}/{n:<8}{ok/n:>7.0%}"
+              f"{np.median(ratios):>18.2f}")
 
 
 def triviality():

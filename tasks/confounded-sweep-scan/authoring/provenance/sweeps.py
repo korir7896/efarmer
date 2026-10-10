@@ -144,17 +144,21 @@ def check_acceptance(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str
     return (len(problems) == 0), problems
 
 
-def failing_sweeps(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str]]:
-    """Acceptance as the forward driver wants it: (ok, failing sweep ids).
+def failing_sweeps(reals: Dict[str, SweepRealization]
+                   ) -> Tuple[bool, List[str], List[str]]:
+    """Acceptance as the forward driver wants it.
 
-    Lets the driver backtrack to the one sweep that did not work out instead
-    of throwing away a whole replicate.
+    Returns (ok, failing sweep ids, human-readable problems). The driver
+    backtracks to the earliest failing sweep instead of throwing away a whole
+    replicate, and logs the problems: a run that keeps rejecting the same
+    sweep needs to say what about it was wrong, or the only way to find out
+    is to guess.
     """
     ok, problems = check_acceptance(reals)
     if ok:
-        return True, []
+        return True, [], []
     bad = []
     for sid in sorted(reals):
         if any(p.startswith(sid) for p in problems):
             bad.append(sid)
-    return False, bad or sorted(reals)
+    return False, bad or sorted(reals), problems

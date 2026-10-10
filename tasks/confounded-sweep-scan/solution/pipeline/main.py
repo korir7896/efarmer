@@ -102,18 +102,23 @@ def main(argv=None):
     for r in regions:
         b = int(bins[r["peak_index"]])
         lev = bg.get(b) or next(iter(bg.values()))
-        f = CH.features(obs, r, lev)
-        klass = CH.classify(f)
         local_rate = float(obs["rate"][r["peak_index"]])
-        s_hat = CH.estimate_s(obs, r, lev["pi"], local_rate, klass)
-        t_hat = CH.estimate_time(f, klass, hist.n_current)
-        calls.append({
+        f = CH.features(obs, r, lev)
+        f.update(CH.shape_features(obs, r, lev, local_rate))
+        klass = CH.classify(f)
+        s_hat = CH.estimate_s(f, klass)
+        t_hat = CH.estimate_time(f, klass)
+        call = {
             "chrom": int(r["chrom"]),
             "position": int(r["position"]),
             "class": klass,
             "selection_coefficient": float(s_hat) if np.isfinite(s_hat) else 0.01,
-            "time_gens_ago": (None if t_hat is None else float(round(t_hat))),
-        })
+        }
+        # The schema requires a completion time for the classes a submission
+        # calls complete, and ignores it for the partial ones.
+        if t_hat is not None:
+            call["time_gens_ago"] = float(round(t_hat))
+        calls.append(call)
         log(f"  chr{r['chrom']}:{r['position']:,} score={r['peak_score']:.1f} "
             f"pi={f['pi_ratio']:.3f} tajd={f['tajd_delta']:+.2f} "
             f"h2h1={f['h2h1_ratio']:.3f} nsl={f['nsl_delta']:+.3f} -> {klass} "

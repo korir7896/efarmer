@@ -25,7 +25,8 @@ need = {
              "sweep_scores", "null_score_threshold", "call_regions"),
     demography: ("observed_summaries", "fit_demography", "History"),
     characterize: ("background_levels", "features", "classify",
-                   "estimate_s", "estimate_time", "trough_width"),
+                   "estimate_s", "estimate_time", "shape_features",
+                   "contiguous_low_width", "contiguous_high_width"),
     sweepstats: ("load_vcf", "windowed_sfs_stats", "garud_scan_bp", "nsl_scan"),
     main: ("main",),
 }

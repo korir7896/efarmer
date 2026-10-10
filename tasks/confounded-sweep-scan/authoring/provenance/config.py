@@ -112,7 +112,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     # --- soft, partial: the weakest cell. Twelve origins rather than a
     #     hundred, so the surviving beneficial haplotypes are few enough to
     #     leave a haplotype signal while still being more than one.
-    ("sw09", 1, 0.26,  0.0110,  740,  12, "soft_partial"),
+    ("sw09", 1, 0.26,  0.0110,  620,  12, "soft_partial"),
     ("sw10", 3, 0.22,  0.0600,  130,  12, "soft_partial"),
 ]
 
@@ -149,12 +149,14 @@ POSITION_JITTER = 180_000
 #   s=0.0600 origin  140 x12    0/8 complete, final frequency 0.850-0.924,
 #                                 5-6 surviving origins, soft in 8/8
 #
-# sw09 (s=0.0110 origin 740 x12) is the one configuration set from the
-# deterministic expectation rather than measured: with twelve founding copies
-# it needs about 250 generations to reach the drift-escape threshold and
-# another 495 to reach 0.7, so 740 generations puts it around two thirds.
-# Its realized frequency is recorded as truth either way, and the generator
-# backtracks on that sweep alone if the draw lands outside the window.
+#   s=0.0110 origin  740 x12    calibration replicates reached 0.860, 0.931
+#                                 and 0.986: too far along, and the third
+#                                 counts as complete. sw09's origin is pulled
+#                                 back to 620, which the logistic shift puts
+#                                 near 0.70. That also moves sw09 later in
+#                                 the stage order, which matters because
+#                                 rejecting an early sweep replays every
+#                                 sweep after it.
 # sw10's origin is pulled back from the measured 140 to 130 because 140 put
 # the median at 0.896, close enough to completion to risk rejection.
 #
@@ -172,23 +174,32 @@ POSITION_JITTER = 180_000
 # The windows below bracket those measurements, tightened at the edges where
 # a looser window would let two hard_complete sweeps drift close enough
 # together for one number to date both.
+# A rejected sweep sends the forward driver back to that sweep's origin and
+# replays everything after it, so a narrow window on an EARLY sweep is
+# expensive: sw03's origin is 2300 generations back, and rejecting it throws
+# away almost the whole forward phase. The windows are therefore as wide as
+# the timing gate's non-triviality allows, which
+# gate_feasibility.design_guarantee() checks rather than assumes -- it takes
+# the windows, not one realized replicate, and verifies that no constant can
+# land inside three of the four hard_complete tolerance ranges for ANY draw
+# the generator would accept.
 ACCEPT: Dict[str, Dict] = {
     "sw01": dict(class_="hard_complete", must_complete=True,
-                 done_min=90,   done_max=200),
+                 done_min=90,   done_max=210),
     "sw02": dict(class_="hard_complete", must_complete=True,
-                 done_min=250,  done_max=400),
+                 done_min=240,  done_max=420),
     "sw03": dict(class_="hard_complete", must_complete=True,
-                 done_min=950,  done_max=1320),
+                 done_min=820,  done_max=1400),
     "sw04": dict(class_="hard_complete", must_complete=True,
-                 done_min=1850, done_max=2150),
+                 done_min=1850, done_max=2200),
     "sw05": dict(class_="soft_complete", must_complete=True,
-                 done_min=100,  done_max=260),
+                 done_min=100,  done_max=270),
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=130,  done_max=320),
+                 done_min=130,  done_max=330),
     "sw07": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.92),
+                 freq_min=0.42, freq_max=0.93),
     "sw08": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.92),
+                 freq_min=0.42, freq_max=0.93),
     "sw09": dict(class_="soft_partial", must_complete=False,
                  freq_min=0.45, freq_max=0.95),
     "sw10": dict(class_="soft_partial", must_complete=False,
