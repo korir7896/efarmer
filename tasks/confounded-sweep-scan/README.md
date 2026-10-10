@@ -50,15 +50,15 @@ binary properties a scan can be asked to recover, crossed: complete or
 partial (did the beneficial allele pass 0.98), hard or soft (is one
 independent origin of it still present, or several). Measured in the window
 containing the selected site, against each replicate's own background, over
-48 independent single-sweep replicates grouped by what each sweep actually
+51 independent single-sweep replicates grouped by what each sweep actually
 turned out to be:
 
 | realized class | diversity | Tajima's D | H12 | H2/H1 | nSL | n |
 | --- | --- | --- | --- | --- | --- | --- |
 | hard_complete | 0.119 | -2.44 | 7.409 | 0.084 | +0.01 | 16 |
 | hard_partial | 0.801 | -0.63 | 6.596 | 0.104 | +0.41 | 9 |
-| soft_complete | 0.798 | +0.54 | 4.266 | 0.691 | -0.02 | 15 |
-| soft_partial | 0.775 | -0.23 | 5.374 | 0.575 | +0.22 | 8 |
+| soft_complete | 0.794 | +0.53 | 4.298 | 0.673 | -0.02 | 16 |
+| soft_partial | 0.811 | -0.03 | 4.949 | 0.549 | +0.20 | 10 |
 
 Diversity, H12 and H2/H1 as ratios to background, Tajima's D and the
 extreme-nSL fraction as differences; median over replicates.
@@ -84,9 +84,9 @@ several frequent haplotypes push positive where one pushes it negative, with
 the extent of the H12 elevation controlling for the sweep's strength.
 Softness among partial sweeps is carried by H2/H1 after all -- usable there
 precisely because age is not in play, since every partial sweep is still
-rising. Measured leave-one-configuration-out, that gets 81.2% against 72.9%
-for a single nearest-centroid rule over all four classes at once, and 90.3%
-on the softness axis among completed sweeps against 70.6% among partial
+rising. Measured leave-one-configuration-out, that gets 82.4% against 72.9%
+for a single nearest-centroid rule over all four classes at once, and 90.6%
+on the softness axis among completed sweeps against 73.7% among partial
 ones.
 
 H12 collapses for old sweeps, because recombination erodes the swept
@@ -99,14 +99,14 @@ almost nothing else.
 **And the two quantities asked about each sweep are relations that have to be
 derived and calibrated.** The selection coefficients in the shipped
 replicate span a factor of 9.4 and the ages of the datable sweeps a factor
-of sixteen, so no single plausible number satisfies either requirement. The
+of eighteen, so no single plausible number satisfies either requirement. The
 textbook relation for strength, that the footprint extends to about s over
 the local recombination rate, is necessary but not sufficient: fitted as
 trough width times local rate over a per-class constant it put 74% of
 replicates inside a factor of 2.5 and ranked them at only 0.32, because a
 soft sweep leaves no trough whose width can be measured. Taking the swept
 extent from the H12 elevation instead, where diversity is flat, brings that
-to 98% and 0.82.
+to 98% and 0.83.
 
 ## Why shortcuts fail, gate by gate
 
@@ -188,7 +188,7 @@ history, so the history comes first.
    what a call is.
 4. **Characterisation** of each called region, calibrated on 48 independent
    single-sweep replicates simulated under the same history at several
-   strengths per class and grouped by what each sweep actually turned out to
+   strengths per class (51 of them) and grouped by what each sweep actually turned out to
    be. Every score quoted here is leave-one-CONFIGURATION-out, not
    leave-one-replicate-out: the shipped sweeps sit at the very (s, age)
    configurations the replicates were simulated at, so holding out one
@@ -196,15 +196,15 @@ history, so the history comes first.
    pairs.
 
    **Class** by one rule per axis rather than one rule over four classes:
-   81.2% against 72.9% for a nearest-centroid rule on the same features.
+   82.4% against 72.9% for a nearest-centroid rule on the same features.
    Completeness comes from diversity with the number of segregating sites in
    the window; softness from Tajima's D with the extent of the H12
    elevation among completed sweeps, and from H2/H1 among partial ones,
    fitted separately because the axis is much easier among completed sweeps
-   (90.3%) than among those still rising (70.6%).
+   (90.6%) than among those still rising (73.7%).
 
    **Selection coefficient** from a log-linear fit in two measured features
-   per class: 98% within a factor of 2.5 with a rank correlation of 0.82
+   per class: 98% within a factor of 2.5 with a rank correlation of 0.83
    pooled across classes. The textbook relation, footprint extent times the
    local rate, is the backbone of it, but on its own, as trough width over a
    per-class constant, it reached only 74% and ranked at 0.32 -- a soft sweep

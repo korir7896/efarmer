@@ -1,6 +1,6 @@
 """Classify each detected sweep and estimate its strength and age.
 
-Everything here is calibrated on 48 independent single-sweep replicates
+Everything here is calibrated on 51 independent single-sweep replicates
 simulated under the same history at several strengths per class
 (authoring/evidence/run_training.sh), grouped by what each sweep ACTUALLY
 turned out to be rather than what it was asked to be. The feature sets and
@@ -20,8 +20,8 @@ as differences):
     realized class     diversity   Tajima D    H12   H2/H1     nSL    n
     hard_complete          0.119      -2.44  7.409   0.084   +0.01   16
     hard_partial           0.801      -0.63  6.596   0.104   +0.41    9
-    soft_complete          0.798      +0.54  4.266   0.691   -0.02   15
-    soft_partial           0.775      -0.23  5.374   0.575   +0.22    8
+    soft_complete          0.794      +0.53  4.298   0.673   -0.02   16
+    soft_partial           0.811      -0.03  4.949   0.549   +0.20   10
 
 Neither axis of the class scheme has a statistic that carries it alone.
 H2/H1, the textbook hard-versus-soft discriminator, runs from 0.009 to 1.012
@@ -50,14 +50,14 @@ import numpy as np
 # --- classifier: the two axes of the class scheme, one rule each ---
 # A single nearest-centroid rule over all four classes at once scores 72.9%
 # held out. The scheme is two independent binary properties, so two binary
-# rules do better: 81.2%, measured leave-one-CONFIGURATION-out, which is the
+# rules do better: 82.4%, measured leave-one-CONFIGURATION-out, which is the
 # honest test here because the shipped sweeps sit at the very configurations
 # the calibration replicates were simulated at and a rule that memorised
 # those few (s, age) pairs would otherwise score perfectly.
 #
 # Softness is fitted separately inside each completeness group, because the
-# axis is far easier among completed sweeps (90.3%) than among the ones still
-# rising (70.6%): the frequent haplotypes a completed soft sweep leaves have
+# axis is far easier among completed sweeps (90.6%) than among the ones still
+# rising (73.7%): the frequent haplotypes a completed soft sweep leaves have
 # had time to become frequent, while a partial sweep's are still a minority
 # of the sample however many of them there are.
 #
@@ -74,19 +74,19 @@ import numpy as np
 CLASS_RULES = {
     "complete": dict(
         feats=["pi_ratio", "snp_ratio"],
-        mean=[0.54269, 0.637164],
-        sd=[0.368902, 0.273559],
-        weights=[2.04762, 2.70651, -7.01809]),          # n=48, in-sample 0.958
+        mean=[0.553882, 0.648399],
+        sd=[0.3673, 0.27194],
+        weights=[1.98594, 2.3216, -6.92335]),           # n=51, held out 0.961
     "soft_given_complete": dict(
         feats=["tajd_delta", "w_h12_2"],
-        mean=[-1.07438, 1.08613e+06],
-        sd=[1.62347, 1.04221e+06],
-        weights=[0.182405, 3.30968, 0.822253]),         # n=31, in-sample 0.903
+        mean=[-1.09206, 1.08781e+06],
+        sd=[1.60093, 1.02584e+06],
+        weights=[0.414562, 3.17302, 0.715223]),         # n=32, held out 0.906
     "soft_given_partial": dict(
         feats=["h2h1_ratio"],
-        mean=[0.370496],
-        sd=[0.291512],
-        weights=[-0.119288, 0.861283]),                 # n=17, in-sample 0.765
+        mean=[0.378404],
+        sd=[0.277096],
+        weights=[0.142307, 0.894801]),                  # n=19, held out 0.737
 }
 
 # How far around the detected peak to read the features, matching calibration.
@@ -103,7 +103,7 @@ FEATURE_RADIUS_BP = 60_000
 # soft sweep leaves diversity near background and has no trough whose width
 # can be measured. Adding a second feature, and taking the swept extent from
 # the H12 elevation rather than the diversity dip where diversity is flat,
-# brings that to 98% and 0.82.
+# brings that to 98% and 0.83.
 #
 # Width features are scaled by the local recombination rate: what carries the
 # strength is the GENETIC length of the footprint, so a sweep sitting in a
@@ -121,9 +121,9 @@ S_MODEL = {
     "hard_partial":  dict(feats=["pi_ratio", "w_h12_15"],
                           coef=[-10.386, 0.38234, 0.48695]),
     "soft_complete": dict(feats=["pi_ratio", "w_pi_75"],
-                          coef=[-14.132, 0.29848, 0.82655]),
+                          coef=[-14.828, 0.34891, 0.88015]),
     "soft_partial":  dict(feats=["pi_ratio", "w_h12_2"],
-                          coef=[-17.722, 0.089672, 1.0223]),
+                          coef=[-15.845, 0.084123, 0.88815]),
 }
 # Per-class median s, used only when a feature the model needs is missing --
 # a footprint with no measurable extent at all.
