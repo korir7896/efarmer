@@ -47,8 +47,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
     ap.add_argument("--max-replicates", type=int, default=12)
+    ap.add_argument("--forward-only", action="store_true",
+                    help="run the forward phase, print the realized sweeps "
+                         "and stop; for tuning origins IN CONTEXT, which is "
+                         "the only place interference between the ten sweeps "
+                         "and the real genome length are present")
     ap.add_argument("--no-accept", action="store_true",
                     help="skip replicate acceptance (plumbing smoke test only)")
+    ap.add_argument("--seed-offset", type=int, default=0,
+                    help="replicate index, for independent probe runs")
     ap.add_argument("--quick", action="store_true",
                     help="small smoke-test scale, not the shipped replicate")
     args = ap.parse_args()
@@ -82,6 +89,27 @@ def main():
         ]
     else:
         plans = S.build_plans(cfg, C.MASTER_SEED)
+
+    if args.forward_only:
+        seed = C.MASTER_SEED + 1000 * args.seed_offset
+        t0 = time.time()
+        _, rec, el = run_forward(cfg, n_cur, t_forward, plans, seed=seed,
+                                 traj_thin=10, accept_fn=None)
+        ok, problems = S.check_acceptance(rec.real)
+        print(f"\nforward {el:.0f}s  seed {seed}  accepted={ok}")
+        print(f"{'id':<6}{'scheduled':<16}{'realized':<16}{'s':>8}"
+              f"{'origin':>8}{'done_ago':>10}{'freq':>8}{'origins':>9}"
+              f"{'attempts':>10}")
+        for sid in sorted(rec.real):
+            r = rec.real[sid]
+            print(f"{sid:<6}{r.intended_class:<16}{S.realized_class(r):<16}"
+                  f"{r.s:>8.4f}{r.origin_gens_ago:>8}"
+                  f"{str(r.completion_gens_ago if r.completed else '-'):>10}"
+                  f"{r.final_freq:>8.3f}{r.n_origins_surviving:>9}"
+                  f"{r.establishment_attempts:>10}")
+        for pr in problems:
+            print(f"  - {pr}")
+        return
 
     accepted = None
     attempts_log = []
