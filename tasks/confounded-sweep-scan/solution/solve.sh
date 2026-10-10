@@ -14,6 +14,28 @@ export PYTHONHASHSEED=0
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Preflight: fail in a second rather than after a ten-minute run if the
+# pipeline is missing a piece. An editing slip once deleted a function that
+# sits between two others, and the run got all the way through the
+# demography fit and ten null replicates before noticing.
+PYTHONPATH="$HERE" python - <<'PY'
+from pipeline import characterize, demography, detect, main, sweepstats
+need = {
+    detect: ("load_rate_map", "scan_genome", "rate_bin", "build_null",
+             "sweep_scores", "null_score_threshold", "call_regions"),
+    demography: ("observed_summaries", "fit_demography", "History"),
+    characterize: ("background_levels", "features", "classify",
+                   "estimate_s", "estimate_time", "trough_width"),
+    sweepstats: ("load_vcf", "windowed_sfs_stats", "garud_scan_bp", "nsl_scan"),
+    main: ("main",),
+}
+missing = [f"{m.__name__}.{a}" for m, attrs in need.items()
+           for a in attrs if not hasattr(m, a)]
+if missing:
+    raise SystemExit("pipeline is incomplete: " + ", ".join(missing))
+print("preflight ok")
+PY
+
 python "$HERE/pipeline/main.py" \
     --vcf /app/data/variants.vcf.gz \
     --rate-map /app/data/recombination_map.bed \

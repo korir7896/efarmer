@@ -17,6 +17,25 @@ test -f "$TASK/environment/data/variants.vcf.gz" || {
 test -f "$TASK/tests/truth.json" || {
     echo "tests/truth.json is missing; run assemble.sh first"; exit 1; }
 
+echo "=== preflight ==="
+PYTHONPATH="$TASK/solution" "$PY" - <<'PY'
+from pipeline import characterize, demography, detect, main, sweepstats
+need = {
+    detect: ("load_rate_map", "scan_genome", "rate_bin", "build_null",
+             "sweep_scores", "null_score_threshold", "call_regions"),
+    demography: ("observed_summaries", "fit_demography", "History"),
+    characterize: ("background_levels", "features", "classify",
+                   "estimate_s", "estimate_time", "trough_width"),
+    sweepstats: ("load_vcf", "windowed_sfs_stats", "garud_scan_bp", "nsl_scan"),
+    main: ("main",),
+}
+missing = [f"{m.__name__}.{a}" for m, attrs in need.items()
+           for a in attrs if not hasattr(m, a)]
+if missing:
+    raise SystemExit("pipeline is incomplete: " + ", ".join(missing))
+print("preflight ok")
+PY
+
 echo "=== running the reference pipeline ==="
 time "$PY" "$TASK/solution/pipeline/main.py" \
     --vcf "$TASK/environment/data/variants.vcf.gz" \

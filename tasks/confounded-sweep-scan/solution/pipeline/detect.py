@@ -270,6 +270,24 @@ def sweep_scores(obs: Dict[str, np.ndarray], null: Dict[str, np.ndarray],
     return total
 
 
+def null_score_threshold(null: Dict[str, np.ndarray], median_rate: float,
+                         n_reps: int, expected_false: float = 0.3) -> float:
+    """Threshold whose expected number of null windows per genome is small.
+
+    Taken from the null itself rather than from a distributional assumption,
+    so the false-positive budget holds whatever shape the combined score has
+    and however correlated the statistics are.
+    """
+    self_scores = sweep_scores(null, null, median_rate)
+    finite = self_scores[np.isfinite(self_scores)]
+    if finite.size == 0:
+        return float("inf")
+    per_genome = finite.size / max(1, n_reps)
+    q = 1.0 - (expected_false / per_genome)
+    q = min(max(q, 0.5), 1.0 - 1e-9)
+    return float(np.quantile(finite, q))
+
+
 def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
                  max_gap_windows: int = 10, min_separation: int = 1_000_000
                  ) -> List[Dict[str, object]]:
