@@ -456,9 +456,11 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                     # finishing, where s=0.060, whose window is 118
                     # generations, kept five or six in 8 of 8. Two surviving
                     # origins is what makes a sweep soft by definition, so
-                    # the requirement scales and never drops below two.
-                    soft_target = max(2, min(min_soft_origins,
-                                             st.plan.n_origins // 4))
+                    # the requirement scales and never drops below two, and
+                    # is capped at three: this check only exists to abandon a
+                    # hopeless run early, and replicate acceptance is what
+                    # actually decides whether a sweep counts as soft.
+                    soft_target = max(2, min(3, st.plan.n_origins // 8))
                     soft_ok = (st.plan.n_origins == 1
                                or surviving >= soft_target)
                     if strong and soft_ok:

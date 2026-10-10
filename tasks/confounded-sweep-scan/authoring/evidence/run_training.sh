@@ -57,11 +57,21 @@ CONFIGS_EXTRA=(
   "soft_complete    0.0450     380        100    _s0450b"
 )
 
+# Third pass, matching the shipped sw09 after the in-context probes moved it
+# to 150 origins. What the haplotype statistics respond to is the number of
+# SURVIVING origins, which is three to five either way, but calibrating at
+# the shipped configuration costs ten minutes and removes the question.
+CONFIGS_EXTRA2=(
+  "soft_partial     0.0110     560        150    _s0110c"
+)
+
 case "${SET:-main}" in
   main)  CONFIGS=("${CONFIGS_MAIN[@]}") ;;
   extra) CONFIGS=("${CONFIGS_EXTRA[@]}") ;;
-  all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}") ;;
-  *) echo "SET must be main, extra or all"; exit 1 ;;
+  extra2) CONFIGS=("${CONFIGS_EXTRA2[@]}") ;;
+  all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}"
+                  "${CONFIGS_EXTRA2[@]}") ;;
+  *) echo "SET must be main, extra, extra2 or all"; exit 1 ;;
 esac
 
 i=0

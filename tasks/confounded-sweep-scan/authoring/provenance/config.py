@@ -112,7 +112,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     # --- soft, partial: the weakest cell. Twelve origins rather than a
     #     hundred, so the surviving beneficial haplotypes are few enough to
     #     leave a haplotype signal while still being more than one.
-    ("sw09", 1, 0.26,  0.0110,  620,  12, "soft_partial"),
+    ("sw09", 1, 0.26,  0.0110,  560, 150, "soft_partial"),
     ("sw10", 3, 0.22,  0.0600,  130,  12, "soft_partial"),
 ]
 
@@ -151,12 +151,27 @@ POSITION_JITTER = 180_000
 #
 #   s=0.0110 origin  740 x12    calibration replicates reached 0.860, 0.931
 #                                 and 0.986: too far along, and the third
-#                                 counts as complete. sw09's origin is pulled
-#                                 back to 620, which the logistic shift puts
-#                                 near 0.70. That also moves sw09 later in
-#                                 the stage order, which matters because
-#                                 rejecting an early sweep replays every
-#                                 sweep after it.
+#                                 counts as complete.
+#
+# Those numbers are from ONE-SWEEP runs on a one-megabase genome, and the
+# shipped genome is forty-eight megabases carrying ten sweeps. For the
+# completed sweeps the two agree closely; for the partial ones they do not,
+# which is why generate.py has --forward-only and why the windows above are
+# set from three probe runs of the real configuration
+# (authoring/evidence/context_probe.md):
+#
+#   sw01 109   sw02 397   sw03 1179  sw04 1946  generations ago
+#   sw05 129 (6 origins)  sw06 295 (4 origins)
+#   sw07 freq 0.702       sw08 freq 0.479       sw10 freq 0.754 (3 origins)
+#
+# Every one of those is inside its window. sw09 was the single failure, and
+# for one reason: at s=0.011 only about 2s of the founding lineages escape
+# drift, so twelve origins left ONE surviving lineage and the sweep realized
+# as hard_partial. The number of origins a soft sweep needs therefore scales
+# as 1/(2s): three surviving lineages at s=0.011 needs about 3/(2*0.011) =
+# 136 introductions, so sw09 carries 150. What the haplotype statistics see
+# is the number of SURVIVING origins, which stays at three to five, so the
+# calibration replicates remain comparable.
 # sw10's origin is pulled back from the measured 140 to 130 because 140 put
 # the median at 0.896, close enough to completion to risk rejection.
 #
