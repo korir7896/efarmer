@@ -1,130 +1,131 @@
 #!/usr/bin/env bash
-# Simulate the single-sweep calibration replicates, one 12 Mb chromosome and
-# one sweep each, grouped by what each sweep turned out to be rather than
-# what it was asked to be.
+# Simulate the single-sweep calibration replicates, one chromosome and one
+# sweep each, grouped by what each sweep turned out to be rather than what it
+# was asked to be.
 #
-#   run_training.sh [OUTDIR]
+#   run_training.sh [OUTDIR]            env: SET, REPS, JOBS, PYTHON, SEED_BASE
 #
-# Several configurations per class, because s spans a factor of 9.4 in the
+# Several configurations per class, because s spans a factor of 12 in the
 # shipped zoo and the features that classify a sweep, the width of its
 # diversity trough and the depth of that trough all depend on s. One
 # configuration per class would calibrate the classifier and both estimators
 # at a single strength and leave their behaviour across the range unmeasured.
 #
-# The configurations are the shipped ones (authoring/provenance/config.py)
-# plus, for the classes that carry only two sweeps, a third intermediate
-# strength so the calibration is not a two-point fit.
+# Four sets, and the split is what makes the honesty claims checkable:
+#
+#   shipped   the fifteen configurations the shipped replicate uses.
+#   coldspot  five of those re-run with the sweep inside a wide cold spot,
+#             which is where three of the shipped sweeps sit. Without these
+#             the local-rate scaling the reference applies to every width
+#             feature would be asserted rather than measured.
+#   holdout   sixteen configurations the shipped replicate does NOT use.
+#             Every entry differs from all fifteen shipped ones in s AND in
+#             origin, and the ages they realize span the same range.
+#   holdcold  four holdout configurations inside a cold spot, so the
+#             out-of-sample refit in holdout_calibration.py can calibrate the
+#             rate scaling too and is not handicapped against the shipped fit.
+#
+# Rows are: label  s  origin  n_origins  cold_factor  tag
+# cold_factor is "-" for the base rate throughout.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="${1:-$HERE/training}"
 PY="${PYTHON:-python3}"
-JOBS="${JOBS:-4}"
+JOBS="${JOBS:-3}"
 REPS="${REPS:-3}"
 
 mkdir -p "$OUT"
 
-# label                s      origin  n_origins  tag
-#
-# SET=extra adds the second pass. The first pass put the soft_complete
-# intermediate at s=0.030 origin 480, and two of its three replicates came
-# out HARD: a soft sweep stops being soft once it has been complete for a
-# few hundred generations, because the surviving beneficial haplotypes drift
-# and one takes over. The measured elapsed time from origin to completion is
-# about 148 generations at s=0.030 with a hundred origins, so the origin has
-# to sit around 330 for the sweep to be young enough at the present. The
-# extra pass also tops up the two measured soft_complete configurations,
-# since the first pass lost replicates to the same effect.
-CONFIGS_MAIN=(
-  "hard_complete    0.0800     280          1    _s0800"
-  "hard_complete    0.0300     710          1    _s0300"
-  "hard_complete    0.0085    2300          1    _s0085"
-  "hard_complete    0.0250    2500          1    _s0250"
-  "soft_complete    0.0180     650        100    _s0180"
-  "soft_complete    0.0300     480        100    _s0300"
-  "soft_complete    0.0450     380        100    _s0450"
-  "hard_partial     0.0140     530          1    _s0140"
-  "hard_partial     0.0220     330          1    _s0220"
-  "hard_partial     0.0350     230          1    _s0350"
-  "soft_partial     0.0110     740         12    _s0110"
-  "soft_partial     0.0250     260         12    _s0250"
-  "soft_partial     0.0600     120         12    _s0600"
+# The fifteen shipped configurations, copied from provenance/config.py
+# SWEEP_SPEC. Origins and origin counts are the ones the probe runs recorded
+# in ACCEPT settled on, not the first guesses.
+CONFIGS_SHIPPED=(
+  "hard_complete  0.0900   274    1  -  _s0900"
+  "hard_complete  0.0075  1569    1  -  _s0075"
+  "hard_complete  0.0400  1083    1  -  _s0400"
+  "hard_complete  0.0130  2492    1  -  _s0130"
+  "hard_complete  0.0550  2722    1  -  _s0550"
+  "soft_complete  0.0220   700  300  -  _s0220"
+  "soft_complete  0.0500   420   80  -  _s0500"
+  "soft_complete  0.0095  1500  150  -  _s0095"
+  "hard_partial   0.0160   500    1  -  _s0160"
+  "hard_partial   0.0380   210    1  -  _s0380"
+  "hard_partial   0.0085   850    1  -  _s0085"
+  "hard_partial   0.0650   160    1  -  _s0650"
+  "soft_partial   0.0120   430  150  -  _s0120"
+  "soft_partial   0.0580   130   14  -  _s0580"
+  "soft_partial   0.0300   230   40  -  _s0300"
 )
 
-CONFIGS_EXTRA=(
-  "soft_complete    0.0300     330        100    _s0300b"
-  "soft_complete    0.0180     650        100    _s0180b"
-  "soft_complete    0.0450     380        100    _s0450b"
+# The three shipped cold-spot sweeps at their own rate factors, plus two more
+# so the scaling is measured across a range of factors rather than at three
+# points that happen to be the shipped ones.
+CONFIGS_COLDSPOT=(
+  "hard_complete  0.0550  2722    1  0.22  _cs_s0550"
+  "soft_complete  0.0095  1500  150  0.28  _cs_s0095"
+  "hard_partial   0.0380   210    1  0.25  _cs_s0380"
+  "hard_complete  0.0400  1083    1  0.25  _cs_s0400"
+  "soft_partial   0.0300   230   40  0.22  _cs_s0300"
 )
 
-# Third pass, matching the shipped sw09 after the in-context probes moved it
-# to 150 origins. What the haplotype statistics respond to is the number of
-# SURVIVING origins, which is three to five either way, but calibrating at
-# the shipped configuration costs ten minutes and removes the question.
-CONFIGS_EXTRA2=(
-  "soft_partial     0.0110     560        150    _s0110c"
-)
-
-# A set of configurations the shipped replicate does NOT use, for testing
-# whether the calibration depends on having been fitted at the shipped
-# sweeps' own (s, origin, n_origins). Every entry differs from all ten
-# shipped configurations in s AND in origin; the ages they realize span
-# roughly the same range.
 CONFIGS_HOLDOUT=(
-  "hard_complete    0.0550     400          1    _ho_s0550"
-  "hard_complete    0.0200    1000          1    _ho_s0200"
-  "hard_complete    0.0130    1800          1    _ho_s0130"
-  "hard_complete    0.0150    2450          1    _ho_s0150"
-  "soft_complete    0.0250     420        100    _ho_s0250"
-  "soft_complete    0.0350     350        100    _ho_s0350"
-  "hard_partial     0.0180     420          1    _ho_s0180"
-  "hard_partial     0.0280     280          1    _ho_s0280"
-  "soft_partial     0.0160     420         80    _ho_s0160"
-  "soft_partial     0.0450     170         30    _ho_s0450"
+  "hard_complete  0.0700   350    1  -  _ho_s0700"
+  "hard_complete  0.0100  1250    1  -  _ho_s0100"
+  "hard_complete  0.0480   900    1  -  _ho_s0480"
+  "hard_complete  0.0170  2200    1  -  _ho_s0170"
+  "hard_complete  0.0250  2600    1  -  _ho_s0250"
+  "soft_complete  0.0280   620  250  -  _ho_s0280"
+  "soft_complete  0.0420   460   90  -  _ho_s0420"
+  "soft_complete  0.0110  1350  170  -  _ho_s0110"
+  "hard_partial   0.0200   450    1  -  _ho_s0200"
+  "hard_partial   0.0320   240    1  -  _ho_s0320"
+  "hard_partial   0.0105   780    1  -  _ho_s0105"
+  "hard_partial   0.0520   190    1  -  _ho_s0520"
+  "soft_partial   0.0145   400  120  -  _ho_s0145"
+  "soft_partial   0.0500   150   18  -  _ho_s0500"
+  "soft_partial   0.0260   260   45  -  _ho_s0260"
+  "soft_partial   0.0350   210   35  -  _ho_s0350"
 )
 
-# Second holdout pass. The first left only five or six usable replicates in
-# the thinner classes, which is a sample-size handicap rather than a property
-# of the gates, and the comparison it feeds has to be fair.
-CONFIGS_HOLDOUT2=(
-  "hard_partial     0.0240     330          1    _ho_s0240"
-  "hard_partial     0.0120     620          1    _ho_s0120"
-  "soft_complete    0.0220     460        100    _ho_s0220"
-  "soft_complete    0.0400     320        100    _ho_s0400"
-  "soft_partial     0.0200     360         60    _ho_s0200p"
-  "soft_partial     0.0330     220         30    _ho_s0330"
+CONFIGS_HOLDCOLD=(
+  "hard_complete  0.0480   900    1  0.24  _hoc_s0480"
+  "soft_complete  0.0280   620  250  0.26  _hoc_s0280"
+  "hard_partial   0.0320   240    1  0.23  _hoc_s0320"
+  "soft_partial   0.0260   260   45  0.27  _hoc_s0260"
 )
 
-# Third holdout pass: more hard_complete configurations, because the timing
-# model is fitted on that class alone and ten replicates against the
-# shipped model's twenty-eight is a sample-size handicap, not a property of
-# the gate.
-CONFIGS_HOLDOUT3=(
-  "hard_complete    0.0650     320          1    _ho_s0650"
-  "hard_complete    0.0170    1300          1    _ho_s0170"
-  "hard_complete    0.0100    2100          1    _ho_s0100"
-  "hard_complete    0.0350     900          1    _ho_s0350h"
-)
-
-case "${SET:-main}" in
-  main)  CONFIGS=("${CONFIGS_MAIN[@]}") ;;
-  extra) CONFIGS=("${CONFIGS_EXTRA[@]}") ;;
-  extra2) CONFIGS=("${CONFIGS_EXTRA2[@]}") ;;
-  holdout) CONFIGS=("${CONFIGS_HOLDOUT[@]}") ;;
-  holdout2) CONFIGS=("${CONFIGS_HOLDOUT2[@]}") ;;
-  holdout3) CONFIGS=("${CONFIGS_HOLDOUT3[@]}") ;;
-  all)   CONFIGS=("${CONFIGS_MAIN[@]}" "${CONFIGS_EXTRA[@]}"
-                  "${CONFIGS_EXTRA2[@]}") ;;
-  *) echo "SET must be main, extra, extra2, holdout, holdout2 or all"; exit 1 ;;
+case "${SET:-all}" in
+  shipped)  CONFIGS=("${CONFIGS_SHIPPED[@]}") ;;
+  coldspot) CONFIGS=("${CONFIGS_COLDSPOT[@]}") ;;
+  holdout)  CONFIGS=("${CONFIGS_HOLDOUT[@]}") ;;
+  holdcold) CONFIGS=("${CONFIGS_HOLDCOLD[@]}") ;;
+  all)      CONFIGS=("${CONFIGS_SHIPPED[@]}" "${CONFIGS_COLDSPOT[@]}"
+                     "${CONFIGS_HOLDOUT[@]}" "${CONFIGS_HOLDCOLD[@]}") ;;
+  *) echo "SET must be shipped, coldspot, holdout, holdcold or all"; exit 1 ;;
 esac
+
+# Throttle on a counter of our own PIDs rather than on `jobs`: `$(jobs -rp)`
+# runs in a subshell that has no jobs of its own, so it always reports none
+# and the loop launches every configuration at once. That is not a style
+# point -- it is what made an earlier run put sixteen fwdpy11 processes on
+# four cores and finish a third of them.
+pids=()
+reap() {
+    local alive=()
+    for p in "${pids[@]:-}"; do
+        [ -n "$p" ] && kill -0 "$p" 2>/dev/null && alive+=("$p")
+    done
+    pids=("${alive[@]:-}")
+}
 
 i=0
 for cfg in "${CONFIGS[@]}"; do
-    read -r label s origin nd tag <<<"$cfg"
+    read -r label s origin nd cold tag <<<"$cfg"
     seed0=$((${SEED_BASE:-600000} + 1000 * i))
     i=$((i + 1))
-    # Already simulated? Skip it. Each replicate is a few minutes, so a run
-    # interrupted part-way through should resume rather than start over.
+    # Already simulated? Skip it. Each replicate is about forty seconds, so a
+    # run interrupted part-way through should resume rather than start over.
     # find, not ls: with `set -o pipefail` a glob that matches nothing makes
     # `ls | wc -l` fail and takes the whole script down.
     have=$(find "$OUT" -maxdepth 1 -name "${label}${tag}_*.npz" | wc -l)
@@ -132,13 +133,17 @@ for cfg in "${CONFIGS[@]}"; do
         echo "skip ${label}${tag}: $have replicate(s) already present"
         continue
     fi
+    cold_args=()
+    [ "$cold" != "-" ] && cold_args=(--coldspot-factor "$cold")
     (
       OMP_NUM_THREADS=1 "$PY" "$HERE/make_training.py" \
           --label "$label" --s "$s" --origin "$origin" --n-origins "$nd" \
+          "${cold_args[@]}" \
           --tag "$tag" --n "$REPS" --seed0 "$seed0" --outdir "$OUT" \
           > "$OUT/log_${label}${tag}.txt" 2>&1
     ) &
-    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
+    pids+=("$!")
+    while reap; [ "${#pids[@]}" -ge "$JOBS" ]; do sleep 2; done
 done
 wait
 

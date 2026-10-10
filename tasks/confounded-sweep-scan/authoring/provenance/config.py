@@ -147,14 +147,14 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw09", 1, 0.8857, 0.0160,  500,   1, "hard_partial"),
     ("sw10", 0, 0.7143, 0.0380,  210,   1, "hard_partial"),    # COLD
     ("sw11", 3, 0.520,  0.0085,  850,   1, "hard_partial"),
-    ("sw12", 4, 0.6786, 0.0650,  120,   1, "hard_partial"),
+    ("sw12", 4, 0.6786, 0.0650,  160,   1, "hard_partial"),
     # --- soft, partial: the weakest cell. Origin counts scale as 1/(2s),
     #     because a founding lineage escapes drift with probability ~2s, so
     #     the SURVIVING origin count stays in the two-to-six range that the
     #     haplotype statistics can actually resolve.
-    ("sw13", 0, 0.8929, 0.0120,  600, 150, "soft_partial"),
+    ("sw13", 0, 0.8929, 0.0120,  430, 150, "soft_partial"),
     ("sw14", 4, 0.8786, 0.0580,  130,  14, "soft_partial"),
-    ("sw15", 3, 0.800,  0.0300,  260,  40, "soft_partial"),
+    ("sw15", 3, 0.800,  0.0300,  230,  40, "soft_partial"),
 ]
 
 # Three sweeps sit INSIDE a wide moderate cold spot, one per completeness
@@ -252,45 +252,67 @@ POSITION_JITTER = 60_000
 # the windows, not one realized replicate, and verifies that no constant can
 # land inside three of the four hard_complete tolerance ranges for ANY draw
 # the generator would accept.
+# Every window below brackets three single-sweep probe runs of the exact
+# configuration above (authoring/evidence/make_training.py with --s, --origin
+# and --n-origins), and the measured values are quoted beside each one. The
+# windows are as wide as the design guarantee allows, because a rejected
+# sweep sends the forward driver back to that sweep's origin and replays
+# everything after it: sw05 originates 2722 generations back, so rejecting it
+# throws away almost the whole forward phase.
+#
+# Three things the probes settled, each of which changed the config:
+#
+#   * A soft sweep DECAYS TO HARD the longer ago it completed, because the
+#     surviving beneficial backgrounds keep drifting after fixation. sw06 at
+#     130 origins realized hard in two draws of three. The fix is more
+#     origins, not a younger sweep: 300 origins gave 11 and 17 survivors.
+#   * sw13 at origin 600 COMPLETED in two draws of three, so it could not be
+#     a soft_partial sweep at all; origin 430 gives frequencies 0.24 to 0.60
+#     with three to five surviving origins.
+#   * sw12 at origin 120 left frequencies as low as 0.116, which is barely
+#     detectable, and at origin 190 it completed. Origin 160 sits between.
+#
+# sw11 is deliberately left close to completion -- the probes gave 0.762,
+# 0.909 and 0.938 -- because a partial sweep at 94% frequency is the hardest
+# case the complete-versus-partial axis has, and the zoo should contain one.
 ACCEPT: Dict[str, Dict] = {
     # hard_complete: completion-age windows. Spaced so that NO constant can
     # land inside three of the five tolerance ranges for any draw the
     # generator would accept -- checked over the windows themselves by
     # gate_feasibility.design_guarantee(), not over one realized replicate.
     "sw01": dict(class_="hard_complete", must_complete=True,
-                 done_min=100,   done_max=180),  # measured 111, 131, 148
+                 done_min=100,  done_max=180),    # probed 111, 131, 148
     "sw02": dict(class_="hard_complete", must_complete=True,
-                 done_min=260,  done_max=430),  # measured 283, 357, 404
+                 done_min=260,  done_max=430),    # probed 283, 357, 404
     "sw03": dict(class_="hard_complete", must_complete=True,
-                 done_min=700,  done_max=880),  # measured 749, 802, 823
+                 done_min=700,  done_max=880),    # probed 749, 802, 823
     "sw04": dict(class_="hard_complete", must_complete=True,
-                 done_min=1420, done_max=1900),  # measured 1487, 1704, 1795
+                 done_min=1420, done_max=1900),   # probed 1487, 1704, 1795
     "sw05": dict(class_="hard_complete", must_complete=True,
-                 done_min=2400, done_max=2620),  # measured 2468, 2494, 2532
-    # soft_complete
+                 done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
+    # soft_complete: must stay SOFT, which is the binding constraint.
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=120,  done_max=330),
+                 done_min=200,  done_max=560),    # probed 350 (11 origins)
     "sw07": dict(class_="soft_complete", must_complete=True,
-                 done_min=140,  done_max=340),
+                 done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
-                 done_min=250,  done_max=620),
-    # hard_partial: still segregating, and far enough from both ends of the
-    # frequency range that the class is unambiguous.
+                 done_min=440,  done_max=700),    # probed 550, 582
+    # hard_partial: still segregating today.
     "sw09": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.40, freq_max=0.93),
+                 freq_min=0.30, freq_max=0.90),   # probed 0.361, 0.542, 0.712
     "sw10": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.40, freq_max=0.93),
+                 freq_min=0.22, freq_max=0.93),   # probed 0.267, 0.664, 0.846
     "sw11": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.30, freq_max=0.90),
+                 freq_min=0.60, freq_max=0.96),   # probed 0.762, 0.909, 0.938
     "sw12": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.40, freq_max=0.93),
-    # soft_partial
+                 freq_min=0.55, freq_max=0.96),   # probed 0.752, 0.894
+    # soft_partial: still segregating AND at least two surviving origins.
     "sw13": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.40, freq_max=0.95),
+                 freq_min=0.20, freq_max=0.90),   # probed 0.243, 0.340, 0.598
     "sw14": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.95),
+                 freq_min=0.15, freq_max=0.93),   # probed 0.199, 0.551, 0.769
     "sw15": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.45, freq_max=0.95),
+                 freq_min=0.45, freq_max=0.95),   # probed 0.683, 0.864, 0.890
 }
 # `class` is a keyword, so the dicts above carry `class_`; expose it under the
 # name the rest of the code reads.
