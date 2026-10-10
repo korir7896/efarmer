@@ -28,11 +28,24 @@ from . import sweepstats as SS
 BOUNDARY_RATE = math.log(2.0)
 
 # Statistics used for DETECTION, with the direction that indicates a sweep.
-# H2/H1 is deliberately excluded: it is near its neutral value at a soft
-# sweep, so including it in the detection score would penalise exactly the
-# class that is hardest to find. It is used for classification instead.
-DETECT_STATS = (("pi", "low"), ("tajima_d", "low"),
-                ("h12", "high"), ("nsl_frac", "high"))
+#
+# Both directions of Tajima's D are included, which is not a mistake. A hard
+# sweep drives it down; a soft sweep drives it UP, because several frequent
+# haplotypes leave an excess of intermediate-frequency variants. Measured at
+# the sweep, soft replicates sit at +0.44 against background while every
+# other class is negative. In a Fisher combination the two directions do not
+# double-count: a window extreme in one tail has a p near one in the other
+# and contributes nothing from it, so the pair behaves as a two-sided test.
+#
+# With only four one-sided statistics, soft sweeps contributed to exactly one
+# of them: diversity at a soft sweep is 0.80 of background, barely
+# depressed; nSL reads zero because the sweep has finished; and Tajima's D
+# pointed the wrong way. Two of the three soft sweeps in the shipped
+# replicate were missed. H2/H1 is reduced at soft sweeps as well, to about
+# 0.6 of background against a null first percentile of 0.48, so it
+# contributes too.
+DETECT_STATS = (("pi", "low"), ("tajima_d", "low"), ("tajima_d", "high"),
+                ("h12", "high"), ("h2_h1", "low"), ("nsl_frac", "high"))
 
 
 # ---------------------------------------------------------------------------
