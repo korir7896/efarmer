@@ -93,13 +93,63 @@ def main():
         gap = hi.min() - lo.max()
         print(f"      {'SEPARABLE, gap %.3f' % gap if gap > 0 else 'OVERLAPS by %.3f' % -gap}")
 
-    report("soft vs everything else", 
+    report("soft vs everything else",
            ["hard_recent_complete", "hard_old_complete", "partial"],
-           ["soft_standing"], "h2_h1")
-    report("partial vs completed hard",
-           ["hard_recent_complete", "hard_old_complete"], ["partial"], "pi")
-    report("old vs recent (hard only)",
-           ["hard_old_complete"], ["hard_recent_complete"], "h12")
+           ["soft_standing"], "tajima_d")
+    report("old vs everything else (hard only)",
+           ["hard_old_complete"],
+           ["hard_recent_complete", "partial"], "h12")
+    report("partial vs recent hard",
+           ["hard_recent_complete"], ["partial"], "pi")
+
+    # ------------------------------------------------------------------
+    # estimator calibration
+    # ------------------------------------------------------------------
+    SEARCH = 2_500_000
+    print("\n=== s from the width of the diversity trough ===")
+    print("w is the span where diversity is below half its background level.")
+    print(f"{'realized class':<24}{'n':>3}{'s_true':>9}{'w (kb)':>9}{'w*r/s':>9}")
+    allratio = []
+    for lab, reps in sorted(data.items()):
+        rows = []
+        for d in reps:
+            mid = d["mid"]; v = d["pi"].astype(float); bg = float(d["bg_pi"])
+            pos = float(d["sweep_pos"])
+            near = (np.abs(mid - pos) <= SEARCH) & np.isfinite(v)
+            below = near & (v < 0.5 * bg)
+            if not below.any():
+                continue
+            w = float(mid[below].max() - mid[below].min())
+            rows.append((w, float(d["s_true"])))
+        if not rows:
+            continue
+        w = np.median([r[0] for r in rows]); st = np.median([r[1] for r in rows])
+        ratio = w * C.BASE_REC_RATE / st
+        allratio.append(ratio)
+        print(f"{lab:<24}{len(rows):>3}{st:>9.3f}{w/1000:>9.0f}{ratio:>9.3f}")
+    if allratio:
+        print(f"{'':<24}{'':>3}{'':>9}{'mean':>9}{np.mean(allratio):>9.3f}")
+
+    print("\n=== completion time from diversity recovery ===")
+    print("t_hat = 2*N_current*pi_min/pi_background, before bias removal.")
+    print(f"{'realized class':<24}{'n':>3}{'true':>8}{'t_hat':>9}{'bias':>8}")
+    for lab, reps in sorted(data.items()):
+        rows = []
+        for d in reps:
+            if "completed" not in d.files or not bool(d["completed"].item()):
+                continue
+            mid = d["mid"]; v = d["pi"].astype(float); bg = float(d["bg_pi"])
+            pos = float(d["sweep_pos"])
+            near = (np.abs(mid - pos) <= SEARCH) & np.isfinite(v)
+            if not near.any() or not bg:
+                continue
+            t_hat = 2.0 * C.N_CURRENT * float(v[near].min()) / bg
+            rows.append((float(d["completion_gens_ago"]), t_hat))
+        if not rows:
+            continue
+        tr = np.array([r[0] for r in rows]); th = np.array([r[1] for r in rows])
+        print(f"{lab:<24}{len(rows):>3}{np.median(tr):>8.0f}{np.median(th):>9.0f}"
+              f"{np.median(th / tr):>8.2f}")
 
 
 if __name__ == "__main__":

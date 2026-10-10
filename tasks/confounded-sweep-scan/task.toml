@@ -73,16 +73,23 @@ under that history on that map, then comparing each window only against null
 windows of comparable local recombination rate.
 
 No single statistic finds all four classes, and each standard choice misses a
-different one. Diversity and Tajima's D find completed sweeps but locate a
-partial sweep poorly, with a measured median error of 360 kb against 20 kb
+different one. Diversity and Tajima's D find completed hard sweeps but locate
+a partial sweep poorly, with a measured median error of 380 kb against 25 kb
 for H12. H12 collapses for old sweeps, where recombination has already eroded
-the swept haplotype block: a measured H12 ratio of 3.5 against about 11 for
-recent ones. nSL reads near zero at a completed sweep, because the sweep is
-over and there is no high-frequency young haplotype left to carry a long
-tract, so it finds partial sweeps and nothing else. Hard and soft sweeps are
-separated by H2/H1 and essentially nothing else: their diversity, Tajima's D
-and H12 signatures are the same to within noise, while H2/H1 differs by a
-factor of about forty.
+the swept haplotype block: a measured ratio to background of 1.3 against 8.5
+for recent ones. nSL reads near zero at any completed sweep, because the
+sweep is over and no high-frequency young haplotype remains to carry a long
+tract, so it responds to partial sweeps and little else.
+
+The soft sweeps are the subtlest. Their diversity at the selected site sits
+at 0.74 of background, barely depressed, so a diversity scan does not see
+them and only H12 does. What identifies them is that Tajima's D at a soft
+sweep is positive, measured at +0.21 to +1.15, where every other class is
+negative with a maximum of -0.25: several frequent haplotypes leave an excess
+of intermediate-frequency variants. The obvious discriminator does not work
+here. H2/H1, normally the hard-versus-soft statistic, fails because at an old
+hard sweep the swept block has decayed far enough that H2/H1 recovers to
+0.46-0.99, overlapping the 0.27-0.62 measured at soft sweeps.
 
 Dating and quantifying the sweeps needs relations an analyst has to derive
 rather than look up. Both are available -- the width of the diversity trough
@@ -115,15 +122,17 @@ across statistics, thresholded so the expected number of null windows per
 genome is a fraction of one, and contiguous passing windows are clustered
 into one call each.
 
-Classification follows the measured separation: H2/H1 near its neutral value
-means several frequent haplotypes and so a soft sweep, high residual
-diversity means a sweep still segregating, and a weak H12 ratio among
-completed sweeps means an old one. The selection coefficient comes from the
-width of the diversity trough times the local recombination rate, which
-measurement puts at 0.56 times s across all four classes with about 5%
-scatter. The completion time comes from diversity recovery at the centre,
-2*N_current*pi_min/pi_background, divided by a class-specific bias measured
-on independent replicates.
+Classification applies the measured separations in order, each threshold
+sitting in a gap between classes: positive Tajima's D at the site means
+several frequent haplotypes and so a soft sweep; among the rest a weak H12
+ratio means recombination has eroded the block, so an old one; among the rest
+high residual diversity means a sweep still segregating. The selection
+coefficient comes from the width of the diversity trough times the local
+recombination rate, which measurement puts at 0.56 times s across all four
+classes with about 5% scatter. The completion time comes from diversity
+recovery at the centre, 2*N_current*pi_min/pi_background, with a
+class-specific bias removed, and is reported only for single-origin
+completed sweeps.
 """
 
 verification_explanation = """
@@ -141,22 +150,36 @@ reference's own error. Near-duplicate calls are collapsed first, so recall
 cannot be manufactured by carpeting a region.
 
 The gates are conjunctive: ancestral and current population size within a
-factor, the bottleneck's duration-over-depth within a factor, the expansion
-time within a fraction, a structural check that the reported history really
-contracts and recovers, per-class recall, a cap on calls matching no true
-sweep with cold-spot calls counting against it, class accuracy over matched
-calls, selection coefficients within a factor, and completion time within
-tolerance graded separately inside each completed class.
+factor, the bottleneck's duration-over-depth within a factor, a structural
+check that the reported history really contracts and recovers, per-class
+recall, a cap on calls matching no true sweep with cold-spot calls counting
+against it, class accuracy over matched calls, selection coefficients within
+a factor, and completion time within tolerance graded separately inside each
+datable class.
 
-Two choices are worth naming. The bottleneck's depth and duration are not
-separately identifiable from the spectrum, since the genealogy integrates
-duration over size; the reference overestimates depth 2.4 to 2.6 times on
-every seed tried while recovering the combination to within 6%, so the gate
-is on the combination. And timing is graded per class because in aggregate it
-was satisfiable by a constant: the recent and soft sweeps finish within a few
-hundred generations of each other, so one number covered six of eight
-gradable sweeps. Per class no constant works, because the old sweeps finish
-about five times further back.
+Three choices are worth naming, each forced by a measurement rather than
+chosen for neatness.
+
+The bottleneck's depth and duration are not separately identifiable from the
+spectrum, since the genealogy integrates duration over size. Across four
+neutral replicates with known truth the reference was off by 2.4 to 2.6 times
+on depth alone while recovering the combination to within 1.14 to 1.48, so
+the gate is on the combination.
+
+The bottleneck's timing is not graded at all. The same four fits placed the
+expansion at 0.64, 0.68, 1.31 and 2.63 times its true time, so one in four
+fails even a 40% tolerance and any tolerance admitting 2.63 is vacuous. The
+objective has a broad flat minimum spanning roughly 1500 to 4000 generations
+for a truth of 3000, so this reflects what a spectrum from 100 haplotypes
+contains, not a failure of the search.
+
+Timing is graded per class, and only for single-origin completed sweeps.
+Graded in aggregate it was satisfiable by a constant, since the recent and
+soft sweeps finish within a few hundred generations of each other. Soft
+sweeps are excluded because diversity recovery dates a sweep by how far below
+background its centre sits, which presumes the sweep drove diversity to zero;
+a soft sweep leaves it at 0.74 of background and the estimator reads such
+sweeps as eighteen times older than they are.
 
 Eighteen submissions were run through the real verifier as a check. The
 perfect answer passes and so does the perfect answer plus one false positive.
