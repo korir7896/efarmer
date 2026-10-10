@@ -89,7 +89,8 @@ def main():
         seed = C.MASTER_SEED + 1000 * rep
         print(f"\n=== replicate {rep} (seed {seed}) ===", flush=True)
         t0 = time.time()
-        ts, rec, el = run_forward(cfg, n_cur, t_forward, plans, seed=seed)
+        ts, rec, el = run_forward(cfg, n_cur, t_forward, plans, seed=seed,
+                                  traj_thin=10)
         ok, problems = S.check_acceptance(rec.real)
         if args.no_accept:
             problems = [f"(ignored) {x}" for x in problems]

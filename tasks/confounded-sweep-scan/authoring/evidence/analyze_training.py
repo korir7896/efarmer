@@ -23,7 +23,11 @@ def load_all():
     out = {}
     for f in sorted(glob.glob(os.path.join(HERE, "training", "*.npz"))):
         d = np.load(f, allow_pickle=True)
-        lab = str(d["label"])
+        # Group by what the sweep ACTUALLY turned out to be, not by what it
+        # was asked to be. A soft sweep that collapsed to one origin is a
+        # hard sweep, and averaging it into the soft row hides the very
+        # separation the classifier depends on.
+        lab = str(d["realized_class"])
         out.setdefault(lab, []).append(d)
     return out
 
@@ -100,7 +104,9 @@ def main():
     for lab, reps in sorted(data.items()):
         rows = []
         for d in reps:
-            if not bool(d["completed"].item()):
+            if "completed" not in d.files or not bool(d["completed"].item()):
+                continue
+            if "completion_gens_ago" not in d.files:
                 continue
             _, pimin = extremum(d, "pi", "low")
             bg = float(d["bg_pi"])

@@ -119,20 +119,57 @@ def observed_summaries(chroms: Dict[str, "object"], chrom_len: int,
             "n_snps": int(ac_cat.size)}
 
 
+def bin_expected(afs: np.ndarray, n_hap: int) -> np.ndarray:
+    """Bin an expected (branch-length) spectrum with the same edges as the data."""
+    edges = np.unique(np.clip((BIN_FRACTIONS * n_hap).round().astype(int), 0, n_hap))
+    inner = afs[1:n_hap]                       # drop the 0 and n classes
+    counts = np.zeros(len(edges) - 1)
+    idx = np.arange(1, n_hap)
+    for b in range(len(edges) - 1):
+        m = (idx >= max(edges[b], 1)) & (idx < edges[b + 1])
+        counts[b] = float(inner[m].sum()) if m.any() else 0.0
+    tot = counts.sum()
+    return counts / tot if tot else counts
+
+
 def simulate_summaries(hist: History, mu: float, rate: float, n_dip: int,
-                       length: int, seed: int) -> Dict[str, object]:
-    ts = msprime.sim_ancestry(samples={"pop": n_dip}, demography=hist.to_msprime(),
-                              sequence_length=length, recombination_rate=rate,
-                              random_seed=seed)
-    ts = msprime.sim_mutations(ts, rate=mu, model=msprime.JC69(),
-                               discrete_genome=True, random_seed=seed + 1)
-    g = ts.genotype_matrix()
-    n_hap = g.shape[1]
-    der = g.sum(axis=1)
-    keep = (der > 0) & (der < n_hap)
-    der = der[keep]
-    pi = float(ts.diversity())
-    return {"sfs": binned_sfs(der, n_hap), "pi": pi, "n_hap": n_hap}
+                       length: int, seed: int, n_trees: int = 1500
+                       ) -> Dict[str, object]:
+    """Expected spectrum and diversity for a proposed history.
+
+    Averaged over many INDEPENDENT coalescent trees, using tskit's
+    branch-length statistics rather than simulated mutations.
+
+    Both choices remove noise that was otherwise swamping the signal. The
+    expected site spectrum is the mutation rate times the expected branch
+    length subtending each allele count, so placing mutations only adds
+    sampling noise to a quantity whose expectation is already available. And
+    the spectrum is a single-site statistic, so it does not depend on
+    recombination: simulating one long recombining sequence just produces
+    many correlated trees, where the same compute spent on independent
+    unlinked trees converges far faster.
+
+    With one 4 Mb recombining sequence and simulated mutations the objective
+    was rugged enough to be useless -- on a neutral replicate the true
+    history scored 0.0223 while a history with the bottleneck more than twice
+    as old scored 0.0125. `length` and `rate` are accepted and ignored, so
+    callers do not have to change.
+    """
+    reps = msprime.sim_ancestry(samples={"pop": n_dip},
+                                demography=hist.to_msprime(),
+                                sequence_length=1, recombination_rate=0,
+                                num_replicates=n_trees, random_seed=seed)
+    afs_sum = None
+    pi_sum = 0.0
+    n_hap = 2 * n_dip
+    for ts in reps:
+        a = ts.allele_frequency_spectrum(mode="branch", polarised=True,
+                                         span_normalise=True)
+        afs_sum = a if afs_sum is None else afs_sum + a
+        pi_sum += ts.diversity(mode="branch")
+    afs = np.asarray(afs_sum, float) / n_trees
+    pi = (pi_sum / n_trees) * mu
+    return {"sfs": bin_expected(afs, n_hap), "pi": float(pi), "n_hap": n_hap}
 
 
 def distance(obs: Dict[str, object], sim: Dict[str, object],
@@ -177,7 +214,7 @@ def _jitter(h: History, rng: np.random.Generator, scale: float) -> History:
 def fit_demography(obs: Dict[str, object], mu: float, rate: float,
                    n_dip: int, seed: int = 20_240_101,
                    n_coarse: int = 240, n_refine_rounds: int = 7,
-                   n_refine: int = 36, length: int = 4_000_000,
+                   n_refine: int = 36, length: int = 20_000_000,
                    log=print) -> Tuple[History, float]:
     rng = np.random.default_rng(seed)
     sim_seed = seed + 7           # common random numbers across all proposals

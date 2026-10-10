@@ -92,7 +92,7 @@ def main(argv=None):
     calls = []
     for r in regions:
         b = int(bins[r["peak_index"]])
-        lev = bg.get(b) or bg[int(np.median(list(bg.keys())))]
+        lev = bg.get(b) or next(iter(bg.values()))
         f = CH.features(obs, r, lev)
         klass = CH.classify(f)
         local_rate = float(obs["rate"][r["peak_index"]])

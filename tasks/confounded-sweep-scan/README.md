@@ -173,6 +173,39 @@ selection is additive with per-allele advantage s; the mutation rate; and the
 four class names exactly as the verifier expects them
 (`hard_recent_complete`, `hard_old_complete`, `soft_standing`, `partial`).
 All of this is also stated in `environment/data/README_DATA.txt`, which the
-agent can read, but the brief should not rely on that alone. It must end with
-the required closing sentence using the integer agent timeout from
-`task.toml`.
+agent can read, but the brief should not rely on that alone.
+
+The file must be plain prose with no Markdown headings, and must end with a
+blank line followed by exactly this sentence, matching the integer
+`[agent].timeout_sec` of 21600 in `task.toml`:
+
+```
+You have 21600 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.
+```
+
+The schema the verifier expects is:
+
+```json
+{
+  "demography": {
+    "N_ancestral": 12000,
+    "N_bottleneck": 800,
+    "N_current": 9000,
+    "T_bottleneck_start_gens_ago": 3400,
+    "T_bottleneck_end_gens_ago": 3000
+  },
+  "sweeps": [
+    {
+      "chrom": 1,
+      "position": 7447962,
+      "class": "hard_recent_complete",
+      "selection_coefficient": 0.035,
+      "time_gens_ago": 300
+    }
+  ]
+}
+```
+
+`position` is 1-based within its chromosome. `time_gens_ago` is the
+generation before present at which the sweep completed, and null for a sweep
+still segregating. At most 200 calls are accepted.

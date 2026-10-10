@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from grading import (COMPLETE_CLASSES, GATES, SchemaError, dedupe, match,
+from grading import (GATES, TIMED_CLASSES, SchemaError, dedupe, match,
                      parse_submission)
 
 TRUTH_PATH = os.environ.get("TRUTH_PATH", "/tests/truth.json")
@@ -73,20 +73,6 @@ def test_demography_sizes(truth, parsed, key, gate):
     assert lo <= got <= hi, (
         f"{key}: reported {got:.0f}, true {true_v:.0f}; "
         f"need within a factor of {f} ([{lo:.0f}, {hi:.0f}])")
-
-
-@pytest.mark.parametrize("key,gate", [
-    ("T_bottleneck_end_gens_ago", "T_bottleneck_end_frac"),
-])
-def test_demography_times(truth, parsed, key, gate):
-    dem, _ = parsed
-    true_v = float(truth["demography"][key])
-    got = float(dem[key])
-    frac = GATES[gate]
-    tol = frac * true_v
-    assert abs(got - true_v) <= tol, (
-        f"{key}: reported {got:.0f}, true {true_v:.0f}; "
-        f"need within {tol:.0f} generations")
 
 
 def test_bottleneck_strength(truth, parsed):
@@ -177,7 +163,7 @@ def test_selection_coefficients(matched):
 
 
 def test_timing_of_completed_sweeps(truth, matched):
-    """Sweep completion time, graded separately within each completed class.
+    """Sweep completion time, graded separately within each datable class.
 
     Grading in aggregate would accept a single constant (see GATES).
     """
@@ -188,11 +174,11 @@ def test_timing_of_completed_sweeps(truth, matched):
 
     by_class = {}
     for t, c, _ in pairs:
-        if t["class"] not in COMPLETE_CLASSES or t["completion_gens_ago"] is None:
+        if t["class"] not in TIMED_CLASSES or t["completion_gens_ago"] is None:
             continue
         by_class.setdefault(t["class"], []).append((t, c))
     if not by_class:
-        pytest.fail("no completed sweep was localized, so timing cannot be graded")
+        pytest.fail("no datable sweep was localized, so timing cannot be graded")
 
     problems = []
     for klass, items in sorted(by_class.items()):

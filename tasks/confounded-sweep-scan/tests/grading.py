@@ -15,6 +15,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing", "partial")
 COMPLETE_CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing")
+# Completion time is graded only for single-origin completed sweeps.
+# Diversity recovery dates a sweep by how far below background its centre
+# still sits, which presumes the sweep drove diversity to zero. A soft sweep
+# never did: its measured diversity at the centre is 0.74 of background, so
+# the recovery clock has no zero to start from and reads a soft sweep as
+# roughly eighteen times older than it is. Grading a quantity that no
+# estimator recovers would be grading noise.
+TIMED_CLASSES = ("hard_recent_complete", "hard_old_complete")
 
 GATES: Dict[str, Any] = {
     # --- matching ---
@@ -41,9 +49,22 @@ GATES: Dict[str, Any] = {
     # reported history must still be a real contraction followed by a
     # recovery (test_bottleneck_is_a_bottleneck).
     "bottleneck_strength_factor": 2.50,
-    # The end of the bottleneck -- the expansion -- is the better determined
-    # of the two boundaries, so it is the one graded directly.
-    "T_bottleneck_end_frac": 0.40,
+    # The bottleneck's TIMING is not graded at all.  Measured on four
+    # independent neutral replicates with known truth, a competent
+    # spectrum-based fit recovered the expansion time at 0.64, 0.68, 1.31 and
+    # 2.63 times its true value: one in four would fail even a 40% tolerance,
+    # and a tolerance loose enough to admit 2.63 is wide enough to be
+    # meaningless. The objective has a broad flat minimum spanning roughly
+    # 1500 to 4000 generations for a truth of 3000, so this is a property of
+    # the information in a site frequency spectrum from 100 haplotypes, not
+    # of the search. Methods that use linkage or sequentially-Markov
+    # inference date bottlenecks far better, but a gate cannot demand a
+    # capability the reference lacks and still be guaranteed passable.
+    #
+    # What remains is still substantive: both sizes to within 60%, the
+    # bottleneck's integrated severity to within a factor of 2.5, and a
+    # history that genuinely contracts and recovers. A constant-size answer
+    # fails on severity and on structure.
 
     # --- detection ---
     # Per-class minimum recall, as (numerator, denominator) over the true

@@ -139,25 +139,36 @@ class TrajectoryRecorder:
         self.real[sweep_id] = real
 
     @staticmethod
-    def _count_for_key(pop, key) -> Tuple[int, bool]:
-        for i, m in enumerate(pop.mutations):
-            if m.key == key:
-                c = int(pop.mcounts[i]) if i < len(pop.mcounts) else 0
-                if c > 0:
-                    return c, False
-                break
+    def _key_index(pop) -> Dict[tuple, int]:
+        """One key-to-row map per generation.
+
+        Scanning the mutation table once per tracked key is O(keys x table).
+        With three soft sweeps of a hundred origins each that is around
+        ninety thousand comparisons every generation, which dominated the
+        whole simulation. Building the map once makes each lookup O(1).
+        """
+        return {m.key: i for i, m in enumerate(pop.mutations)}
+
+    def _count_for_key(self, pop, key, lookup=None) -> Tuple[int, bool]:
+        lookup = self._key_index(pop) if lookup is None else lookup
+        i = lookup.get(key)
+        if i is not None:
+            c = int(pop.mcounts[i]) if i < len(pop.mcounts) else 0
+            if c > 0:
+                return c, False
         # NOTE: find_fixation_by_key returns -1 (not None) when absent.
         if pop.find_fixation_by_key(key) >= 0:
             return -1, True
         return 0, False
 
-    def _sweep_state(self, pop, keys) -> Tuple[int, bool, int]:
+    def _sweep_state(self, pop, keys, lookup=None) -> Tuple[int, bool, int]:
         """(total allele count, whether fixed, number of surviving origins)."""
+        lookup = self._key_index(pop) if lookup is None else lookup
         total = 0
         surviving = 0
         fixed = False
         for k in keys:
-            c, is_fixed = self._count_for_key(pop, k)
+            c, is_fixed = self._count_for_key(pop, k, lookup)
             if is_fixed:
                 fixed = True
                 surviving += 1
@@ -169,13 +180,16 @@ class TrajectoryRecorder:
         return total, False, surviving
 
     def snapshot(self, pop) -> Dict[str, Tuple[int, bool, int]]:
-        return {sid: self._sweep_state(pop, ks) for sid, ks in self.tracked.items()}
+        lookup = self._key_index(pop)
+        return {sid: self._sweep_state(pop, ks, lookup)
+                for sid, ks in self.tracked.items()}
 
     def __call__(self, pop, sampler) -> None:
         gen = pop.generation
+        lookup = self._key_index(pop)
         for sid, keys in self.tracked.items():
             r = self.real[sid]
-            total, fixed, surviving = self._sweep_state(pop, keys)
+            total, fixed, surviving = self._sweep_state(pop, keys, lookup)
             if surviving:
                 r.n_origins_surviving = surviving
             if fixed and not r.fixed:
