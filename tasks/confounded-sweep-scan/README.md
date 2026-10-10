@@ -93,13 +93,28 @@ history, so the history comes first.
    refinement and a coordinate polish converge.
 2. **Null** of ten neutral replicates under the fitted history using the
    provided recombination map, scanned identically to the observed genome.
-3. **Detection**: each observed window becomes a z-score against null windows
-   in the same local-rate bin, across diversity, Tajima's D, H12 and extreme
-   nSL fraction. H2/H1 is excluded here on purpose, because it sits near its
-   neutral value at a soft sweep and scoring on it would penalise the hardest
-   class to find. The threshold is set so the expected number of null windows
-   per genome is a fraction of one; contiguous passing windows cluster into
-   one call.
+3. **Detection**: each observed window gets a rank-based p-value against null
+   windows in the same local-rate bin, for six statistics, combined as
+   -2 sum log p. Rank-based rather than a z-score because these statistics
+   are strongly skewed, so a z is not on a calibrated scale: thresholding a
+   max-z for a fixed false-positive budget put the cut at z = 10 and missed
+   both old sweeps despite their diversity sitting at 0.21 of background.
+
+   The six are diversity (low), Tajima's D in **both** directions, H12
+   (high), H2/H1 (low) and extreme-nSL fraction (high). Including both
+   directions of Tajima's D is not double-counting: in a Fisher combination
+   a window extreme in one tail has a p near one in the other and
+   contributes nothing from it, so the pair acts as a two-sided test. It is
+   there because soft sweeps push Tajima's D the opposite way from hard
+   ones. With only the one-sided set, soft sweeps contributed to a single
+   statistic and two of three were missed.
+
+   The threshold is taken from the null itself, so the false-positive budget
+   holds whatever shape the combined score has and however correlated the
+   statistics are. Contiguous passing windows cluster into one call, with a
+   generous gap tolerance: a footprint here is one to two megabases and its
+   evidence is not monotonic across it, so a tight tolerance split single
+   sweeps into two calls.
 4. **Characterisation** by a nearest-centroid rule on four features read at
    the peak: diversity and H2/H1 as ratios to background, Tajima's D and the
    extreme-nSL fraction as differences. Calibrated on 32 independent
