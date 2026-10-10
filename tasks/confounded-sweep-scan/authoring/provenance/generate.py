@@ -90,7 +90,9 @@ def main():
         print(f"\n=== replicate {rep} (seed {seed}) ===", flush=True)
         t0 = time.time()
         ts, rec, el = run_forward(cfg, n_cur, t_forward, plans, seed=seed,
-                                  traj_thin=10)
+                                  traj_thin=10,
+                                  accept_fn=None if args.no_accept
+                                  else S.failing_sweeps)
         ok, problems = S.check_acceptance(rec.real)
         if args.no_accept:
             problems = [f"(ignored) {x}" for x in problems]

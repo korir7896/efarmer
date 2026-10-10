@@ -123,3 +123,19 @@ def check_acceptance(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str
         if realized_class(r) != r.intended_class:
             problems.append(f"{sid}: realized class {realized_class(r)} != intended {r.intended_class}")
     return (len(problems) == 0), problems
+
+
+def failing_sweeps(reals: Dict[str, SweepRealization]) -> Tuple[bool, List[str]]:
+    """Acceptance as the forward driver wants it: (ok, failing sweep ids).
+
+    Lets the driver backtrack to the one sweep that did not work out instead
+    of throwing away a whole replicate.
+    """
+    ok, problems = check_acceptance(reals)
+    if ok:
+        return True, []
+    bad = []
+    for sid in sorted(reals):
+        if any(p.startswith(sid) for p in problems):
+            bad.append(sid)
+    return False, bad or sorted(reals)

@@ -27,13 +27,21 @@ TIMED_CLASSES = ("hard_recent_complete", "hard_old_complete")
 GATES: Dict[str, Any] = {
     # --- matching ---
     # A call matches a true sweep if it is on the same chromosome within this
-    # many bp.  Set from the localisation spread of correct methods, which is
-    # governed by the sweep footprint (~s/r per sweep), not by how precise the
-    # reference happens to be.
-    "match_window_bp": 150_000,
+    # many bp.  Set from the measured localisation spread of the best
+    # statistic for each class, not from how precise the reference happens to
+    # be: diversity puts completed hard sweeps within 19-31 kb (worst 121 kb)
+    # and H12 puts partial sweeps within 25 kb (worst 91 kb), but soft sweeps
+    # are the loose ones at 31 kb median and 211 kb worst, because their
+    # diversity dip is shallow and only H12 locates them at all.
+    #
+    # Widening this cannot let a sloppy answer through: true sweeps are at
+    # least 2 Mb apart, so there is no ambiguity about which one a call
+    # belongs to, and spraying calls is caught by the false-positive cap
+    # rather than by the window.
+    "match_window_bp": 250_000,
     # Two calls closer together than this are collapsed before grading, so an
     # agent cannot manufacture recall by carpeting a region with calls.
-    "dedupe_bp": 150_000,
+    "dedupe_bp": 250_000,
 
     # --- demography ---
     # Sizes are graded multiplicatively. N_ancestral and N_current are

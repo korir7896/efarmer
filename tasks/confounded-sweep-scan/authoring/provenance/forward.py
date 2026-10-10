@@ -267,157 +267,236 @@ def make_params(cfg: GenomeConfig, n_cur: int, total_gens: int, simlen: int):
 
 
 # --------------------------------------------------------------------------
-# staged driver
+# driver: checkpoints, deadlines and backtracking
 # --------------------------------------------------------------------------
+#
+# Earlier versions tested each sweep's establishment inside the gap before the
+# next sweep's origin.  That is wrong whenever sweeps are closely spaced, and
+# in this zoo they are: six of the seven single-origin sweeps sit 10 to 170
+# generations from their neighbour while needing 196 to 525 generations to
+# reach an escape-from-drift threshold.  Clipping the window to the gap made
+# the threshold unreachable for one sweep (4000 futile attempts) and, worse,
+# made the others succeed only on atypically fast early trajectories -- 74 and
+# 93 attempts to find a singleton that reached 50 copies in 40 generations.
+# That silently biased the sweeps towards unrepresentative growth.
+#
+# Instead each sweep gets a DEADLINE, origin + est_window(s), independent of
+# where other sweeps sit.  The simulation runs through the deadlines, and a
+# sweep that has not escaped drift by its own deadline sends the run back to
+# that sweep's checkpoint for a fresh draw.  Later sweeps are re-added on the
+# next pass.  Failure is detected as early as possible -- a lost variant
+# within one chunk -- so a retry costs about one establishment window rather
+# than the whole remaining run.
+
+
+@dataclass
+class _Stage:
+    gen: int
+    plan: SweepPlan
+    deadline: int
+
 
 def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                 plans: Sequence[SweepPlan], seed: int,
                 simplification_interval: int = 100,
-                max_attempts: int = 4000,
+                max_attempts_per_stage: int = 800,
                 chunk: int = 25,
                 min_soft_origins: int = 5,
+                accept_fn=None,
+                _dbg: bool = False,
                 traj_thin: int = 1,
                 verbose: bool = True):
-    """Run the forward phase in stages, conditioning each sweep on non-loss.
+    """Run the forward phase, conditioning every sweep on escaping drift.
+
+    `accept_fn`, if given, is called on the realized sweeps once the run
+    reaches the present.  It must return (ok, [failing sweep_id, ...]); the
+    run then backtracks to the earliest failing sweep instead of discarding
+    the whole replicate.
 
     Returns (tskit TreeSequence, TrajectoryRecorder, seconds).
     """
     two_n = 2 * n_cur
-    pop = fwdpy11.DiploidPopulation(n_cur, float(cfg.total_len))
     rng = fwdpy11.GSLrng(seed)
     recorder = TrajectoryRecorder(two_n, total_gens, traj_thin)
 
-    # One sweep per stage. Two sweeps sharing an origin generation would have
-    # to establish in the SAME attempt, so the acceptance probability becomes
-    # the product of theirs rather than being conditioned one at a time. A
-    # measured collision between a hard sweep and a soft one turned a stage
-    # that should take about a minute into more than six. Duplicates are
-    # nudged one generation apart, and the nudged value is what is recorded
-    # as the realized origin.
-    by_gen: Dict[int, List[SweepPlan]] = {}
+    # one sweep per stage; duplicate origins nudged apart
+    used = set()
+    stages: List[_Stage] = []
     for p in sorted(plans, key=lambda x: (-x.origin_gens_ago, x.sweep_id)):
         g = total_gens - p.origin_gens_ago
-        while g in by_gen:
+        while g in used:
             g += 1
         if not (0 < g < total_gens):
             raise ValueError(f"{p.sweep_id}: origin generation {g} outside (0,{total_gens})")
-        by_gen[g] = [p]
-    origins = sorted(by_gen)
+        used.add(g)
+        stages.append(_Stage(gen=g, plan=p,
+                             deadline=min(total_gens, g + est_window(p.s))))
+    stages.sort(key=lambda st: st.gen)
+    n_stages = len(stages)
+    stage_of = {st.plan.sweep_id: k for k, st in enumerate(stages)}
 
     t0 = time.time()
     first_call = True
 
-    def evolve(duration: int, pop_, rec_):
+    def evolve(pop_, duration: int):
         nonlocal first_call
         if duration <= 0:
             return
         params = make_params(cfg, n_cur, total_gens, duration)
-        kw = dict(recorder=rec_, track_mutation_counts=True,
+        kw = dict(recorder=recorder, track_mutation_counts=True,
                   suppress_table_indexing=True)
         if first_call:
             kw["preserve_first_generation"] = True
         fwdpy11.evolvets(rng, pop_, params, simplification_interval, **kw)
         first_call = False
 
-    for gi, g in enumerate(origins):
-        evolve(g - pop.generation, pop, recorder)
+    def snapshot(pop_):
+        return (copy.deepcopy(pop_),
+                {k: list(v) for k, v in recorder.tracked.items()},
+                copy.deepcopy(recorder.real))
 
-        next_stop = origins[gi + 1] if gi + 1 < len(origins) else total_gens
-        stage_plans = by_gen[g]
-        s_min = min(p.s for p in stage_plans)
-        window = min(est_window(s_min), next_stop - g)
+    def restore(snap):
+        pop_, tracked, real = snap
+        recorder.tracked = {k: list(v) for k, v in tracked.items()}
+        recorder.real = copy.deepcopy(real)
+        return copy.deepcopy(pop_)
 
-        checkpoint = copy.deepcopy(pop)
-        tracked_before = {k: list(v) for k, v in recorder.tracked.items()}
-        real_before = copy.deepcopy(recorder.real)
+    def add_stage(pop_, st: _Stage):
+        keys = []
+        for _ in range(st.plan.n_origins):
+            idx = pop_.add_mutation(
+                rng, window=(float(st.plan.position), float(st.plan.position) + 1.0),
+                ndescendants=1,
+                data=fwdpy11.NewMutationData(effect_size=st.plan.s, dominance=st.plan.h))
+            if idx is not None:
+                keys.append(pop_.mutations[idx].key)
+        if not keys:
+            return False
+        recorder.track(st.plan.sweep_id, keys, SweepRealization(
+            sweep_id=st.plan.sweep_id, position=st.plan.position,
+            s=st.plan.s, h=st.plan.h, n_origins_introduced=len(keys),
+            intended_class=st.plan.intended_class,
+            origin_gen_forward=st.gen, origin_gens_ago=total_gens - st.gen))
+        return True
 
-        accepted = False
-        attempts = 0
+    # ---- initial state, evolved to the first origin ----
+    pop = fwdpy11.DiploidPopulation(n_cur, float(cfg.total_len))
+    evolve(pop, stages[0].gen)
+    snaps: Dict[int, tuple] = {0: snapshot(pop)}
 
-        while attempts < max_attempts and not accepted:
-            attempts += 1
-            trial = copy.deepcopy(checkpoint)
-            recorder.tracked = {k: list(v) for k, v in tracked_before.items()}
-            recorder.real = copy.deepcopy(real_before)
+    attempts = [0] * n_stages
+    start_stage = 0
 
-            new_ids = []
-            for p in stage_plans:
-                keys = []
-                for _ in range(p.n_origins):
-                    idx = trial.add_mutation(
-                        rng,
-                        window=(float(p.position), float(p.position) + 1.0),
-                        ndescendants=1,
-                        data=fwdpy11.NewMutationData(effect_size=p.s, dominance=p.h),
-                    )
-                    if idx is not None:
-                        keys.append(trial.mutations[idx].key)
-                if not keys:
+    while True:
+        pop = restore(snaps[start_stage])
+        cur = start_stage
+        confirmed: Dict[str, bool] = {
+            st.plan.sweep_id: True for st in stages[:start_stage]}
+        failed_at: Optional[int] = None
+
+        while True:
+            # 1. introduce every sweep scheduled at the current generation.
+            #    This has to come BEFORE choosing the next target: the first
+            #    stage's origin IS the generation the population starts at,
+            #    so treating origins only as future events evolved straight
+            #    past it and never added the mutation.
+            while cur < n_stages and stages[cur].gen == pop.generation:
+                snaps[cur] = snapshot(pop)
+                if not add_stage(pop, stages[cur]):
+                    failed_at = cur
+                    break
+                confirmed[stages[cur].plan.sweep_id] = False
+                cur += 1
+            if failed_at is not None:
+                break
+
+            # 2. judge every unconfirmed sweep: gone now, or short at its
+            #    own deadline.
+            snap_counts = recorder.snapshot(pop)
+            for sid in list(recorder.tracked):
+                if confirmed.get(sid):
                     continue
-                r = SweepRealization(
-                    sweep_id=p.sweep_id, position=p.position, s=p.s, h=p.h,
-                    n_origins_introduced=len(keys),
-                    intended_class=p.intended_class,
-                    origin_gen_forward=g, origin_gens_ago=total_gens - g,
-                )
-                recorder.track(p.sweep_id, keys, r)
-                new_ids.append(p.sweep_id)
-            if len(new_ids) != len(stage_plans):
-                continue
-
-            # Evolve the establishment window in chunks, abandoning the attempt
-            # as soon as a new sweep is gone.  Most failures die within the
-            # first few 1/s generations, so paying for the whole window on
-            # every failure wastes almost all of the compute.
-            remaining = window
-            alive = True
-            while remaining > 0:
-                step = min(chunk, remaining)
-                evolve(step, trial, recorder)
-                remaining -= step
-                snap = recorder.snapshot(trial)
-                if any(snap[sid][0] == 0 and not snap[sid][1] for sid in new_ids):
-                    alive = False
+                st = stages[stage_of[sid]]
+                total, done, surviving = snap_counts[sid]
+                if total == 0 and not done:
+                    failed_at = stage_of[sid]
                     break
-                if all(snap[sid][1] or snap[sid][0] >= est_threshold(recorder.real[sid].s)
-                       for sid in new_ids):
-                    break
-            if not alive:
-                continue
+                if pop.generation >= st.deadline:
+                    strong = done or total >= est_threshold(st.plan.s)
+                    soft_ok = (st.plan.n_origins == 1
+                               or surviving >= min_soft_origins)
+                    if strong and soft_ok:
+                        confirmed[sid] = True
+                        recorder.real[sid].established = True
+                    else:
+                        failed_at = stage_of[sid]
+                        break
+            if failed_at is not None:
+                break
 
-            snap = recorder.snapshot(trial)
-            accepted = True
-            for sid in new_ids:
-                total, fixed, surviving = snap[sid]
-                plan = next(p for p in stage_plans if p.sweep_id == sid)
-                if not fixed and total < est_threshold(plan.s):
-                    accepted = False
-                    break
-                # Require several surviving origins at establishment, not
-                # just two. Origins keep being lost after the sweep completes,
-                # so a sweep holding only two here usually holds one by the
-                # present; demanding five raises the share of replicates that
-                # are still soft at sampling time from roughly 70% to most.
-                if plan.n_origins > 1 and surviving < min_soft_origins:
-                    accepted = False
-                    break
+            # 3. finished?
+            if pop.generation >= total_gens and cur >= n_stages:
+                break
 
-            if accepted:
-                for sid in new_ids:
-                    recorder.real[sid].establishment_attempts = attempts
-                    recorder.real[sid].established = True
-                pop = trial
+            # 4. advance to the next point of interest.
+            targets = [total_gens]
+            if cur < n_stages:
+                targets.append(stages[cur].gen)
+            pending = [stages[stage_of[sid]] for sid in recorder.tracked
+                       if not confirmed.get(sid)]
+            targets += [st.deadline for st in pending]
+            if pending:
+                targets.append(pop.generation + chunk)
+            ahead = [t for t in targets if t > pop.generation]
+            if not ahead:
+                raise RuntimeError(
+                    f"no event ahead of generation {pop.generation}: "
+                    f"cur={cur}/{n_stages} targets={sorted(set(targets))}")
+            evolve(pop, min(ahead) - pop.generation)
+            if _dbg:
+                print(f"    [dbg] gen={pop.generation} cur={cur} pending="
+                      f"{[x for x in recorder.tracked if not confirmed.get(x)]}",
+                      flush=True)
 
-        if not accepted:
-            raise RuntimeError(
-                f"sweeps {[p.sweep_id for p in stage_plans]} at generation {g} "
-                f"failed to establish in {max_attempts} attempts")
-        if verbose:
-            ids = ",".join(p.sweep_id for p in stage_plans)
-            print(f"  [stage {gi+1}/{len(origins)}] gen {g} established {ids} "
-                  f"after {attempts} attempt(s)  [{time.time()-t0:.0f}s]", flush=True)
+        if failed_at is not None:
+            attempts[failed_at] += 1
+            if attempts[failed_at] > max_attempts_per_stage:
+                raise RuntimeError(
+                    f"{stages[failed_at].plan.sweep_id} failed to establish in "
+                    f"{max_attempts_per_stage} attempts")
+            start_stage = failed_at
+            continue
 
-    evolve(total_gens - pop.generation, pop, recorder)
+        # reached the present with every sweep established
+        if accept_fn is not None:
+            ok, failing = accept_fn(recorder.real)
+            if not ok:
+                ks = [stage_of[sid] for sid in failing if sid in stage_of]
+                if ks:
+                    k = min(ks)
+                    attempts[k] += 1
+                    if attempts[k] > max_attempts_per_stage:
+                        raise RuntimeError(
+                            f"{stages[k].plan.sweep_id} never met its acceptance "
+                            f"criteria in {max_attempts_per_stage} attempts")
+                    if verbose:
+                        print(f"  backtracking to {stages[k].plan.sweep_id}: "
+                              f"{failing}", flush=True)
+                    start_stage = k
+                    continue
+        break
+
+    # restore() rolls recorder.real back to a pre-add snapshot, so attempt
+    # counts are written once here from the driver's own tally.
+    for k, st in enumerate(stages):
+        if st.plan.sweep_id in recorder.real:
+            recorder.real[st.plan.sweep_id].establishment_attempts = attempts[k] + 1
+
+    if verbose:
+        print("  established: " + ", ".join(
+            f"{st.plan.sweep_id}({attempts[k] + 1} try)"
+            for k, st in enumerate(stages)) + f"  [{time.time() - t0:.0f}s]",
+            flush=True)
 
     elapsed = time.time() - t0
     ts = pop.dump_tables_to_tskit()
