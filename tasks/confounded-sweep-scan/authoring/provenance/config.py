@@ -136,8 +136,21 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     # read off its age or the reverse.
     ("sw01", 0, 0.120,  0.0900,  274,   1, "hard_complete"),   # ~130 gens ago
     ("sw02", 1, 0.160,  0.0280,  770,   1, "hard_complete"),   # ~350
-    ("sw03", 1, 0.6571, 0.0400, 1083,   1, "hard_complete"),   # ~760
-    ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
+    # Pulled from 1083 to 900. At 1083 it completed 789 generations ago and
+    # the reference did not detect it at all: it is 725 kb from sw09, whose
+    # allele sits at 87% and whose signal is much the stronger of the two, so
+    # the older sweep's footprint was absorbed into its neighbour's cluster.
+    # The close pair is the point and stays; which member is the weaker one
+    # does not have to be the completed one, and hard_complete recall has to
+    # supply four of five sweeps where hard_partial needs only two of four.
+    ("sw03", 1, 0.6571, 0.0400,  900,   1, "hard_complete"),   # ~760
+    # s raised from 0.0130. At 0.0130 it completed 1724 generations ago and
+    # was undetectable -- a weak sweep that old has had its diversity trough
+    # largely refilled, and the reference found nothing within a megabase of
+    # it. It is still the faintest completed sweep in the zoo by a wide
+    # margin; it is no longer past the edge. The span of s is unaffected
+    # because sw11 at 0.0075 sets the minimum.
+    ("sw04", 2, 0.420,  0.0200, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
     # --- soft, complete: many origins, recent enough that several survive --
     ("sw06", 1, 0.8857, 0.0220,  440, 400, "soft_complete"),
@@ -155,13 +168,22 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     #     because a founding lineage escapes drift with probability ~2s, so
     #     the SURVIVING origin count stays in the two-to-six range that the
     #     haplotype statistics can actually resolve.
-    ("sw13", 0, 0.8929, 0.0120,  430, 150, "soft_partial"),
+    # 430 left it at 32% frequency, which no method found. A soft sweep that
+    # far from completion has neither a diversity trough nor a dominant
+    # haplotype, and two of the three soft_partial sweeps being invisible
+    # makes that class's recall floor unreachable rather than hard.
+    ("sw13", 0, 0.8929, 0.0120,  600, 150, "soft_partial"),
     # 130 generations reached 0.978 in context against an isolated
     # 0.068/0.759/0.803. Pulled back so that the partial sweeps span a range
     # of frequencies rather than crowding the completion threshold: sw11 is
     # the one allowed to sit right under it, and a second sweep there would
     # cost the class gate without adding a different kind of hard case.
-    ("sw14", 4, 0.8786, 0.0580,  105,  14, "soft_partial"),
+    # 130 gave 98%, 105 gave 24%: at s=0.058 the realized frequency is a
+    # steep function of the origin and a noisy one, since the trajectory is
+    # conditioned on establishment from fourteen copies. 122 aims between
+    # them, and the acceptance window is deliberately wide rather than
+    # trying to hit a number this stochastic.
+    ("sw14", 4, 0.8786, 0.0580,  122,  14, "soft_partial"),
     ("sw15", 3, 0.800,  0.0300,  230, 100, "soft_partial"),
 ]
 
@@ -354,9 +376,11 @@ ACCEPT: Dict[str, Dict] = {
     "sw02": dict(class_="hard_complete", must_complete=True,
                  done_min=280,  done_max=440),    # s raised to 0.0280
     "sw03": dict(class_="hard_complete", must_complete=True,
-                 done_min=700,  done_max=880),    # probed 749, 802, 823
+                 done_min=500,  done_max=720),    # origin pulled to 900
     "sw04": dict(class_="hard_complete", must_complete=True,
-                 done_min=1420, done_max=1900),   # probed 1487, 1704, 1795
+                 done_min=1650, done_max=2180),   # s raised to 0.0200, which
+    #            shortens the rise and so makes it complete EARLIER, hence
+    #            an older completion age than at 0.0130
     "sw05": dict(class_="hard_complete", must_complete=True,
                  done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
     # soft_complete: must stay SOFT, which is the binding constraint.
@@ -374,11 +398,11 @@ ACCEPT: Dict[str, Dict] = {
     #            the two-surviving-origin check does the real work
     # hard_partial: still segregating today.
     "sw09": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.1, freq_max=0.96),   # isolated 0.221, 0.880, 0.907
+                 freq_min=0.45, freq_max=0.96),   # isolated 0.221, 0.880, 0.907
     "sw10": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.1, freq_max=0.96),   # isolated 0.386, 0.455, 0.577
+                 freq_min=0.45, freq_max=0.96),   # isolated 0.386, 0.455, 0.577
     "sw11": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.1, freq_max=0.9799),  # isolated 0.094, 0.197,
+                 freq_min=0.45, freq_max=0.9799),  # isolated 0.094, 0.197,
     #            0.885; in context 0.977. The cap is the completion threshold
     #            rather than a margin below it, deliberately: a partial sweep
     #            sitting two points under 0.98 has very nearly a completed
@@ -392,11 +416,11 @@ ACCEPT: Dict[str, Dict] = {
                  freq_min=0.70, freq_max=0.97),   # the deliberate
     #            near-complete case; isolated 0.376, 0.783, 0.963
     "sw13": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.10, freq_max=0.95),   # isolated 0.669, 0.774, 0.810
+                 freq_min=0.45, freq_max=0.95),   # isolated 0.669, 0.774, 0.810
     "sw14": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.10, freq_max=0.95),   # isolated 0.068, 0.759, 0.803
+                 freq_min=0.45, freq_max=0.9799),   # isolated 0.068, 0.759, 0.803
     "sw15": dict(class_="soft_partial", must_complete=False,
-                 freq_min=0.10, freq_max=0.95),   # isolated 0.760, 0.780, 0.800
+                 freq_min=0.45, freq_max=0.95),   # isolated 0.760, 0.780, 0.800
 }
 # `class` is a keyword, so the dicts above carry `class_`; expose it under the
 # name the rest of the code reads.
