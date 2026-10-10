@@ -140,7 +140,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
     # --- soft, complete: many origins, recent enough that several survive --
-    ("sw06", 1, 0.600,  0.0220,  700, 300, "soft_complete"),
+    ("sw06", 1, 0.600,  0.0220,  700, 400, "soft_complete"),
     ("sw07", 3, 0.460,  0.0500,  420,  80, "soft_complete"),
     ("sw08", 4, 0.3429, 0.0095, 1500, 150, "soft_complete"),   # COLD, weakest
     # --- hard, partial: one origin, still segregating ---------------------
@@ -154,7 +154,7 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     #     haplotype statistics can actually resolve.
     ("sw13", 0, 0.8929, 0.0120,  430, 150, "soft_partial"),
     ("sw14", 4, 0.8786, 0.0580,  130,  14, "soft_partial"),
-    ("sw15", 3, 0.800,  0.0300,  230,  40, "soft_partial"),
+    ("sw15", 3, 0.800,  0.0300,  230, 100, "soft_partial"),
 ]
 
 # Three sweeps sit INSIDE a wide moderate cold spot, one per completeness
@@ -275,6 +275,42 @@ POSITION_JITTER = 60_000
 # sw11 is deliberately left close to completion -- the probes gave 0.762,
 # 0.909 and 0.938 -- because a partial sweep at 94% frequency is the hardest
 # case the complete-versus-partial axis has, and the zoo should contain one.
+#
+# Two windows are set from the IN-CONTEXT forward pass rather than from the
+# single-sweep probes, because the two measure different things and the
+# difference is not small. On the full 70 Mb genome with all fifteen sweeps
+# present, sw02 completed 239 generations ago where isolated replicates gave
+# 283 to 404, and sw10 reached 0.159 where isolated replicates gave 0.267 to
+# 0.846. Both are now inside their windows. The windows were widened to
+# admit the measured values, which is choosing with the answer visible, so
+# what makes it legitimate is stated rather than left implicit: the design
+# guarantee is re-checked over the WIDENED region, and no single constant can
+# date three of the five hard_complete sweeps anywhere in it
+# (gate_feasibility.design_guarantee()).
+#
+# The in-context pass is what `generate.py --forward-only` is for. On the
+# first seed every sweep realized its intended class -- the earlier reading
+# that sw11 sat at frequency 0.171 came from a transient backtracked state in
+# a rejected attempt, not from a completed pass.
+#
+# A second in-context seed showed what is actually fragile, and each fix
+# addresses the cause rather than widening a window:
+#
+#   * sw06 realized HARD with one surviving origin even at 300 introductions,
+#     having completed 510 generations ago against 347 on the first seed.
+#     The surviving beneficial backgrounds keep drifting AFTER fixation, so
+#     what costs a soft sweep its softness is elapsed time since completion,
+#     not the number of introductions alone. Hence both 400 origins and a
+#     window that rejects late completions.
+#   * sw15 realized HARD with one surviving origin out of 40. At s = 0.030 a
+#     founding lineage escapes drift with probability about 2s, so 40
+#     introductions expect 2.4 survivors and one is an ordinary draw, not bad
+#     luck. 100 introductions expect six.
+#   * sw11 came out at 0.261 and 0.684 on the two seeds, so a window of
+#     [0.60, 0.96] would have been retried many times for no gain: sw12,
+#     which is reliably 0.92 to 0.94, already supplies the near-complete
+#     partial sweep the zoo wants. sw11's window is widened to match what it
+#     actually does.
 ACCEPT: Dict[str, Dict] = {
     # hard_complete: completion-age windows. Spaced so that NO constant can
     # land inside three of the five tolerance ranges for any draw the
@@ -283,7 +319,8 @@ ACCEPT: Dict[str, Dict] = {
     "sw01": dict(class_="hard_complete", must_complete=True,
                  done_min=100,  done_max=180),    # probed 111, 131, 148
     "sw02": dict(class_="hard_complete", must_complete=True,
-                 done_min=260,  done_max=430),    # probed 283, 357, 404
+                 done_min=220,  done_max=430),    # probed 283, 357, 404;
+    #                                               in context 239
     "sw03": dict(class_="hard_complete", must_complete=True,
                  done_min=700,  done_max=880),    # probed 749, 802, 823
     "sw04": dict(class_="hard_complete", must_complete=True,
@@ -292,7 +329,8 @@ ACCEPT: Dict[str, Dict] = {
                  done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
     # soft_complete: must stay SOFT, which is the binding constraint.
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=200,  done_max=560),    # probed 350 (11 origins)
+                 done_min=200,  done_max=430),    # probed 350 (11 origins),
+    #                                        in context 347 (7) and 510 (1)
     "sw07": dict(class_="soft_complete", must_complete=True,
                  done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
@@ -301,9 +339,11 @@ ACCEPT: Dict[str, Dict] = {
     "sw09": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.30, freq_max=0.90),   # probed 0.361, 0.542, 0.712
     "sw10": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.22, freq_max=0.93),   # probed 0.267, 0.664, 0.846
+                 freq_min=0.12, freq_max=0.93),   # probed 0.267, 0.664,
+    #                                        0.846; in context 0.159
     "sw11": dict(class_="hard_partial", must_complete=False,
-                 freq_min=0.60, freq_max=0.96),   # probed 0.762, 0.909, 0.938
+                 freq_min=0.25, freq_max=0.96),   # probed 0.762, 0.909,
+    #                                   0.938; in context 0.261 and 0.684
     "sw12": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.55, freq_max=0.96),   # probed 0.752, 0.894
     # soft_partial: still segregating AND at least two surviving origins.
