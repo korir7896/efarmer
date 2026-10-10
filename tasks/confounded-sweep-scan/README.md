@@ -400,24 +400,33 @@ background, with no sweep window empty of variants.
 
 **`task.toml` validates** against harbor's own task schema.
 
-**Both harbor gates passed on the previous replicate** -- `harbor run -a
-oracle -e docker` returning reward **1.0** and `harbor run -a nop -e docker`
-returning **0.0**, one trial each, zero errors, through the real harness:
-environment image built, `solve.sh` run inside it, `/app/results.json`
-copied out as the declared artifact, and the separate verifier container
-grading it. Re-running them against the regenerated replicate is blocked in
-this sandbox by a Docker Hub rate limit (HTTP 429 resolving
-`python:3.12-slim-bookworm`), which is an infrastructure limit rather than
-anything about the bundle; nothing in `environment/`, `tests/` or
-`task.toml` that those runs exercise has changed since, and the same
-grading was verified end to end outside harbor.
+**The verifier container behaves.** Built from `tests/Dockerfile` and run
+against the real images with `--network none`: the oracle's own output
+scores `reward=1`, a perfect submission scores 1, an empty `/app` scores 0,
+a malformed `results.json` scores 0, an empty JSON object scores 0, and
+`/logs/verifier/ctrf.json` is written at the canonical path in every case,
+naming all ten gates. A socket call from inside the container fails, so it
+really has no network.
 
-Those harbor runs used a locally patched copy of the bundle, because this
-sandbox's egress policy reaches PyPI but not Debian mirrors and pip inside a
-docker build needs the proxy CA injected. The patch drops the apt layer and
-adds the CA; nothing else differs, and neither change applies in the real
-pipeline, which has open network. The apt packages are standard bookworm
-names and are convenience tooling the reference does not use.
+**Both harbor gates pass.** `harbor run -a oracle -e docker` returns reward
+**1.0** and `harbor run -a nop -e docker` returns **0.0**, one trial each,
+zero exceptions, through the real harness: environment image built,
+`solve.sh` run inside it for eight minutes, `/app/results.json` copied out
+as the declared artifact, and the separate verifier container grading it.
+
+Those runs used a locally patched copy of the bundle. Two changes, neither
+of which applies in the real pipeline and neither of which touches what the
+gates exercise. First, the apt layer is dropped and the sandbox's proxy CA
+injected, because this sandbox's egress policy reaches PyPI but not Debian
+mirrors and pip inside a docker build does not trust the intercepting
+proxy; the apt packages are standard bookworm names and are convenience
+tooling the reference does not use. Second, each Dockerfile's base image is
+replaced by one already in the local cache, because Docker Hub began
+rate-limiting `python:3.12-slim-bookworm` (HTTP 429) partway through this
+session. The cached images were built from these very Dockerfiles earlier
+and carry the same pinned versions, numpy 2.5.3 through pandas 2.3.3 for
+the environment and pytest 8.4.1 with pytest-json-ctrf 0.3.5 for the
+verifier. The shipped bundle is untouched by either.
 
 Not run here: `harbor check`, which needs a model API key this session does
 not have.
