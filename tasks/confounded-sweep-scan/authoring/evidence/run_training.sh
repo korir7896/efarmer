@@ -46,9 +46,9 @@ CONFIGS_SHIPPED=(
   "hard_complete  0.0400  1083    1  -  _s0400"
   "hard_complete  0.0130  2492    1  -  _s0130"
   "hard_complete  0.0550  2722    1  -  _s0550"
-  "soft_complete  0.0220   519  400  -  _s0220"
+  "soft_complete  0.0220   440  400  -  _s0220"
   "soft_complete  0.0500   420   80  -  _s0500"
-  "soft_complete  0.0095  1500  150  -  _s0095"
+  "soft_complete  0.0095   900  400  -  _s0095"
   "hard_partial   0.0160   500    1  -  _s0160"
   "hard_partial   0.0380   210    1  -  _s0380"
   "hard_partial   0.0075   850    1  -  _s0075p"
@@ -63,7 +63,7 @@ CONFIGS_SHIPPED=(
 # points that happen to be the shipped ones.
 CONFIGS_COLDSPOT=(
   "hard_complete  0.0550  2722    1  0.22  _cs_s0550"
-  "soft_complete  0.0095  1500  150  0.28  _cs_s0095"
+  "soft_complete  0.0095   900  400  0.28  _cs_s0095"
   "hard_partial   0.0380   210    1  0.25  _cs_s0380"
   "hard_complete  0.0400  1083    1  0.25  _cs_s0400"
   "soft_partial   0.0300   230  100  0.22  _cs_s0300"

@@ -396,10 +396,25 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
     def add_stage(pop_, st: _Stage):
         keys = []
         for _ in range(st.plan.n_origins):
-            idx = pop_.add_mutation(
-                rng, window=(float(st.plan.position), float(st.plan.position) + 1.0),
-                ndescendants=1,
-                data=fwdpy11.NewMutationData(effect_size=st.plan.s, dominance=st.plan.h))
+            try:
+                idx = pop_.add_mutation(
+                    rng,
+                    window=(float(st.plan.position), float(st.plan.position) + 1.0),
+                    ndescendants=1,
+                    data=fwdpy11.NewMutationData(effect_size=st.plan.s,
+                                                 dominance=st.plan.h))
+            except RuntimeError as e:
+                # fwdpy11 refuses the insertion when the marginal tree at that
+                # position has no span it can use ("invalid tree span of <=
+                # 0.0"). It is rare -- one occurrence in 569 restarts -- and
+                # it is a property of the state the run happens to be in, not
+                # of the plan, so the right response is to treat this origin
+                # as lost and let the driver retry the stage. Crashing the
+                # whole generation instead throws away hours of forward
+                # simulation for a transient condition.
+                if "tree span" not in str(e):
+                    raise
+                continue
             if idx is not None:
                 keys.append(pop_.mutations[idx].key)
         if not keys:

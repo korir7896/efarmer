@@ -140,9 +140,9 @@ SWEEP_SPEC: List[Tuple[str, int, float, float, int, int, str]] = [
     ("sw04", 2, 0.420,  0.0130, 2492,   1, "hard_complete"),   # ~1550
     ("sw05", 2, 0.7357, 0.0550, 2722,   1, "hard_complete"),   # ~2500, COLD
     # --- soft, complete: many origins, recent enough that several survive --
-    ("sw06", 1, 0.8857, 0.0220,  519, 400, "soft_complete"),
+    ("sw06", 1, 0.8857, 0.0220,  440, 400, "soft_complete"),
     ("sw07", 3, 0.460,  0.0500,  420,  80, "soft_complete"),
-    ("sw08", 4, 0.3429, 0.0095, 1500, 150, "soft_complete"),   # COLD, weakest
+    ("sw08", 4, 0.3429, 0.0095,  900, 400, "soft_complete"),   # COLD, weakest
     # --- hard, partial: one origin, still segregating ---------------------
     ("sw09", 1, 0.600,  0.0160,  500,   1, "hard_partial"),
     ("sw10", 0, 0.7143, 0.0380,  210,   1, "hard_partial"),    # COLD
@@ -280,9 +280,17 @@ POSITION_JITTER = 60_000
 # Three things the probes settled, each of which changed the config:
 #
 #   * A soft sweep DECAYS TO HARD the longer ago it completed, because the
-#     surviving beneficial backgrounds keep drifting after fixation. sw06 at
-#     130 origins realized hard in two draws of three. The fix is more
-#     origins, not a younger sweep: 300 origins gave 11 and 17 survivors.
+#     surviving beneficial backgrounds keep drifting after fixation -- and in
+#     CONTEXT it decays faster than in isolation, because fifteen sweeps on
+#     one genome lower the effective size and strengthen drift. The same
+#     configuration that kept three to five origins at 542 to 700 generations
+#     in a single-sweep replicate was left with one at 1195 on the full
+#     genome. Introductions alone cannot fix that: sw06 realized hard at 130,
+#     300 and 400 origins. What fixes it is completing RECENTLY, so all three
+#     soft_complete sweeps are young -- their windows top out between 330 and
+#     480 generations -- and the origin counts are high enough (400, 80, 400)
+#     that several lineages establish in the first place. soft_complete is
+#     not graded for timing, so nothing is lost by clustering their ages.
 #   * sw13 at origin 600 COMPLETED in two draws of three, so it could not be
 #     a soft_partial sweep at all; origin 430 gives frequencies 0.24 to 0.60
 #     with three to five surviving origins.
@@ -345,11 +353,11 @@ ACCEPT: Dict[str, Dict] = {
                  done_min=2400, done_max=2620),   # probed 2468, 2494, 2532
     # soft_complete: must stay SOFT, which is the binding constraint.
     "sw06": dict(class_="soft_complete", must_complete=True,
-                 done_min=120,  done_max=430),    # isolated 142, 389, 391
+                 done_min=100,  done_max=330),    # origin pulled to 440
     "sw07": dict(class_="soft_complete", must_complete=True,
                  done_min=160,  done_max=330),    # probed 218, 220, 240
     "sw08": dict(class_="soft_complete", must_complete=True,
-                 done_min=430,  done_max=760),    # isolated 542, 687, 700
+                 done_min=100,  done_max=480),    # origin pulled to 900
     # hard_partial: still segregating today.
     "sw09": dict(class_="hard_partial", must_complete=False,
                  freq_min=0.1, freq_max=0.96),   # isolated 0.221, 0.880, 0.907
