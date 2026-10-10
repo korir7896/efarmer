@@ -43,23 +43,37 @@ outside:
 The map is given to the agent, so this is a rule to infer, not a secret. But
 a scan run at its defaults will report cold spots as sweeps.
 
-**No single statistic finds all four sweep classes.** Measured at the sweep
-against each replicate's own background, over independent single-sweep
-replicates:
+**No single statistic finds all four sweep classes.** Measured in the window
+containing the selected site, against each replicate's own background,
+grouped by what each sweep actually turned out to be:
 
-| class | diversity ratio | Tajima's D shift | H12 ratio | H2/H1 ratio |
-| --- | --- | --- | --- | --- |
-| hard, recent, complete | 0.033 | -3.03 | 11.7 | 0.02 |
-| soft, recent, complete | ~0.05 | ~-3.0 | ~11 | 0.78 - 1.05 |
-| hard, old, complete | 0.098 | -2.82 | 3.54 | 0.24 |
-| partial, still rising | 0.233 | -2.36 | 9.99 | 0.04 |
+| realized class | diversity | Tajima's D | H12 | H2/H1 | nSL | n |
+| --- | --- | --- | --- | --- | --- | --- |
+| hard, recent, complete | 0.073 | -2.65 | 8.46 | 0.071 | 0.044 | 11 |
+| hard, old, complete | 0.154 | -2.37 | 1.35 | 0.797 | 0.030 | 8 |
+| soft, complete | 0.743 | **+0.89** | 4.52 | 0.436 | 0.016 | 4 |
+| partial, still rising | 0.528 | -1.44 | 7.46 | 0.111 | 0.389 | 8 |
 
-H12 collapses for old sweeps. nSL reads near zero at any completed sweep,
-since the sweep is over and no high-frequency young haplotype remains to
-carry a long tract, so it finds partial sweeps and little else. Diversity
-locates a partial sweep to a median 360 kb against 20 kb for H12. Hard and
-soft sweeps are separated by H2/H1 and essentially nothing else, their
-diversity, Tajima's D and H12 signatures agreeing to within noise.
+Diversity and H12 as ratios to background, Tajima's D and nSL as
+differences.
+
+H12 collapses for old sweeps, from about 8.5 down to 1.3, because
+recombination erodes the swept haplotype block. nSL reads near zero at any
+completed sweep, since no high-frequency young haplotype remains to carry a
+long tract, so it responds to partial sweeps and little else. Diversity
+locates a partial sweep to a median 380 kb against 25 kb for H12.
+
+The soft sweeps are the subtlest: their diversity sits at 0.74 of
+background, barely depressed, so a diversity scan does not see them at all
+and only H12 does. What identifies them is that Tajima's D at a soft sweep
+is **positive**, +0.21 to +1.15, where every other class is negative with a
+maximum of -0.25: several frequent haplotypes leave an excess of
+intermediate-frequency variants.
+
+Worth noting what does NOT work, since it is the obvious choice: H2/H1,
+normally the hard-versus-soft discriminator, fails here. At an old hard
+sweep the block has decayed far enough that H2/H1 recovers to 0.46-0.99,
+overlapping the 0.27-0.62 measured at soft sweeps.
 
 Expert time: around 20 hours, most of it on null calibration and on deciding
 which statistic to trust for which class.
@@ -86,16 +100,17 @@ history, so the history comes first.
    class to find. The threshold is set so the expected number of null windows
    per genome is a fraction of one; contiguous passing windows cluster into
    one call.
-4. **Characterisation** from the measured separation above, plus two
+4. **Characterisation** from the measured separations above, in the order
+   soft (Tajima's D), then old (H12), then partial (residual diversity),
+   each threshold sitting in a measured gap between classes. Plus two
    calibrated estimators: trough width times local rate equals 0.56 times s
    (measured 0.536, 0.571, 0.564, 0.561 across the four classes), and
-   completion time from `2 * N_current * pi_min / pi_background` divided by a
-   class-specific bias of 1.17, 2.02 or 2.46.
+   completion time from `2 * N_current * pi_min / pi_background` with a
+   class-specific bias removed.
 
-Validated against three independent neutral replicates with known truth: all
-five demography gates pass with margin, N_ancestral 1.02 to 1.16x, N_current
-1.03 to 1.13x, bottleneck strength 0.95 to 1.06x, expansion time within 2 to
-20%.
+Validated against four independent neutral replicates with known truth:
+N_ancestral 1.00 to 1.16x, N_current 0.88 to 1.12x, bottleneck severity 1.14
+to 1.48x, all inside their gates.
 
 ## Verification
 
@@ -120,12 +135,22 @@ completed class.
 
 Two decisions are worth naming.
 
-**Bottleneck depth is graded only in combination.** Depth and duration are
-not separately identifiable from the spectrum, since the genealogy integrates
-duration over size. The reference overestimates depth 2.4 to 2.6 times on
-every seed tried while recovering `duration / N_bottleneck` to within 6%, so
-grading depth alone would have failed a correct method. The gate is on the
-combination.
+**Bottleneck depth is graded only in combination, and its timing not at
+all.** Depth and duration are not separately identifiable from the spectrum,
+since the genealogy integrates duration over size, so the gate is on
+`duration / N_bottleneck`, recovered at 1.14 to 1.48 times truth across
+seeds where depth alone was off by 2.4 to 2.6. Timing is not graded: the
+same four fits placed the expansion at 0.64, 0.68, 1.31 and 2.63 times its
+true time, so one in four fails a 40% tolerance while any tolerance admitting
+2.63 is vacuous. The objective has a broad flat minimum spanning roughly 1500
+to 4000 generations for a truth of 3000, which is the information content of
+a spectrum from 100 haplotypes rather than a failure of the search.
+
+**Completion time is graded only for single-origin sweeps.** Diversity
+recovery dates a sweep by how far below background its centre still sits,
+which presumes the sweep drove diversity to zero. A soft sweep leaves it at
+0.74 of background, and the same estimator reads such sweeps as roughly
+eighteen times older than they are.
 
 **Timing is graded per class.** Graded in aggregate it was satisfiable by a
 constant: the recent and soft sweeps finish within a few hundred generations

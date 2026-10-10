@@ -36,7 +36,7 @@ SWEEP_POS = 6_143_879          # a non-round position near the middle
 CLASS_CONFIGS = {
     "hard_recent_complete": (0.035, 750, 1),
     "hard_old_complete":    (0.028, 2150, 1),
-    "soft_standing":        (0.032, 780, 50),
+    "soft_standing":        (0.032, 600, 100),
     "partial":              (0.018, 430, 1),
 }
 
