@@ -120,10 +120,25 @@ GATES: Dict[str, Any] = {
     "max_false_positives": 1,
 
     # --- characterisation, over matched calls only ---
-    # Raised from 0.70: at ten matched calls 0.75 allows two errors where
-    # 0.70 allowed three, and one agent transcript scored 9 of 9 on the
-    # previous zoo, which a 70% gate cannot distinguish from 7 of 9.
-    "min_class_accuracy": 0.75,
+    # 0.70, measured rather than chosen. I raised this to 0.75 on the
+    # reasoning that one agent transcript scored 9 of 9 on the previous zoo
+    # and a 70% gate could not tell that from 7 of 9, then measured the new
+    # zoo: held out by configuration over 60 calibration replicates, the best
+    # four-way accuracy available is 0.733, against 0.802 on the previous
+    # one. A 0.75 gate would demand better than any measured classifier
+    # achieves.
+    #
+    # The zoo is what got harder, not the threshold. Four-way accuracy fell
+    # because the sample is 40 diploids rather than 50 and the haplotype
+    # statistics that separate soft from hard lose the most from that
+    # (softness among completed sweeps 0.848 against 0.924 before, among
+    # partial ones 0.778 against 0.800), because s now spans 12x so the
+    # features that classify a sweep vary more across the zoo, and because
+    # three partial sweeps sit above 85% frequency where the
+    # complete-versus-partial axis is at its hardest. 0.70 of fifteen sweeps
+    # with ten matched is a stricter demand than 0.70 of ten with six
+    # matched: it allows three errors out of ten rather than one out of six.
+    "min_class_accuracy": 0.70,
     # Selection coefficients are graded three ways, and all three must hold.
     #
     # MAGNITUDE: at least this fraction within a multiplicative factor.
