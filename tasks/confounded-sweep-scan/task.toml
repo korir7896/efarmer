@@ -192,10 +192,11 @@ relation put 74% of calibration replicates inside a factor of 2.5 and ranked
 them at only 0.32, because a soft sweep leaves no trough whose width can be
 measured. Only the completed hard sweeps therefore read their width from the
 diversity trough; the other three classes read it from the extent of the H12
-elevation, and each class pairs its width with a level feature -- diversity
-at the peak for the two hard classes, H12 for the completed soft ones. Held
-out by configuration that reaches 109 of 109 inside a factor of 2.5 with a
-pooled rank correlation of +0.82.
+elevation. Three of the four pair that width with a level at the peak --
+diversity for the two hard classes, H12 for the completed soft ones -- and
+soft_partial, where no level separates anything, pairs the H12 extents at
+1.5x and 2x background instead. Held out by configuration that reaches 109
+of 109 inside a factor of 2.5 with a pooled rank correlation of +0.82.
 
 The completion time comes from H12 decay with the footprint extent
 controlling for strength, not from residual diversity: haplotype homozygosity
@@ -305,8 +306,8 @@ refitted on 60 replicates across 20 configurations the shipped replicate
 never uses also clears every gate -- 9 matched calls, no false positives,
 class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9,
 spanning a factor of 5.4, with a rank correlation of 0.517, all three
-localized hard_complete sweeps dated
-inside tolerance (authoring/evidence/holdout_calibration.py). Nothing in that
+localized hard_complete sweeps dated inside tolerance
+(authoring/evidence/holdout_calibration.py). Nothing in that
 version is fitted at a point it is graded on, but it is still the reference's
 method.
 
@@ -320,11 +321,11 @@ scored by the REAL verifier, in the verifier container with no network, not
 by any authoring grader: the file is authoring/evidence/indep_results.json
 and the ctrf report from that run names which gate functions passed. It
 clears 10 of the 12 gates, including all four demography gates with a
-visibly different
-history and all three coefficient gates with a rank correlation of 0.847,
-level with the reference's own 0.850 from a completely different estimator. It fails the false-positive cap, 2 against 1, and timing, 0 of
-3, because its diversity-recovery clock dates every sweep about 2.5 times too
-old. So the timing gate does separate a good clock from a poor one, and no
+visibly different history and all three coefficient gates with a rank
+correlation of 0.847, level with the reference's own 0.850 from a completely
+different estimator. It fails the false-positive cap, 2 against 1, and
+timing, 0 of 3, because its diversity-recovery clock dates every sweep about
+2.5 times too old. So the timing gate does separate a good clock from a poor one, and no
 structurally independent implementation has yet been shown to clear it.
 Tuning that solver until it passed would manufacture the very evidence this
 exercise exists to test for, so it was left where three good-faith

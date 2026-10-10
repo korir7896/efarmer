@@ -259,9 +259,11 @@ history, so the history comes first.
    looks like from the inside; `authoring/evidence/fit_classifier.py
    --shipped-only` reproduces both numbers.
 
-   **Selection coefficient** from a log-linear fit in the level of one
-   statistic at the peak and one footprint width per class: 109 of 109 within
-   a factor of 2.5 with a pooled rank correlation of +0.82. The textbook
+   **Selection coefficient** from a log-linear fit in two measured features
+   per class -- a level at the peak with a footprint width for three of the
+   four classes, two footprint widths for `soft_partial`, where no level
+   separates anything: 109 of 109 within a factor of 2.5 with a pooled rank
+   correlation of +0.82. The textbook
    relation, footprint extent times the local rate, is the backbone of it,
    but on its own, as trough width over a per-class constant, it reached only
    74% and ranked at 0.32 -- a soft sweep leaves no trough whose width can be
@@ -374,8 +376,8 @@ other gates is the lesser cost.
 ### Where the thresholds come from
 
 Three claims, resting on different evidence. They are separated because the
-first is much better supported than the third, and an earlier version of
-this section overstated the third.
+first is much better supported than the second, and an earlier version of
+this section overstated the second.
 
 **That the gates are NOT trivially passable** is established without the
 reference solution at all, and `authoring/evidence/gate_feasibility.py`
@@ -391,9 +393,9 @@ gates allow a match set whose true coefficients span only 3.2 (0.025 to
 factor of 1.5 the best constant reaches 0.667, below the 0.70 threshold, but
 there the reference scores 0.778, one error from failing, and a second
 independent implementation 0.286. A gate only one method can clear, by one
-instance, is worse than one a noisy cheat escapes. **The honest limit, measured rather
-than asserted: a constant with noise added passes magnitude and spread, and
-the ordering gate catches it only most of the time.** Over 20,000 random
+instance, is worse than one a noisy cheat escapes. **The honest limit,
+measured rather than asserted: a constant with noise added passes magnitude
+and spread, and the ordering gate catches it only most of the time.** Over 20,000 random
 answers per match set, a random order clears a correlation of 0.30 on 0.223
 of tries at nine matched calls, 0.190 at ten, and 0.290 at the smallest
 match set the recall gates permit -- so the worst case is about one escape
@@ -464,9 +466,9 @@ order of how much they tell you.
    container with `--network none`, not through any authoring grader:
    `authoring/evidence/indep_results.json` is the file, and the ctrf report
    from that run names which gate functions passed. It clears **10 of the 12
-   gates**. It passes all four demography gates
-   with a visibly different history, a shallow long bottleneck of 5425 for
-   2326 generations against the truth's deep short 800 for 400 -- which is
+   gates**. It passes all four demography gates with a visibly different
+   history, a shallow long bottleneck of 5425 for 2326 generations against
+   the truth's deep short 800 for 400 -- which is
    the non-identifiability the duration-over-depth gate was designed around,
    demonstrated rather than asserted. It passes every recall gate, class
    accuracy at 5 of 7, and all three coefficient gates, with a rank
@@ -479,11 +481,11 @@ order of how much they tell you.
    quantile rate bins do not fully absorb. And timing: `0 of 3 localized
    hard_complete sweeps dated within tolerance`, systematically -- 373
    against 133, 684 against 292, 3108 against 1214, each about 2.5 times too
-   old. That is the
-   diversity-recovery clock, which the reference measured at 9 of 16 against
-   36 of 40 for H12 decay. **So the timing gate separates a good clock from
-   a poor one, which is what a gate should do -- and no independent
-   implementation has yet been shown to clear it.** Three good-faith
+   old. That is the diversity-recovery clock, which the reference measured
+   at 9 of 16 against 36 of 40 for H12 decay. **So the timing gate separates
+   a good clock from a poor one, which is what a gate should do -- and no
+   structurally independent implementation has yet been shown to clear
+   it.** Three good-faith
    improvement passes went into that solver; a fourth, tuned until it
    passed, would be the circularity this exercise exists to test for.
 
