@@ -234,9 +234,23 @@ def main():
                                       pooled_threshold_regions(obs, null, med_rate,
                                                                n_reps=a.n_null))
 
+    # the reference as actually shipped: cluster-level inference
     score = DET.sweep_scores(obs, null, med_rate)
-    thr = DET.null_score_threshold(null, med_rate, a.n_null)
-    strategies["reference"] = (hist.as_dict(), DET.call_regions(obs, score, thr))
+    null_score = DET.sweep_scores(null, null, med_rate)
+    fin = null_score[np.isfinite(null_score)]
+    form_thresh = float(np.quantile(fin, 0.99))
+    mass_thresh = DET.calibrate_clusters(null, null_score, form_thresh,
+                                         a.n_null, 0.3)
+    strategies["reference"] = (hist.as_dict(),
+                               DET.call_clusters(obs, score, form_thresh,
+                                                 mass_thresh))
+
+    # the same history and the same null, but judged one window at a time
+    # rather than by cluster: isolates what cluster-level inference buys
+    strategies["per_window_threshold"] = (
+        hist.as_dict(),
+        DET.call_regions(obs, score,
+                         DET.null_score_threshold(null, med_rate, a.n_null)))
 
     out = {}
     print(f"\n{'strategy':<28}{'calls':>6}{'FP':>4}  gates failed")
