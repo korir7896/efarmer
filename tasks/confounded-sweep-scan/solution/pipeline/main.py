@@ -96,7 +96,7 @@ def main(argv=None):
         f = CH.features(obs, r, lev)
         klass = CH.classify(f)
         local_rate = float(obs["rate"][r["peak_index"]])
-        s_hat = CH.estimate_s(obs, r, lev["pi"], local_rate)
+        s_hat = CH.estimate_s(obs, r, lev["pi"], local_rate, klass)
         t_hat = CH.estimate_time(f, klass, hist.n_current)
         calls.append({
             "chrom": int(r["chrom"]),
@@ -106,8 +106,8 @@ def main(argv=None):
             "time_gens_ago": (None if t_hat is None else float(round(t_hat))),
         })
         log(f"  chr{r['chrom']}:{r['position']:,} score={r['peak_score']:.1f} "
-            f"pi_ratio={f['pi_ratio']:.3f} h12_ratio={f['h12_ratio']:.2f} "
-            f"h2h1_ratio={f['h2h1_ratio']:.3f} -> {klass} "
+            f"pi={f['pi_ratio']:.3f} tajd={f['tajd_delta']:+.2f} "
+            f"h2h1={f['h2h1_ratio']:.3f} nsl={f['nsl_delta']:+.3f} -> {klass} "
             f"s={s_hat:.4f} t={t_hat if t_hat is None else round(t_hat)}")
 
     result = {"demography": hist.as_dict(), "sweeps": calls}

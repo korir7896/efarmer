@@ -1,38 +1,38 @@
 """Classify each detected sweep and estimate its strength and age.
 
-Rules and estimators are calibrated on independent single-sweep replicates
+Everything here is calibrated on 32 independent single-sweep replicates
 simulated under the same history, grouped by what each sweep ACTUALLY turned
 out to be rather than what it was asked to be (see
-authoring/evidence/analyze_features.py). Each threshold sits in a measured
-gap between classes.
+authoring/evidence/eval_classifier.py and gate_feasibility.py).
 
-Statistics read from the window containing the selected site, as ratios to
-that replicate's background for diversity, H12 and H2/H1, and as differences
-for Tajima's D and the extreme-nSL fraction:
+Why a nearest-centroid rule rather than thresholds
+--------------------------------------------------
+Single-feature thresholds looked clean on eight replicates and stopped being
+clean on thirty-two. Tajima's D appeared to separate soft sweeps with a gap
+of 0.46; with seven soft replicates instead of four it overlaps by 1.59. The
+best single feature gives 69% leave-one-out accuracy. Four features together
+give 90.6%, so the information is there but spread across them.
 
-    realized class          pi   Tajima D     H12    H2/H1     nSL     n
-    hard, old, done      0.154     -2.365   1.346    0.797   0.030     8
-    hard, recent, done   0.073     -2.645   8.455    0.071   0.044    11
-    partial              0.528     -1.438   7.457    0.111   0.389     8
-    soft                 0.743     +0.886   4.518    0.436   0.016     4
+Measured means (ratios to background for diversity and H2/H1, differences for
+Tajima's D and the extreme-nSL fraction):
 
-Two of these are cleanly separable and are what the rules use.
+    realized class          pi     Tajima D       H2/H1         nSL    n
+    hard, recent, done   0.162       -2.326       0.123       0.043    9
+    hard, old, done      0.212       -2.126       0.852       0.052    8
+    soft, done           0.797       +0.435       0.603      -0.010    7
+    partial              0.697       -0.891       0.161       0.430    8
 
-Tajima's D at a soft sweep is POSITIVE, from +0.21 to +1.15, while every
-other class is negative with a maximum of -0.25. Several frequent haplotypes
-leave an excess of intermediate-frequency variants, which is the textbook
-soft-sweep signature and here separates with a gap of 0.46.
+Each class is distinguished by a different combination. A recent hard sweep
+is low on everything. An old hard sweep looks the same except H2/H1 has
+recovered to 0.85, because recombination has broken up the swept block. A
+soft sweep barely depresses diversity at all, at 0.80 of background, and
+pushes Tajima's D positive from the excess of intermediate-frequency variants
+that several frequent haplotypes create. A partial sweep is the only class
+with a strong nSL signal, because it is the only one still segregating and so
+the only one carrying a long young haplotype.
 
-H12 separates completed hard sweeps by age, 0.90 to 2.83 for old against
-5.79 to 13.32 for recent, a gap of 2.95, because recombination erodes the
-swept haplotype block.
-
-H2/H1 is deliberately NOT used to detect softness, although that is its
-usual role. At an old hard sweep the block has decayed far enough that H2/H1
-has recovered to 0.46-0.99, overlapping the 0.27-0.62 measured at soft
-sweeps. Diversity separates partial from completed sweeps only partially,
-0.24-0.85 against a hard-old maximum of 0.38, so it is applied after H12 has
-already removed the old sweeps.
+Note that H2/H1 earns its place by separating old from recent hard sweeps,
+not hard from soft as it usually would.
 """
 from __future__ import annotations
 
@@ -40,28 +40,46 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-# --- classification thresholds, each in a measured gap ---
-TAJD_SOFT_MIN = -0.20       # soft min +0.205, everything else max -0.252
-H12_OLD_MAX = 3.10          # old max 2.834, next class min 3.458
-PI_PARTIAL_MIN = 0.22       # partial min 0.241, hard-recent max 0.272
+# --- classifier, calibrated on 32 replicates (90.6% leave-one-out) ---
+CLASS_FEATURES = ("pi_ratio", "tajd_delta", "h2h1_ratio", "nsl_delta")
+FEATURE_MEAN = np.array([0.447121, -1.31317, 0.419526, 0.130397])
+FEATURE_SD = np.array([0.353538, 1.26227, 0.335508, 0.20332])
+CLASS_CENTROIDS = {
+    "hard_recent_complete": np.array([-0.8075, -0.8020, -0.8846, -0.4286]),
+    "hard_old_complete":    np.array([-0.6662, -0.6442,  1.2878, -0.3865]),
+    "soft_standing":        np.array([ 0.9907,  1.3853,  0.5459, -0.6916]),
+    "partial":              np.array([ 0.7078,  0.3343, -0.7703,  1.4739]),
+}
 
-# How far around the detected peak to read the features, matching the window
-# the calibration used.
+# How far around the detected peak to read the features, matching calibration.
 FEATURE_RADIUS_BP = 60_000
 
-# --- estimator calibration ---
-# Trough width times local recombination rate equals this multiple of s,
-# measured at 0.536, 0.571, 0.564 and 0.561 across the four classes.
-WIDTH_RATE_OVER_S = 0.56
+# --- s from the width of the diversity trough ---
+# The width is the contiguous run of windows whose smoothed diversity is below
+# the midpoint between the trough's floor and background. Thresholding at half
+# of BACKGROUND instead fails for the shallow classes, whose diversity never
+# gets that low: it returned 10 kb for partial sweeps and 40 kb for soft ones
+# against 230-320 kb for hard sweeps, so the constant spanned a factor of 22.
+# Measuring recovery relative to each sweep's own floor brings that to 4.3,
+# and a per-class constant brings it to 2.6-3.1 for every class but partial.
+SMOOTH_WINDOWS = 15
+RECOVERY_FRAC = 0.5
+WIDTH_SEARCH_BP = 1_200_000
+CLASS_WIDTH_CONSTANT = {
+    "hard_recent_complete": 0.1371,
+    "hard_old_complete":    0.1143,
+    "soft_standing":        0.0750,
+    "partial":              0.0889,
+}
 
-COMPLETE_CLASSES = ("hard_recent_complete", "hard_old_complete", "soft_standing")
-# Completion time is estimated only for single-origin completed sweeps.
-# Diversity recovery dates a sweep by how far below background the centre
-# still sits, which assumes the sweep drove it to zero. A soft sweep never
-# did -- its diversity ratio at the centre is 0.74 -- so the same estimator
-# reads a soft sweep as roughly eighteen times older than it is.
+# --- diversity-recovery clock ---
+# Estimated only for single-origin completed sweeps. The clock dates a sweep
+# by how far below background its centre still sits, which presumes the sweep
+# drove diversity to zero. A soft sweep leaves it at 0.80 of background, so
+# the same estimator reads soft sweeps as roughly thirteen times older than
+# they are, and a sweep still segregating has no completion time at all.
 TIMED_CLASSES = ("hard_recent_complete", "hard_old_complete")
-TIME_BIAS = {"hard_old_complete": 1.17, "hard_recent_complete": 2.02}
+TIME_BIAS = {"hard_recent_complete": 1.617, "hard_old_complete": 1.091}
 
 
 def background_levels(obs: Dict[str, np.ndarray], regions: Sequence[Dict],
@@ -91,10 +109,8 @@ def features(obs: Dict[str, np.ndarray], region: Dict,
     """Statistics around the detected peak, against background.
 
     Read in a narrow band around the peak rather than as an extreme over the
-    whole region. Taking the extreme finds whichever window happens to sit at
-    the edge of the footprint: the minimum H2/H1 over 1.5 Mb read 0.193 at
-    genuine soft sweeps where the value at the sweep is 0.44, which inverted
-    the classification.
+    whole region: taking the extreme finds whichever window sits at the edge
+    of the footprint, which inverts the classification.
     """
     peak = int(region["peak_index"])
     same = obs["chrom"] == region["chrom"]
@@ -108,66 +124,94 @@ def features(obs: Dict[str, np.ndarray], region: Dict,
         return float(np.median(v[sel]))
 
     f: Dict[str, float] = {}
-    pi_at = at_peak("pi")
-    f["pi_ratio"] = pi_at / bg["pi"] if bg["pi"] else float("nan")
+    f["pi_ratio"] = at_peak("pi") / bg["pi"] if bg["pi"] else float("nan")
     f["tajd_delta"] = at_peak("tajima_d") - bg["tajima_d"]
-    h12_at = at_peak("h12")
-    f["h12_ratio"] = h12_at / bg["h12"] if bg["h12"] else float("nan")
-    h21_at = at_peak("h2_h1")
-    f["h2h1_ratio"] = h21_at / bg["h2_h1"] if bg["h2_h1"] else float("nan")
+    f["h12_ratio"] = at_peak("h12") / bg["h12"] if bg["h12"] else float("nan")
+    f["h2h1_ratio"] = at_peak("h2_h1") / bg["h2_h1"] if bg["h2_h1"] else float("nan")
     f["nsl_delta"] = at_peak("nsl_frac") - bg["nsl_frac"]
 
-    # The deepest diversity in the whole region, used for dating rather than
-    # for classification.
+    # Deepest diversity near the peak: used for dating, not classification.
     v = obs["pi"].astype(float)
-    reg = np.array(region["window_indices"], dtype=int)
-    vv = v[reg][np.isfinite(v[reg])]
-    f["pi_min_ratio"] = (float(vv.min()) / bg["pi"]) if (vv.size and bg["pi"]) else float("nan")
+    wide = same & (np.abs(obs["mid"] - obs["mid"][peak]) <= 1_000_000) & np.isfinite(v)
+    f["pi_min_ratio"] = (float(v[wide].min()) / bg["pi"]) if (wide.any() and bg["pi"]) \
+        else float("nan")
     return f
 
 
 def classify(f: Dict[str, float]) -> str:
-    tajd = f.get("tajd_delta", float("nan"))
-    h12r = f.get("h12_ratio", float("nan"))
-    pir = f.get("pi_ratio", float("nan"))
+    """Nearest calibrated centroid in standardized feature space."""
+    x = np.array([f.get(k, np.nan) for k in CLASS_FEATURES], dtype=float)
+    if not np.all(np.isfinite(x)):
+        # Fall back on the features that are available.
+        ok = np.isfinite(x)
+        if not ok.any():
+            return "hard_recent_complete"
+        z = (x[ok] - FEATURE_MEAN[ok]) / FEATURE_SD[ok]
+        return min(CLASS_CENTROIDS,
+                   key=lambda c: float(np.linalg.norm(z - CLASS_CENTROIDS[c][ok])))
+    z = (x - FEATURE_MEAN) / FEATURE_SD
+    return min(CLASS_CENTROIDS,
+               key=lambda c: float(np.linalg.norm(z - CLASS_CENTROIDS[c])))
 
-    # Softness first, on the one statistic that separates it cleanly.
-    if np.isfinite(tajd) and tajd >= TAJD_SOFT_MIN:
-        return "soft_standing"
-    # Then age among completed hard sweeps: an eroded haplotype block.
-    if np.isfinite(h12r) and h12r < H12_OLD_MAX:
-        return "hard_old_complete"
-    # Then whether the sweep finished, from residual diversity.
-    if np.isfinite(pir) and pir >= PI_PARTIAL_MIN:
-        return "partial"
-    return "hard_recent_complete"
+
+def _smooth_median(v: np.ndarray, k: int) -> np.ndarray:
+    out = np.full(v.size, np.nan)
+    h = k // 2
+    for i in range(v.size):
+        a, b = max(0, i - h), min(v.size, i + h + 1)
+        seg = v[a:b][np.isfinite(v[a:b])]
+        if seg.size:
+            out[i] = np.median(seg)
+    return out
+
+
+def trough_width(obs: Dict[str, np.ndarray], region: Dict, bg_pi: float) -> float:
+    """Contiguous width of the diversity trough, relative to its own floor."""
+    same = obs["chrom"] == region["chrom"]
+    idx = np.where(same)[0]
+    if idx.size == 0 or not np.isfinite(bg_pi) or bg_pi <= 0:
+        return 0.0
+    order = idx[np.argsort(obs["mid"][idx])]
+    mid = obs["mid"][order]
+    vs = _smooth_median(obs["pi"].astype(float)[order], SMOOTH_WINDOWS)
+    centre = float(obs["mid"][int(region["peak_index"])])
+
+    near = (np.abs(mid - centre) <= WIDTH_SEARCH_BP) & np.isfinite(vs)
+    if not near.any():
+        return 0.0
+    floor = float(vs[near].min())
+    level = floor + RECOVERY_FRAC * (bg_pi - floor)
+    below = np.isfinite(vs) & (vs < level)
+    if not below.any():
+        return 0.0
+    i0 = int(np.argmin(np.abs(mid - centre)))
+    if not below[i0]:
+        cand = np.where(below)[0]
+        i0 = int(cand[np.argmin(np.abs(mid[cand] - centre))])
+        if abs(mid[i0] - centre) > 600_000:
+            return 0.0
+    lo = i0
+    while lo - 1 >= 0 and below[lo - 1]:
+        lo -= 1
+    hi = i0
+    while hi + 1 < len(mid) and below[hi + 1]:
+        hi += 1
+    return float(mid[hi] - mid[lo])
 
 
 def estimate_s(obs: Dict[str, np.ndarray], region: Dict, bg_pi: float,
-               local_rate: float, search_bp: int = 2_500_000) -> float:
-    """From the width of the diversity trough: s ~ (w * r) / 0.56."""
-    same = obs["chrom"] == region["chrom"]
-    near = same & (np.abs(obs["mid"] - region["position"]) <= search_bp)
-    v = obs["pi"].astype(float)
-    sel = near & np.isfinite(v) & (v < 0.5 * bg_pi)
-    if not sel.any() or not np.isfinite(local_rate) or local_rate <= 0:
+               local_rate: float, klass: str) -> float:
+    """s from the trough width times the local recombination rate."""
+    w = trough_width(obs, region, bg_pi)
+    k = CLASS_WIDTH_CONSTANT.get(klass, 0.1)
+    if w <= 0 or not np.isfinite(local_rate) or local_rate <= 0 or k <= 0:
         return float("nan")
-    mids = obs["mid"][sel]
-    width = float(mids.max() - mids.min())
-    if width <= 0:
-        width = float(np.median(np.diff(np.sort(obs["mid"][same]))))
-    s = width * local_rate / WIDTH_RATE_OVER_S
-    return float(np.clip(s, 1e-4, 0.5))
+    return float(np.clip(w * local_rate / k, 1e-4, 0.5))
 
 
 def estimate_time(f: Dict[str, float], klass: str, n_current: float
                   ) -> Optional[float]:
-    """Completion time from diversity recovery, with the measured bias removed.
-
-    Returns None for classes where the estimator does not apply: a sweep
-    still segregating has no completion time, and a soft sweep never drove
-    diversity to zero so the recovery clock has no zero to start from.
-    """
+    """Completion time from diversity recovery, with the measured bias removed."""
     if klass not in TIMED_CLASSES:
         return None
     pir = f.get("pi_min_ratio", float("nan"))
