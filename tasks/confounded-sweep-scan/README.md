@@ -328,36 +328,144 @@ does an answer whose coefficients are real numbers unrelated to the data.
 
 ### Where the thresholds come from
 
-Worth separating, because the three bounds rest on different evidence and
-only one of them involves the reference solution.
+Three claims, resting on different evidence. They are separated because the
+first is much better supported than the third, and an earlier version of
+this section overstated the third.
 
-**That the gates are passable** is measured on independent single-sweep
-replicates, one chromosome and one sweep each, simulated under the same
-history at several strengths per class -- data the shipped genome had no
-part in. `gate_feasibility.py` reports how often the estimators land inside
-each gate on those replicates, and every pass fraction is set below what was
-measured there. The demography gates rest on four independent neutral
-replicates with known truth, again not the shipped one.
+**That the gates are NOT trivially passable** is established without the
+reference solution at all, and `authoring/evidence/gate_feasibility.py`
+prints every number in this paragraph.
 
-**That the gates are not trivially passable** is established without
-reference to the reference at all. `gate_feasibility.py` searches for the
-best possible constant selection coefficient and the best possible constant
-completion time against the shipped truth and reports what each achieves;
-`verifier_selftest.py` runs those and twenty-odd other degenerate
-submissions through the real verifier.
+For the selection coefficients, a single constant fails the spread gate
+(1.00 against 2.00) and the ordering gate (0.000 against 0.30) with
+certainty, on any match set and whatever its value. The magnitude gate alone
+does not exclude it: enumerating all 135 match sets the recall gates permit,
+the best a constant achieves at a factor of 2.5 is 1.000, because the recall
+gates allow a match set whose true coefficients span only 3.2 (0.025 to
+0.080). The deterministic alternative was measured and rejected -- at a
+factor of 1.5 the best constant reaches 0.667, below the 0.70 threshold, but
+there the reference scores 0.778, one error from failing, and a second
+independent implementation 0.286. A gate only one method can clear, by one
+instance, is worse than one a noisy cheat escapes. **The honest limit: a
+constant with noise added passes magnitude and spread, and the ordering gate
+catches it only about four times in five, because at nine matched calls a
+rank correlation has a null standard deviation of 0.35.** Ten instances do
+not support a stronger claim than that.
 
-**The ablation table above is neither of those, and should not be read as
-justifying a threshold.** Every row in it is handed the reference's own
-classification and estimation step, deliberately, so that the rows differ
-only in detection and calibration. It shows which pieces of the detection
-pipeline are load-bearing. It says nothing about whether a different
-classifier or a different estimator would clear the characterisation gates,
-and no threshold was set from it.
+For the completion times, the best single constant dates 2 of the 4
+hard_complete sweeps where 3 are required, and one constant per class does
+no better since there is only one dated class. That holds for every
+replicate the generator would accept, not just this draw: over the
+acceptance WINDOWS, the four tolerance ranges have no point in common three
+at a time. **The honest limit: two constants, 160 and 1060, date all four.**
+With four dateable sweeps no count-based gate can exclude that. The gate
+excludes one constant, which is what it claims and nothing stronger.
 
-What none of this establishes is that a method unlike the reference would
-pass. The claim is narrower: every gate is met by at least one honest
-method, measured out of sample, and none is met by an answer that estimates
-nothing.
+Twenty-eight degenerate submissions, including the best possible constant of
+each kind found by search rather than picked, go through the real verifier in
+`authoring/evidence/verifier_selftest.py`.
+
+**That the gates ARE passable** rests on three measurements, in increasing
+order of how much they tell you.
+
+1. The reference clears all twelve. On its own this is the weakest of the
+   three, and the reason is worth stating plainly: its characterisation
+   constants are fitted on single-sweep replicates simulated under the TRUE
+   demography, not a fitted one, so it carries no demographic-inference
+   error that a real analysis would; and its feature sets and coefficients
+   were originally selected on configurations that ARE the shipped sweeps'.
+
+2. The same pipeline, with every characterisation constant re-SELECTED and
+   re-fitted on 60 replicates across 20 configurations the shipped replicate
+   never uses, also clears every gate: 9 matched calls, no false positives,
+   class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9 with
+   a spread of 3.8 and a rank correlation of 0.517, and all three localized
+   hard_complete sweeps dated inside tolerance
+   (`authoring/evidence/holdout_calibration.py`). Nothing in that version is
+   fitted at a point it is graded on.
+
+   Getting there required fixing the measurement twice, and both corrections
+   matter. Refitting only the coefficients and keeping the shipped feature
+   sets regraded at a rank correlation of 0.267 -- selecting features is
+   itself fitting, and the pair chosen for `soft_complete` on the shipped
+   configurations carries almost no information about s away from them. And
+   the first re-selection ignored coverage, picking a predictor that is zero
+   at the oldest sweeps, so the oldest sweep fell through to a fallback and
+   the timing gate failed on an artefact. Removing the circularity also
+   lowered the shipped reference's own numbers: four-way class accuracy from
+   82.4% to 77.8% held out, and its rank correlation on the shipped
+   replicate from 0.717 to 0.400, which is what forced the s gate to be
+   rebuilt.
+
+3. `authoring/evidence/independent_solver.py` is a second solver sharing no
+   method with the reference -- demography by Nelder-Mead on four moments
+   instead of L2 on a binned spectrum, detection by a sliding 600 kb
+   macro-window mean of per-rate-bin rank scores over three statistics
+   instead of a Fisher combination of six judged by cluster mass, linear
+   discriminant analysis for the class, s from the Tajima's D trough width,
+   and the diversity-recovery clock. Its constants come only from the
+   out-of-configuration replicates. It shares the windowed statistics and
+   the VCF reader, which are measurement rather than method.
+
+   It clears **10 of the 12 gates**. It passes all four demography gates
+   with a visibly different history, a shallow long bottleneck of 5425 for
+   2326 generations against the truth's deep short 800 for 400 -- which is
+   the non-identifiability the duration-over-depth gate was designed around,
+   demonstrated rather than asserted. It passes every recall gate, class
+   accuracy at 5 of 7, and all three coefficient gates, with a rank
+   correlation of 0.847, the best ordering of any method here including the
+   reference.
+
+   It fails two. The false-positive cap, 2 against 1, one of them at the
+   edge of a cold spot its quantile rate bins do not fully absorb. And
+   timing, 0 of 3, systematically: 373 against 133, 684 against 292, 3108
+   against 1214, each about 2.5 times too old. That is the
+   diversity-recovery clock, which the reference measured at 9 of 16 against
+   27 of 28 for H12 decay. **So the timing gate separates a good clock from
+   a poor one, which is what a gate should do -- and no independent
+   implementation has yet been shown to clear it.** Three good-faith
+   improvement passes went into that solver; a fourth, tuned until it
+   passed, would be the circularity this exercise exists to test for.
+
+**The ablation table above is neither of those, and no threshold was set
+from it.** Every row is handed the reference's own classification and
+estimation step, deliberately, so the rows isolate detection and
+calibration.
+
+### Margins
+
+| gate | reference | threshold | margin |
+| --- | --- | --- | --- |
+| `N_ancestral` | 1.03x | within 1.6x | wide |
+| `N_current` | 0.95x | within 1.6x | wide |
+| bottleneck `duration / N_bottleneck` | 1.56x | within 2.5x | wide |
+| history contracts and recovers | yes | structural | — |
+| recall, `hard_complete` | 3 of 4 | at least 3 | **none** |
+| recall, `soft_complete` | 2 of 2 | at least 1 | 1 sweep |
+| recall, `hard_partial` | 2 of 2 | at least 1 | 1 sweep |
+| recall, `soft_partial` | 2 of 2 | at least 1 | 1 sweep |
+| unmatched calls | 0 | at most 1 | 1 call |
+| class accuracy | 7 of 9 | at least 70% | 1 call |
+| `s` magnitude | 8 of 9 | at least 70% | 1 call |
+| `s` spread | 3.8x | at least 2.0x | wide |
+| `s` ordering | 0.400 | at least 0.30 | 0.10 |
+| completion time | 3 of 3 | at least 3 | **none** |
+
+Two gates are cleared with no margin, and that is structural rather than
+tuned. The timing gate needs three correct dates because a single constant
+achieves two; three is the smallest requirement a constant cannot meet. And
+the recall gate must supply three `hard_complete` sweeps for three dates to
+be gradeable at all. Neither number can be lowered without making the
+timing gate satisfiable by a constant, and the reference finds exactly three
+of the four. The fourth, at s=0.0085 and completed 1214 generations ago, is
+found by the independent solver but not by the reference, so it is not
+beyond reach.
+
+**What none of this establishes** is that an arbitrary correct method clears
+every gate. One independent implementation was built and scored and cleared
+ten of twelve. Its two failures are traceable to specific weaker components
+rather than to the thresholds, which is informative but is not a proof
+either way.
 
 ## Validation performed
 
