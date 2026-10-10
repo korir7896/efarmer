@@ -216,33 +216,42 @@ def joint_conditional(data, combo_c, combo_soft_complete, combo_soft_partial,
 
 
 CHOSEN = {
-    # Chosen by a joint search over the top six feature sets per axis, scored
-    # FOUR-WAY and held out by configuration over all 37 calibration
-    # configurations, 20 of which the shipped replicate does not use.
-    # Scoring each axis on its own is the wrong objective: the softness rules
-    # are fitted inside a completeness group and applied to the PREDICTED
-    # group, so the axes interact and a rule that is better on its own axis
-    # can hand the next stage replicates it handles worse.
+    # Chosen by a joint search over the top six feature sets per axis,
+    # ranked by SHIPPED-MIX four-way accuracy and held out by configuration
+    # over all 40 calibration configurations, 16 of which the shipped
+    # replicate does not use.
     #
-    # Selecting over the ten shipped configurations alone picked
-    # (tajd_delta, snp_ratio) / (pi_min_ratio, w_pi_50, w_pi_75) /
-    # (h2h1_ratio) and scored 0.824 there. On the wider space that triple
-    # scores well below this one: the earlier figure was optimistic because
-    # every configuration it was validated against was one of the ten being
-    # graded. Over all 37 this triple scores 0.802 four-way.
+    # Two things are deliberate about that objective. Scoring each axis on
+    # its own is wrong because the softness rules are fitted inside a
+    # completeness group and applied to the PREDICTED group, so the axes
+    # interact: switching the completeness rule to the pair that scores best
+    # on its own axis, 0.961 against 0.941, dropped four-way accuracy from
+    # 0.824 to 0.745 on an earlier zoo. And scoring over the calibration set
+    # is wrong because the gate is a fraction of the matched calls on one
+    # replicate whose class mix is 5/3/4/3, while the calibration set is
+    # 42/22/31/25 -- it over-weights hard_complete, which is the easiest
+    # class by a wide margin. Measured, the triple that wins on the
+    # calibration average scores 0.758 there and 0.667 on the shipped mix;
+    # this one scores 0.758 and 0.756. Ranking on the wrong objective was
+    # worth nine points of the number the verifier actually computes.
     #
-    # completeness: the floor of the diversity trough, the H12 elevation and
-    #   the extreme-nSL fraction. Only a sweep still rising carries a long
-    #   young high-frequency haplotype, which is what nSL responds to.
-    "complete": ("pi_min_ratio", "h12_ratio", "nsl_delta"),
-    # softness among COMPLETED sweeps: the trough floor with Tajima's D and
-    #   H2/H1. One frequent haplotype drives diversity to nothing and D far
-    #   negative; several leave both milder and H2/H1 high.
-    "soft_given_complete": ("pi_min_ratio", "tajd_delta", "h2h1_ratio"),
+    # completeness: the floor of the diversity trough, the extreme-nSL
+    #   fraction and the extent of the H12 elevation. Only a sweep still
+    #   rising carries a long young high-frequency haplotype, which is what
+    #   nSL responds to.
+    "complete": ("pi_min_ratio", "nsl_delta", "w_h12_15"),
+    # softness among COMPLETED sweeps: the trough floor, the SNP-density
+    #   deficit and H2/H1. One frequent haplotype drives diversity to
+    #   nothing and takes the segregating sites with it; several leave both
+    #   milder and H2/H1 high. Tajima's D was here instead of snp_ratio and
+    #   is the weaker of the two on the shipped mix, which is the whole
+    #   nine-point gap above -- this is the axis the shipped zoo loads most.
+    "soft_given_complete": ("pi_min_ratio", "snp_ratio", "h2h1_ratio"),
     # softness among PARTIAL sweeps: the extent of the H12 elevation with
     #   H2/H1 -- the textbook discriminator, usable here only because age is
-    #   not in play, since every partial sweep is still rising.
-    "soft_given_partial": ("w_h12_15", "h2h1_ratio"),
+    #   not in play, since every partial sweep is still rising. The extent
+    #   is read at 2x background rather than 1.5x.
+    "soft_given_partial": ("w_h12_2", "h2h1_ratio"),
 }
 
 

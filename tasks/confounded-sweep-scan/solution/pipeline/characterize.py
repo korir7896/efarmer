@@ -79,47 +79,66 @@ import numpy as np
 # minority of the sample however many of them there are.
 #
 # The three feature sets are chosen by a joint search over the top six
-# candidates per axis, 216 triples, scored FOUR-WAY. Scoring each axis on its
-# own is the wrong objective: the softness rules are fitted inside a
-# completeness group and applied to the PREDICTED group, so the axes
-# interact, and a rule that is better on its own axis can hand the next stage
-# replicates it handles worse. Selecting over the ten shipped configurations
-# alone picked (tajd_delta, snp_ratio) / (pi_min_ratio, w_pi_50, w_pi_75) /
-# (h2h1_ratio) and scored 0.824 there; on the full 37 configurations that
-# triple falls well below this one, so the earlier figure was optimistic in
-# exactly the way one would expect from selecting on the graded instances.
+# candidates per axis, 216 triples, scored FOUR-WAY and held out by
+# CONFIGURATION over all 40 calibration configurations -- 16 of which the
+# shipped replicate does not use.
+#
+# Two things about that objective are deliberate. Scoring each axis on its
+# own is wrong because the softness rules are fitted inside a completeness
+# group and applied to the PREDICTED group, so the axes interact and a rule
+# that is better on its own axis can hand the next stage replicates it
+# handles worse. And scoring over the calibration set as a whole is wrong
+# because the verifier grades a fraction of the matched calls on one
+# replicate whose class mix is 5 hard_complete, 3 soft_complete, 4
+# hard_partial and 3 soft_partial, while the calibration set is 42/22/31/25
+# and so over-weights hard_complete, which is far the easiest class. The
+# triple that wins on the calibration average scores 0.758 there and 0.667
+# on the shipped mix; this one scores 0.758 and 0.756.
 #
 # What carries each axis:
-#   completeness (91.0% held out) -- the floor of the diversity trough, the
-#     H12 elevation and the extreme-nSL fraction. A completed sweep removed
-#     variation and left one or a few long haplotypes; a sweep still rising
-#     carries a long YOUNG high-frequency haplotype against a background that
-#     is otherwise intact, which is what the standardized nSL fraction
-#     responds to and what separates the two.
-#   softness among COMPLETED sweeps (92.4%) -- the trough floor with Tajima's
-#     D and H2/H1. One frequent haplotype drives diversity to nothing and D
-#     far negative; several leave both milder and H2/H1 high.
-#   softness among PARTIAL sweeps (80.0%) -- the EXTENT of the H12 elevation
-#     with H2/H1, the textbook hard-versus-soft discriminator, usable here
-#     only because age is not in play: every partial sweep is still rising.
-#     Pooled over completed sweeps of all ages H2/H1 alone is confounded by
-#     age, which is why the rule above does not rest on it.
+#   completeness -- the floor of the diversity trough, the extreme-nSL
+#     fraction and the EXTENT of the H12 elevation. A completed sweep
+#     removed variation and left one or a few long haplotypes; a sweep still
+#     rising carries a long YOUNG high-frequency haplotype against a
+#     background that is otherwise intact, which is what the standardized
+#     nSL fraction responds to and what separates the two.
+#   softness among COMPLETED sweeps -- the trough floor, the SNP-density
+#     deficit and H2/H1. One frequent haplotype drives diversity to nothing
+#     and takes the segregating sites with it; several leave both milder.
+#     This is the axis the shipped zoo loads most heavily, and swapping
+#     Tajima's D for snp_ratio here is most of the nine-point gap above.
+#   softness among PARTIAL sweeps -- the extent of the H12 elevation at
+#     twice background with H2/H1, the textbook hard-versus-soft
+#     discriminator, usable here only because age is not in play: every
+#     partial sweep is still rising. Pooled over completed sweeps of all
+#     ages H2/H1 alone is confounded by age, which is why the rule above
+#     does not rest on it.
+#
+# Do not read the signs below as mechanisms. Among completed sweeps every
+# one of these features is marginally HIGHER for a soft sweep than a hard
+# one -- pi_min_ratio 0.045 to 0.217, snp_ratio 0.322 to 0.649, h2h1_ratio
+# 0.248 to 0.454 -- but they are strongly correlated with each other, so in
+# the joint fit h2h1_ratio takes a negative coefficient: given the trough
+# floor and the SNP deficit, its residual variation points the other way.
+# These rules were selected on held-out accuracy, not on the plausibility of
+# their coefficients, and a coefficient in a collinear fit is a partial
+# effect rather than a direction of causation.
 CLASS_RULES = {
     "complete": dict(
-        feats=["pi_min_ratio", "h12_ratio", "nsl_delta"],
-        mean=[0.202414, 6.16942, 0.139751],
-        sd=[0.133287, 4.02357, 0.202995],
-        weights=[1.29204, -2.53342, 1.34942, -2.84588]),   # n=111, held out 0.910
+        feats=["pi_min_ratio", "nsl_delta", "w_h12_15"],
+        mean=[0.182922, 0.134237, 1.82958e+06],
+        sd=[0.134965, 0.204411, 1.46507e+06],
+        weights=[0.0201075, -2.01635, -1.6867, -1.06491]),   # n=120
     "soft_given_complete": dict(
-        feats=["pi_min_ratio", "tajd_delta", "h2h1_ratio"],
-        mean=[0.132788, -1.39298, 0.432094],
-        sd=[0.106168, 1.48955, 0.343405],
-        weights=[-0.501691, 1.7704, 2.50172, -1.90602]),   # n=66, held out 0.924
+        feats=["pi_min_ratio", "snp_ratio", "h2h1_ratio"],
+        mean=[0.114572, 0.456344, 0.462905],
+        sd=[0.106492, 0.228238, 0.355631],
+        weights=[-0.52641, 3.83274, 3.6461, -3.53667]),      # n=64
     "soft_given_partial": dict(
-        feats=["w_h12_15", "h2h1_ratio"],
-        mean=[1.45733e+06, 0.387836],
-        sd=[890214, 0.27403],
-        weights=[0.449437, 2.40476, 1.97816]),             # n=45, held out 0.800
+        feats=["w_h12_2", "h2h1_ratio"],
+        mean=[1.65589e+06, 0.351115],
+        sd=[1.27578e+06, 0.31411],
+        weights=[-0.364665, 1.27854, 2.1607]),               # n=56
 }
 
 # How far around the detected peak to read the features, matching calibration.

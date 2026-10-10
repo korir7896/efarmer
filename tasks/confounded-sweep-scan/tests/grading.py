@@ -120,25 +120,44 @@ GATES: Dict[str, Any] = {
     "max_false_positives": 1,
 
     # --- characterisation, over matched calls only ---
-    # 0.70, measured rather than chosen. I raised this to 0.75 on the
-    # reasoning that one agent transcript scored 9 of 9 on the previous zoo
-    # and a 70% gate could not tell that from 7 of 9, then measured the new
-    # zoo: held out by configuration over 60 calibration replicates, the best
-    # four-way accuracy available is 0.733, against 0.802 on the previous
-    # one. A 0.75 gate would demand better than any measured classifier
-    # achieves.
+    # 0.65, measured rather than chosen, and measured twice because the
+    # first measurement was against the wrong population.
+    #
+    # The gate is a fraction of the MATCHED calls on one replicate whose
+    # class mix is five hard_complete, three soft_complete, four
+    # hard_partial and three soft_partial. The calibration set is
+    # 42/22/31/25, which over-weights hard_complete -- the easiest class by
+    # a wide margin, 41 of 42 correct. So four-way accuracy over the
+    # calibration set reads 0.758 where the shipped mix reads 0.733, and the
+    # classifier that wins on the calibration average reads 0.667 on the
+    # shipped mix. Fraction of drawn submissions reaching each threshold,
+    # over the shipped mix, with the classifier chosen on that objective:
+    #
+    #     threshold   all 15 matched   12 matched   10 matched
+    #       0.60           0.995         0.909        0.972
+    #       0.65           0.946         0.909        0.835
+    #       0.70           0.756         0.695        0.835
+    #       0.75           0.439         0.695        0.535
+    #
+    # I set this to 0.75 first on the reasoning that one agent transcript
+    # scored 9 of 9 on the previous zoo, then measured 0.70 and set that,
+    # then measured the shipped mix and set 0.65: at 0.70 the best measured
+    # classifier fails on one draw in four. 0.65 is still a demanding gate
+    # against this zoo -- the reference's own median is 0.733, so the gate
+    # sits two calls out of fifteen below the measured ceiling, and a
+    # submission that gets completeness right and guesses softness scores
+    # about 0.50.
     #
     # The zoo is what got harder, not the threshold. Four-way accuracy fell
-    # because the sample is 40 diploids rather than 50 and the haplotype
-    # statistics that separate soft from hard lose the most from that
-    # (softness among completed sweeps 0.848 against 0.924 before, among
-    # partial ones 0.778 against 0.800), because s now spans 12x so the
-    # features that classify a sweep vary more across the zoo, and because
-    # three partial sweeps sit above 85% frequency where the
-    # complete-versus-partial axis is at its hardest. 0.70 of fifteen sweeps
-    # with ten matched is a stricter demand than 0.70 of ten with six
-    # matched: it allows three errors out of ten rather than one out of six.
-    "min_class_accuracy": 0.70,
+    # from 0.802 on the previous instance because the sample is 40 diploids
+    # rather than 50 and the haplotype statistics that separate soft from
+    # hard lose the most from that, because s now spans 12x so the features
+    # that classify a sweep vary more across the zoo, and because the
+    # realized zoo puts a hard_partial sweep at frequency 0.978 -- two
+    # points under the completion threshold, with very nearly a completed
+    # sweep's footprint. That one is misclassified by every calibration
+    # replicate of its configuration, and it is there on purpose.
+    "min_class_accuracy": 0.65,
     # Selection coefficients are graded three ways, and all three must hold.
     #
     # MAGNITUDE: at least this fraction within a multiplicative factor.
