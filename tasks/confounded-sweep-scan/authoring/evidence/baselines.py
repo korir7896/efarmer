@@ -47,7 +47,7 @@ _REQUIRED_GATES = ("match_window_bp", "dedupe_bp", "N_ancestral_factor",
                    "N_current_factor", "bottleneck_strength_factor",
                    "min_recall_per_class", "max_false_positives",
                    "min_class_accuracy", "s_within_factor", "min_s_accuracy",
-                   "min_s_rank_corr", "min_matched_for_rank",
+                   "min_s_spread", "min_s_rank_corr", "min_matched_for_rank",
                    "time_rel_tol", "time_abs_tol_gens", "min_time_correct")
 _missing = [k for k in _REQUIRED_GATES if k not in G.GATES]
 _extra = [k for k in G.GATES if k not in _REQUIRED_GATES]
@@ -172,9 +172,12 @@ def grade(truth, submission):
         ok_s = sum(1 for t, c, _ in pairs
                    if float(t["selection_coefficient"]) / fsf <= c["s"] <= float(t["selection_coefficient"]) * fsf)
         res["s_accuracy"] = (ok_s / len(pairs)) >= G.GATES["min_s_accuracy"]
+        got_s = [c["s"] for _, c, _ in pairs]
+        res["s_spread"] = (min(got_s) > 0 and
+                           max(got_s) / min(got_s) >= G.GATES["min_s_spread"])
         res["s_ordering"] = (
             len(pairs) >= G.GATES["min_matched_for_rank"]
-            and G.spearman([c["s"] for _, c, _ in pairs],
+            and G.spearman(got_s,
                            [float(t["selection_coefficient"]) for t, _, _ in pairs])
             >= G.GATES["min_s_rank_corr"])
         items = [(t, c) for t, c, _ in pairs
@@ -188,7 +191,7 @@ def grade(truth, submission):
         res["timing"] = good >= G.GATES["min_time_correct"]
     else:
         res["class_accuracy"] = res["s_accuracy"] = False
-        res["s_ordering"] = res["timing"] = False
+        res["s_spread"] = res["s_ordering"] = res["timing"] = False
 
     res["_n_calls"] = len(calls)
     res["_n_false_positives"] = len(un_c)

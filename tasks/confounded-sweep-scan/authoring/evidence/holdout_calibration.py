@@ -93,15 +93,27 @@ def refit_rules(data, picks):
 
 
 def _select_loglinear(data, cands, target, cls=None, completed=False):
-    """Pick a feature set by held-out score on the holdout replicates only."""
+    """Pick a feature set by held-out score on the holdout replicates only.
+
+    Coverage comes first in the key, matching the rule the shipped selection
+    follows: a predictor that is undefined on some replicates forces a
+    fallback, and the fallback is a constant. Without that rule this selector
+    picked the width of the H12 elevation for the clock, which is zero at the
+    oldest sweeps because H12 has decayed to background there -- so the
+    oldest sweep in the shipped replicate got the fallback, 500 generations
+    against a truth of 2097, and the timing gate failed on an artefact of
+    feature selection rather than on the estimator.
+    """
+    pool = [r for r in data if (cls is None or r["cls"] == cls)
+            and (not completed or r["completed"])
+            and np.isfinite(r[target]) and r[target] > 0]
     best, best_key = None, None
     for combo in cands:
-        rs = [r for r in data if (cls is None or r["cls"] == cls)
-              and (not completed or r["completed"])
-              and np.isfinite(r[target]) and r[target] > 0
-              and all(np.isfinite(r[k]) and r[k] > 0 for k in combo)]
+        rs = [r for r in pool
+              if all(np.isfinite(r[k]) and r[k] > 0 for k in combo)]
         if len(rs) < len(combo) + 4 or len(set(r["cfg"] for r in rs)) < 3:
             continue
+        coverage = len(rs) / max(len(pool), 1)
         X = np.log(np.array([[r[k] for k in combo] for r in rs], float))
         y = np.log(np.array([r[target] for r in rs], float))
         p = held_out_loglinear(X, y, [r["cfg"] for r in rs])
@@ -109,7 +121,8 @@ def _select_loglinear(data, cands, target, cls=None, completed=False):
         if ok.sum() < 3:
             continue
         err = np.exp(np.abs(p[ok] - y[ok]))
-        key = (float((err <= GATES["s_within_factor"]).mean()),
+        key = (round(coverage, 3),
+               float((err <= GATES["s_within_factor"]).mean()),
                spearman(list(np.exp(p[ok])), list(np.exp(y[ok]))))
         if best_key is None or key > best_key:
             best, best_key = list(combo), key
@@ -225,6 +238,13 @@ def main():
               <= time_tolerance(x[3]["completion_gens_ago"]))
     print(f"  timing {okt}/{len(dated)} inside tolerance "
           f"(need {GATES['min_time_correct']})")
+    for x in dated:
+        tt = x[3]["completion_gens_ago"]
+        ok = (x[2] is not None
+              and abs(x[2] - tt) <= time_tolerance(tt))
+        print(f"      {x[3]['sweep_id']}: true {tt}, reported "
+              f"{None if x[2] is None else round(x[2])}, tolerance "
+              f"{round(time_tolerance(tt))}  {'ok' if ok else 'MISSED'}")
     print("\nDetection is unchanged: it is calibrated at run time against the "
           "fitted history,\nso recall and the false-positive count do not "
           "depend on these constants.")
