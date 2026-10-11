@@ -67,7 +67,7 @@ echo "=== gate feasibility, triviality and the design guarantee ==="
 
 echo
 echo "=== saddle rule self-test ==="
-"$PY" "$TASK/authoring/evidence/saddle_calibration.py" --selftest
+"$PY" "$TASK/authoring/evidence/merge_calibration.py" --selftest
 
 echo
 echo "=== instruction.md against the graded thresholds ==="

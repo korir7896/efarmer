@@ -600,7 +600,7 @@ def _merge_regions(obs, score, regions: List[Dict[str, object]],
     saddle ratio inside footprints that split runs 0.189 to 0.305, and the
     ratio at the genuine close pair is 0.251 -- inside that range. The two
     populations overlap and NO saddle threshold separates them, which
-    authoring/evidence/saddle_calibration.py now reports as a failure
+    authoring/evidence/merge_calibration.py now reports as a failure
     instead of a margin. A sweep inside a wide recombination cold spot has a
     footprint over two megabases across with real structure inside it, and
     that structure is as deep as the gap between two distinct sweeps.
