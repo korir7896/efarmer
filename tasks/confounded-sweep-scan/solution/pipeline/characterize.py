@@ -125,20 +125,20 @@ import numpy as np
 # effect rather than a direction of causation.
 CLASS_RULES = {
     "complete": dict(
-        feats=["pi_min_ratio", "nsl_delta", "w_h12_15"],
-        mean=[0.182922, 0.134237, 1.82958e+06],
-        sd=[0.134965, 0.204411, 1.46507e+06],
-        weights=[0.0201075, -2.01635, -1.6867, -1.06491]),   # n=120
+        feats=["pi_ratio", "pi_min_ratio", "nsl_delta"],
+        mean=[0.531412, 0.184439, 0.165155],
+        sd=[0.38858, 0.137315, 0.221188],
+        weights=[0.0454714, 0.388153, -1.55315, -1.75749]),   # n=123
     "soft_given_complete": dict(
-        feats=["pi_min_ratio", "snp_ratio", "h2h1_ratio"],
-        mean=[0.114572, 0.456344, 0.462905],
-        sd=[0.106492, 0.228238, 0.355631],
-        weights=[-0.52641, 3.83274, 3.6461, -3.53667]),      # n=64
+        feats=["pi_min_ratio", "h2h1_ratio"],
+        mean=[0.116172, 0.438423],
+        sd=[0.108408, 0.354652],
+        weights=[-0.983724, 4.96972, -3.07668]),              # n=67
     "soft_given_partial": dict(
-        feats=["w_h12_2", "h2h1_ratio"],
-        mean=[1.65589e+06, 0.351115],
-        sd=[1.27578e+06, 0.31411],
-        weights=[-0.364665, 1.27854, 2.1607]),               # n=56
+        feats=["w_pi_50", "h2h1_ratio"],
+        mean=[342500, 0.277813],
+        sd=[331518, 0.259858],
+        weights=[-0.330957, -0.83177, 0.891573]),             # n=56
 }
 
 # How far around the detected peak to read the features, matching calibration.
@@ -181,10 +181,10 @@ WIDTH_SEARCH_BP = 1_200_000
 BASE_RATE = 1e-8
 
 S_MODEL = {
-    "hard_complete": dict(feats=["w_pi_75", "w_h12_15"],
-                          coef=[-6.6768, 0.12189, 0.12632]),
-    "hard_partial":  dict(feats=["h12_ratio", "w_pi_75"],
-                          coef=[-3.1253, 0.91889, -0.17813]),
+    "hard_complete": dict(feats=["snp_ratio", "w_pi_75"],
+                          coef=[-6.0079, -0.31818, 0.17381]),
+    "hard_partial":  dict(feats=["w_pi_75", "w_h12_15", "rate_ratio"],
+                          coef=[-16.735, -0.125, 1.0281, 0.39529]),
     "soft_complete": dict(feats=["w_pi_50", "w_h12_15"],
                           coef=[-2.9368, -0.39728, 0.28184]),
     "soft_partial":  dict(feats=["w_pi_50", "w_h12_15", "rate_ratio"],

@@ -218,40 +218,41 @@ def joint_conditional(data, combo_c, combo_soft_complete, combo_soft_partial,
 CHOSEN = {
     # Chosen by a joint search over the top six feature sets per axis,
     # ranked by SHIPPED-MIX four-way accuracy and held out by configuration
-    # over all 40 calibration configurations, 16 of which the shipped
+    # over all 42 calibration configurations, 27 of which the shipped
     # replicate does not use.
     #
-    # Two things are deliberate about that objective. Scoring each axis on
+    # Three things about that objective are deliberate. Scoring each axis on
     # its own is wrong because the softness rules are fitted inside a
     # completeness group and applied to the PREDICTED group, so the axes
-    # interact: switching the completeness rule to the pair that scores best
-    # on its own axis, 0.961 against 0.941, dropped four-way accuracy from
-    # 0.824 to 0.745 on an earlier zoo. And scoring over the calibration set
-    # is wrong because the gate is a fraction of the matched calls on one
-    # replicate whose class mix is 5/3/4/3, while the calibration set is
-    # 42/22/31/25 -- it over-weights hard_complete, which is the easiest
-    # class by a wide margin. Measured, the triple that wins on the
-    # calibration average scores 0.758 there and 0.667 on the shipped mix;
-    # this one scores 0.758 and 0.756. Ranking on the wrong objective was
-    # worth nine points of the number the verifier actually computes.
+    # interact and a rule better on its own axis can hand the next stage
+    # replicates it handles worse. Scoring over the calibration set as a
+    # whole is wrong because the gate is a fraction of the matched calls on
+    # one replicate whose class mix is 5/3/4/3 while the calibration set is
+    # 45/22/34/25, over-weighting hard_complete, far the easiest class. And
+    # the features are read where the SCAN calls rather than at the true
+    # site, because that is what the pipeline does -- fitting at the true
+    # site gave a classifier that scored 0.758 held out and 0.42 on the
+    # shipped genome.
     #
-    # completeness: the floor of the diversity trough, the extreme-nSL
-    #   fraction and the extent of the H12 elevation. Only a sweep still
-    #   rising carries a long young high-frequency haplotype, which is what
-    #   nSL responds to.
-    "complete": ("pi_min_ratio", "nsl_delta", "w_h12_15"),
-    # softness among COMPLETED sweeps: the trough floor, the SNP-density
-    #   deficit and H2/H1. One frequent haplotype drives diversity to
-    #   nothing and takes the segregating sites with it; several leave both
-    #   milder and H2/H1 high. Tajima's D was here instead of snp_ratio and
-    #   is the weaker of the two on the shipped mix, which is the whole
-    #   nine-point gap above -- this is the axis the shipped zoo loads most.
-    "soft_given_complete": ("pi_min_ratio", "snp_ratio", "h2h1_ratio"),
-    # softness among PARTIAL sweeps: the extent of the H12 elevation with
-    #   H2/H1 -- the textbook discriminator, usable here only because age is
-    #   not in play, since every partial sweep is still rising. The extent
-    #   is read at 2x background rather than 1.5x.
-    "soft_given_partial": ("w_h12_2", "h2h1_ratio"),
+    # On the measurement that matters, this triple reaches 0.822 against the
+    # 0.72 of the one chosen before the features were read at the right
+    # place.
+    #
+    # completeness: the level of the diversity trough, its floor, and the
+    #   extreme-nSL fraction. A completed sweep removed variation and left
+    #   one or a few long haplotypes; a sweep still rising carries a long
+    #   YOUNG high-frequency haplotype against a background otherwise
+    #   intact, which is what the standardized nSL fraction responds to.
+    "complete": ("pi_ratio", "pi_min_ratio", "nsl_delta"),
+    # softness among COMPLETED sweeps: the trough floor with H2/H1. One
+    #   frequent haplotype drives diversity to nothing; several leave it
+    #   milder and H2/H1 high.
+    "soft_given_complete": ("pi_min_ratio", "h2h1_ratio"),
+    # softness among PARTIAL sweeps: the width of the diversity dip with
+    #   H2/H1 -- the textbook hard-versus-soft discriminator, usable here
+    #   only because age is not in play, since every partial sweep is still
+    #   rising.
+    "soft_given_partial": ("w_pi_50", "h2h1_ratio"),
 }
 
 

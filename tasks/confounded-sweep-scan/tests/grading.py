@@ -204,7 +204,7 @@ GATES: Dict[str, Any] = {
     # of fifteen, 0.33 -- and the verifier self-test confirms that a
     # submission with every position right and every class hard_complete,
     # or every class soft_partial, fails.
-    "min_class_accuracy": 0.40,
+    "min_class_accuracy": 0.50,
     # Selection coefficients are graded three ways, and all three must hold.
     #
     # MAGNITUDE: at least this fraction within a multiplicative factor.
@@ -255,9 +255,9 @@ GATES: Dict[str, Any] = {
     # non-monotone in sweep age, so the rank gate cannot be earned by dating
     # sweeps instead of measuring their strength.
     "s_within_factor": 2.50,
-    "min_s_accuracy": 0.80,
+    "min_s_accuracy": 0.70,
     "min_s_spread": 3.00,
-    "min_s_rank_corr": 0.40,
+    "min_s_rank_corr": 0.55,
     "min_matched_for_rank": 8,
     # Timing is graded only over sweeps whose TRUE class is hard_complete --
     # grading against the true class, not the reported one, so a

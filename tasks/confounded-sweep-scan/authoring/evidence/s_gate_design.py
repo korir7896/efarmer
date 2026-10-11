@@ -62,17 +62,19 @@ def shipped_sweeps():
 def resolve(sweeps, data):
     """Attach each sweep's calibration replicates, by configuration name.
 
-    hard_partial's weakest configuration carries a 'p' suffix in
-    run_training.sh (hard_partial_s0075p) because a hard_complete
-    configuration already claimed s0075 in an earlier revision of the zoo, so
-    a prefix match is used rather than equality.
+    Matched by EQUALITY, not by prefix. A prefix match broke as soon as a
+    configuration name became a prefix of another: hard_partial_s0075 and a
+    leftover hard_partial_s0075p from an earlier revision both matched, and
+    the whole script stopped rather than choosing between two sets of
+    replicates with identical parameters. The names come from
+    provenance/shipped_configs.py now, so equality is exactly right.
     """
     by_cfg = {}
     for r in data:
         by_cfg.setdefault(r["cfg"], []).append(r)
     missing = []
     for sw in sweeps:
-        hits = [cfg for cfg in by_cfg if cfg.startswith(sw["cfg_prefix"])]
+        hits = [cfg for cfg in by_cfg if cfg == sw["cfg_prefix"]]
         if not hits:
             missing.append(sw["sid"] + " wants " + sw["cfg_prefix"])
             continue

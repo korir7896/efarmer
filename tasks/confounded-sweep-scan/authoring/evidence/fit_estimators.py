@@ -354,11 +354,19 @@ def score_t(cands, data):
 # alternative it is compared against, so the choice is a measurement and the
 # losing option stays visible instead of being deleted.
 CHOSEN_S = {
-    "hard_complete": ("w_pi_75", "w_h12_15"),                  # 0.93, rho +0.40
-    "hard_partial":  ("h12_ratio", "w_pi_75"),                 # 0.97, rho +0.67
+    "hard_complete": ("snp_ratio", "w_pi_75"),                 # 0.96, rho +0.31
+    "hard_partial":  ("w_pi_75", "w_h12_15", "rate_ratio"),    # 1.00, rho +0.90
     "soft_complete": ("w_pi_50", "w_h12_15"),                  # 0.91, rho +0.24
     "soft_partial":  ("w_pi_50", "w_h12_15", "rate_ratio"),    # 1.00, rho +0.69
 }
+# A model whose within-class rank correlation is NEGATIVE is not shipped even
+# when it scores better. h12_ratio alone reaches 0.86 within tolerance for
+# soft_complete and reads the shipped replicate's selection coefficients
+# better than anything else tried (0.83 against 0.75) -- with a within-class
+# rank of -0.86, meaning it predicts a WEAKER sweep the higher the H12 peak
+# stands. That is backwards, it would be indefensible however well it scored,
+# and the eight percentage points it buys are eight points of luck on twelve
+# calls.
 # The best model per class that DOES carry the local rate, for the
 # shipped-composition comparison in s_gate_design.py.
 CHOSEN_S_RATE = {
