@@ -107,15 +107,24 @@ flanks. Dividing by the rate ratio would over-correct by about two, so the
 reference carries the local rate as a fitted predictor and lets the
 calibration choose the exponent.
 
-What is NOT true is that this is where the cold spots bite the grade. A
-strength estimator calibrated only on base-rate simulations -- which is what
-you get by simulating your null at the genome's average rate, and what both
-agent transcripts did -- is biased 2.65x on the soft completed sweep inside a
-cold spot and misses it by up to 5.90x. But that is one sweep in fifteen, and
-such a submission still clears all three `s` gates on 89% of draws against the
-reference's 98%. Saying the gates demand the rate correction would be
-asserting a difficulty the evidence does not support. Where the cold spots do
-bite is detection, below.
+What is NOT true is that this is where the cold spots bite the grade, and
+the measurement that was supposed to show they do shows the opposite. On the
+soft completed sweep inside a cold spot the shipped estimator is biased 2.56x
+and misses it by up to 4.14x -- and an estimator calibrated only on base-rate
+simulations is biased 2.55x there, which is the same number. Carrying the
+local rate as a fitted predictor does not rescue that sweep; a model that
+carries it for every class does worse still, 3.00x. One sweep in fifteen does
+not move a gate either way: over drawn submissions the shipped models clear
+all three `s` gates essentially always and a base-rate-calibrated one clears
+them about two times in three, and what separates those is the other twelve
+sweeps rather than the three in cold spots.
+
+So the cold spots earn their place in DETECTION, not in strength estimation.
+Three of the six carry no sweep and are there to be called by a genome-wide
+threshold; the three that do carry one give it a footprint over two megabases
+across, which is what fragments into several clusters and what defeats every
+distance-based and saddle-based merge rule, below. Saying the `s` gates demand
+the rate correction would be asserting a difficulty the evidence contradicts.
 
 **Two sweep pairs sit closer together than a footprint, and neither distance
 nor the shape of the scan can tell them from one broken footprint.** The pairs
@@ -157,105 +166,74 @@ rule per axis rather than one rule over four classes. Three things make this
 harder than before. The sample is 40 diploids rather than 50, and the
 haplotype statistics that carry the soft-versus-hard axis lose the most from
 a smaller sample. The coefficients span a factor of 12, so the features that
-classify a sweep vary more across the zoo. And the realized zoo puts a
-hard_partial sweep at frequency 0.978 -- two points under the completion
-threshold, with very nearly a completed sweep's footprint. Held out by
-configuration, the best classifier measured reaches 0.756 four-way on the
-shipped zoo's class mix, against 0.802 on the previous one.
+classify a sweep vary more across the zoo. And three of the seven partial
+sweeps sit above 85% frequency, two of them above 94%, where a partial
+sweep's footprint is nearly a completed one's.
 
-The class mix matters and is easy to get wrong when setting the gate. The
-calibration set has 42 hard_complete replicates against 22 soft_complete; the
-shipped zoo has five against three. hard_complete is far the easiest class,
-so four-way accuracy over the calibration set reads 0.758 where the same
-classifier reads 0.733 on the shipped mix -- and the classifier that wins on
-the calibration average reads 0.667 there.
+Held out by configuration over 42 calibration configurations -- 27 of which
+the shipped replicate does not use -- the best classifier found reaches 0.724
+four-way, and 0.822 when the configurations are reweighted to the shipped
+zoo's class mix. On the shipped replicate itself it gets 7 of its 12 matched
+calls right, 0.58, which is what the gate is set from.
+
+Two things about that are easy to get wrong and were got wrong here first.
+The class MIX matters: the calibration set is 45 hard_complete replicates
+against 22 soft_complete, 34 hard_partial and 25 soft_partial, while the
+shipped zoo is five, three, four and three. hard_complete is far the easiest
+class, so a classifier ranked on the calibration average scored 0.72 there
+and 0.667 on the shipped mix. And WHERE the features are read matters more:
+the calibration replicates were being read at the true site while the
+pipeline reads them at the position it called, a median of 78 kb away and up
+to 302 kb for the strongest sweep. A classifier fitted on features the
+pipeline never computes scored 0.758 held out and 0.42 on the shipped genome.
+Reading the calibration features where the scan would call closed most of
+that gap. It is not a background effect, which was the first guess: the
+shipped genome's background and the calibration replicates' agree to within
+5 to 18 percent on every statistic.
 
 **And the two quantities asked about each sweep are relations that have to be
 derived and calibrated.** The coefficients span a factor of 12 and are
-assigned so that s is NON-MONOTONE in sweep age: by ascending completion age
-they run 0.090, 0.028, 0.040, 0.013, 0.055. The youngest completed sweep is
-the strongest in the zoo and the second youngest is among the weakest.
-Neither quantity can be read off the other even approximately, so the rank
-correlation on `s` cannot be earned by dating sweeps, and the dates cannot be
-earned by measuring strength.
+assigned so that `s` is NON-MONOTONE in sweep age: by ascending completion age
+-- 130, 408, 643, 1834 and 2529 generations -- they run 0.090, 0.028, 0.040,
+0.020, 0.055. The youngest completed sweep is the strongest in the zoo and
+the second youngest is among the weakest. Neither quantity can be read off
+the other even approximately, so the rank correlation on `s` cannot be earned
+by dating sweeps, and the dates cannot be earned by measuring strength.
 
 ## Why shortcuts fail, gate by gate
 
 Measured on the shipped replicate. Each strategy differs from the reference in
 one respect and is handed the reference's own classification and estimation
 step, so the differences are differences in detection and calibration.
-`authoring/evidence/baselines.py` reproduces the table.
+`authoring/evidence/baselines.py` reproduces the table; the gate names are the
+verifier's own.
 
-| strategy | calls | false pos | gates failed |
-| --- | --- | --- | --- |
-| one statistic, genome-wide cut (diversity) | 1 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
-| one statistic (Tajima's D) | 2 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
-| one statistic (H12) | 1 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
-| one statistic (nSL) | 2 | 0 | both demography, recall, `s` spread, `s` ordering, timing |
-| all six tests, constant-size null | 12 | 4 | both demography, **false positives**, class |
-| all six tests, correct history, rate-blind threshold | 9 | 1 | **recall**, class, timing |
-| all six tests, correct null, per-window cut | 6 | 1 | **recall**, timing |
-| the reference | 9 | 0 | **passes all twelve** |
+| strategy | calls | false pos | sweeps found | gates failed |
+| --- | --- | --- | --- | --- |
+| one statistic, genome-wide cut (diversity) | 2 | 0 | 2 of 15 | recall, all three `s`, timing, bottleneck shape |
+| one statistic (Tajima's D) | 1 | 0 | 1 of 15 | recall, class, all three `s`, timing, bottleneck shape |
+| one statistic (H12) | 1 | 0 | 1 of 15 | recall, `s` spread, `s` ordering, timing, bottleneck shape |
+| one statistic (nSL) | 1 | 0 | 1 of 15 | recall, `s` spread, `s` ordering, timing, bottleneck shape |
+| all six tests, constant-size null | 28 | 14 | 14 of 15 | **false positives**, class, bottleneck shape |
+| all six tests, correct history, rate-blind threshold | 20 | 7 | 13 of 15 | recall, **false positives**, class, `s` magnitude, timing |
+| all six tests, correct null, per-window cut | 15 | 4 | 11 of 15 | recall, class, `s` magnitude, timing |
+| the reference | 14 | 2 | 12 of 15 | **passes all twelve** |
 
-The gate names are the verifier's own, printed by `baselines.py` from the
-same `GATES` dict the tests import; "both demography" is
-`demog_bottleneck_strength` and `demog_is_bottleneck`. The reference row runs
-at the shipped false-positive budget, which `detect.EXPECTED_FALSE` now
-supplies to both the pipeline and this script so the row cannot drift away
-from what is shipped.
+Two different failures are worth separating. The four single-statistic scans
+make no false calls at all and find one or two sweeps out of fifteen: a
+genome-wide outlier cut on a genome with this much demographic and
+recombination structure is not sensitive, not trigger-happy, and recall is
+what excludes it. Everything that finds a useful number of sweeps makes
+false calls, and the gap between 14 false calls under a constant-size null
+and 2 under a correctly simulated one is the whole value of inferring the
+history: a null that is too diverse makes the observed genome look extreme
+everywhere.
 
-Every required piece of work is load-bearing, and each one is enforced by a
-different gate.
-
-A scan run at its defaults on any single statistic finds one or two of the
-ten sweeps, and which ones depends on the statistic: diversity and Tajima's
-D find only completed hard sweeps, nSL only a partial one and a soft partial
-one, and none of them finds enough of any class to clear recall.
-
-Skipping the demographic inference is the most instructive failure. A
-constant-size null finds **more** sweeps than the reference does, all four
-hard_complete sweeps among them, and invents four more, so it fails on false
-positives. That is the bottleneck confound in one line: the contraction
-depresses diversity and skews the spectrum genome-wide, so a scan calibrated
-against a constant-size population sees signal everywhere.
-
-Ignoring the recombination map while otherwise doing everything right finds
-nine regions and still loses two of the four hard_complete sweeps, because a
-threshold pooled across rates is set by the heavy tail the cold spots
-contribute: it spends its calls in the cold spots instead. And thresholding
-single windows instead of clusters costs both soft completed sweeps
-outright, which is the clearest single result here -- a soft sweep's
-footprint is broad and shallow, so it has mass but no peak.
-
-The pipeline's one free parameter is its false-positive budget, the expected
-number of spurious CLUSTERS per genome, which sets the cluster-mass cut. It
-is set to 0.5, half the verifier's cap of one unmatched call. This is what
-every value does on the shipped replicate, with detection the only thing
-varying and the characterisation step fixed:
-
-| budget | mass cut | calls | matched | FP | class | `s` spread | `s` rho | timed |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0.2 | 132.5 | 8 | 8 | 0 | 0.75 | 2.76x | 0.786 | 3/3 |
-| 0.3 | 130.0 | 8 | 8 | 0 | 0.75 | 2.76x | 0.786 | 3/3 |
-| **0.5** | 73.9 | 9 | 9 | 0 | 0.78 | 5.20x | 0.850 | 3/3 |
-| 0.8 | 49.5 | 10 | 9 | 1 | 0.67 | 2.74x | 0.717 | 3/3 |
-| 1.0 | 47.3 | 10 | 9 | 1 | 0.67 | 2.74x | 0.717 | 3/3 |
-| 1.5 | 39.1 | 11 | 9 | 2 | 0.67 | 2.80x | 0.717 | 3/3 |
-| 2.0 | 34.7 | 11 | 9 | 2 | 0.67 | 2.80x | 0.717 | 3/3 |
-| 3.0 | 27.7 | 12 | 10 | 2 | 0.60 | 5.35x | 0.794 | 4/4 |
-
-Everything from 0.2 to 1.0 clears every gate; 1.5 and above breach the
-false-positive cap. 0.5 is the largest budget that still makes no false call
-at all, and it is where the margins are widest. Note the last row: a budget
-of 3.0 finds the fourth hard_complete sweep and dates it, at the cost of two
-false positives and a class accuracy below the gate -- the recall the
-reference leaves on the table is reachable, just not for free.
-
-This number was chosen with the answer visible, which is why the rule it
-follows matters more than the value: sit at half the verifier's stated cap.
-
-Expert time: around 20 hours, most of it on null calibration and on deciding
-which statistic to trust for which class.
+The row that comes closest is the per-window cut -- the correct history, the
+correct null, but one threshold per window instead of a cluster mass
+calibrated against a false-call budget. It finds 11 of 15 and makes 4 false
+calls, and misses on recall and on both characterisation gates that depend on
+locating a sweep well.
 
 ## Reference solution
 
@@ -622,28 +600,64 @@ nothing.
 
 Run with `authoring/assemble.sh` and `authoring/validate.sh`.
 
-**The oracle reaches reward 1: all twelve gates.** Nine calls on the shipped
-replicate, zero false positives against a cap of one. Recall 3 of 4
-hard_complete, 2 of 2 soft_complete, 2 of 2 hard_partial, 2 of 2
-soft_partial -- every call matched a true sweep. The right class on 7 of 9
-matched calls against a 70% threshold; selection coefficients inside a
-factor of 2.5 on 9 of 9, spanning a factor of 5.2 against a 2.0 threshold,
-with a rank correlation of 0.850 against a 0.30 threshold; all three
-localized hard_complete sweeps dated inside tolerance, which is the number
-the gate requires.
+**The oracle reaches reward 1: all twelve gates.** Fourteen calls on the
+shipped replicate, two of which match no true sweep, against a cap of four.
+Recall 4 of 5 hard_complete, 3 of 3 soft_complete, 3 of 4 hard_partial and
+2 of 3 soft_partial -- twelve of the fifteen sweeps found, against floors of
+4, 2, 2 and 2. The right class on 7 of 12 matched calls (0.58) against a 0.50
+threshold; selection coefficients inside a factor of 2.5 on 9 of 12 (0.75)
+against 0.70, spanning a factor well past the 3.0 the spread gate asks, with
+a rank correlation of 0.692 against 0.55; three of the four matched
+hard_complete sweeps dated inside 45% or 140 generations, which is what the
+gate requires.
 
-Demography: ancestral size 1.03 times truth, current size 0.95, and
-duration over depth 1.56. That last one is worth looking at next to what it
-is made of: the fit put the bottleneck at 3889 individuals for 3026
-generations where the truth is 800 for 400, so its DEPTH is off by a factor
-of 4.9 while the combination the gate grades is off by 1.56. That is the
-non-identifiability the gate exists for, in the oracle's own output.
+Demography, from a four-start fit keeping the best by distance: ancestral
+size 1.61 times truth against a factor of 1.80, current size 1.25 against
+1.60, and duration over depth 3.85 against 4.50. Those gates are loose and
+the reason is the task's premise rather than the reference's weakness. The
+TRUE history is not the optimum of this objective -- scored against the
+observed spectrum it reaches 0.10 to 0.16 where the fitted history reaches
+0.005 to 0.013 -- because fifteen sweeps have skewed the observed spectrum
+towards rare alleles and the best-fitting NEUTRAL history is the one that
+mimics that skew. What the gates still exclude is everything that does not
+do the work: a constant-size answer reports a bottleneck strength of zero and
+fails outright, and the shape test requires a real contraction and recovery.
 
-The one sweep it misses is the one it should find hardest: the weakest
-hard_complete sweep, at s=0.0085 and completed 1214 generations ago, whose
-footprint is both narrow and half recovered. At a false-positive budget of
-3.0 the pipeline does find and date it, at the cost of two false positives
-and a class accuracy below the gate -- see the budget table above.
+**The three sweeps it misses are the three it should find hardest.** The
+weakest completed sweep (s=0.020, fixed 1834 generations ago, its trough half
+refilled), the weakest hard_partial (at 51% frequency, the lowest in the
+zoo), and one soft partial sweep at 53%. Nothing was missed that a competent
+scan should have caught: the two sweeps that an earlier version of the
+locator appeared to miss were being found and mislocalized, 262 kb and 990 kb
+out, and fixing the locator rather than the gate recovered both.
+
+**Every threshold was set from a measurement, and three were set twice.** The
+record is in the comments in `tests/grading.py`, including the two values I
+set on reasoning and had to withdraw. The class gate was 0.75, then 0.70,
+then 0.65, then 0.50: each of the first three was set against a population
+that was not the one being graded -- the calibration average rather than the
+shipped class mix, and then calibration features read at the true site rather
+than where the scan calls. The timing count went from 4 to 3 when the age
+model was refitted on features the pipeline actually computes. The `s`
+tolerance went from 2.20 to 2.50 when 2.20 turned out to fail the best
+estimator available on one draw in five.
+
+**The gates still exclude answers that do no work**, which
+`authoring/evidence/gate_feasibility.py` measures over every match set the
+recall floors permit rather than over the one realized replicate. A single
+constant selection coefficient satisfies the magnitude test at a factor of
+2.5 on every match set -- and spans 1.00 against a spread gate of 3.00 and
+scores a rank correlation of 0.000 against 0.55, so it is excluded with
+certainty by two gates the magnitude test cannot reach alone. A constant with
+noise added passes magnitude and spread, so only the ordering gate stands
+against it, and it clears a rank gate of 0.40 about one time in eight at ten
+matched calls; the shipped gate is 0.55. For timing, the best single constant
+is inside tolerance on 2 of the 5 ages, against a gate of 3, and
+`design_guarantee()` confirms no constant can reach 3 for ANY draw the
+generator's acceptance windows permit. Two constants can reach 4, which is
+the honest limit of a count-based gate over five dateable sweeps and is
+stated as such: what the cheat still needs is to know which sweeps are old,
+and recovering that is the work being asked for.
 
 **It is deterministic.** Two independent runs produce byte-identical
 submissions, md5 `be9f76f169bdd5fe20abf85c695117ef`, and identical
