@@ -77,7 +77,7 @@ def main() -> int:
          "hard_complete recall", rc["hard_complete"], errors)
     _one(text, r"at least (\w+) true sweeps of each of the other three classes",
          "other-class recall", rc["soft_complete"], errors)
-    _one(text, r"At most (\w+) report may fail to match",
+    _one(text, r"At most (\w+) reports? may fail to match",
          "false-positive cap", GATES["max_false_positives"], errors)
     _one(text, r"at least ([\d]+) percent must carry the right class",
          "class accuracy", GATES["min_class_accuracy"] * 100, errors)

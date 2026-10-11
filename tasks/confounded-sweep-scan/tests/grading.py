@@ -80,51 +80,42 @@ GATES: Dict[str, Any] = {
     "dedupe_bp": 250_000,
 
     # --- demography ---
-    # Sizes are graded multiplicatively, and all three numbers come from the
-    # measured spread of the reference's own fit rather than from how tight
-    # they sound. The fit is a stochastic search against a simulated
-    # spectrum, so the spread that matters is across search seeds; run at
-    # five on the shipped replicate it gives:
+    # Sizes are graded multiplicatively, and the three numbers come from the
+    # measured spread of the reference's own fit on the SHIPPED replicate
+    # rather than from how tight they sound.
     #
-    #     seed       N_ancestral   N_current   bottleneck strength
-    #     12345          1.009       1.107            2.946
-    #     20240101       1.086       1.303            1.927
-    #     555            1.166       1.275            1.211
-    #     7              1.184       1.322            1.223
-    #     99             1.006       1.144            1.327
+    # The fit is a stochastic search whose objective is a simulated
+    # spectrum, so it is run from four independent starts and the best by
+    # distance is kept. Measured that way at two independent search seeds:
     #
-    # I had N_ancestral and N_current at 1.50 and the strength at 2.20, from
-    # two agent transcripts on the PREVIOUS instance that recovered both
-    # sizes to within 8% and 24%. That instance had 50 diploids and 48 Mb;
-    # this one has 40 diploids, 70 Mb and fifteen sweeps rather than ten, and
-    # those numbers do not survive the change. N_ancestral at 1.50 does --
-    # the worst seed is 1.184 -- but N_current goes to 1.322 and the strength
-    # to 2.946, so both of those are loosened to sit clear of the measured
-    # worst case rather than just inside it.
+    #     search seed   N_ancestral   N_current   bottleneck strength
+    #        31337         1.079        1.183            1.880
+    #        20240101      1.610        1.391            3.850
     #
-    # Why the fit cannot do better is worth stating, because it is the task's
-    # own premise rather than a weakness in the reference. The TRUE history
-    # is not the optimum of this objective: scored against the observed
-    # spectrum it reaches 0.10 to 0.16 where the fitted history reaches
-    # 0.009, because fifteen sweeps have skewed the observed spectrum towards
-    # rare alleles and the best-fitting NEUTRAL history is the one that
-    # mimics that skew. No amount of search fixes that, and it is exactly
-    # what the task asks an agent to work around.
-    "N_ancestral_factor": 1.50,
+    # and across the nine single-start fits behind that choice, N_ancestral
+    # ranged 1.058 to 2.619 and the strength 2.209 to 7.349. The gates sit
+    # clear of the multi-start range rather than just inside it.
+    #
+    # These are loose, and the reason is the task's own premise rather than
+    # a weakness in the reference: the TRUE history is not the optimum of
+    # this objective. Scored against the observed spectrum the truth reaches
+    # 0.10 to 0.16 where the fitted history reaches 0.005 to 0.013, because
+    # fifteen sweeps have skewed the observed spectrum towards rare alleles
+    # and the best-fitting NEUTRAL history is the one that mimics that skew.
+    # No amount of search closes that gap. What the gates still exclude is
+    # everything that does not do the work: a constant-size answer reports a
+    # bottleneck strength of zero and fails outright, and
+    # test_bottleneck_is_a_bottleneck requires the reported history to be a
+    # real contraction followed by a recovery.
+    "N_ancestral_factor": 1.80,
     "N_current_factor": 1.60,
     # The DEPTH and DURATION of a bottleneck are not separately identifiable
     # from the spectrum: a short severe contraction and a longer milder one
     # leave almost the same coalescent signature, because what the genealogy
     # integrates is duration/N_bottleneck.  Grading N_bottleneck on its own
     # would partly be grading which point of that ridge a fit happened to
-    # land on.  So the gate is on the identifiable combination, and the
-    # reported history must still be a real contraction followed by a
-    # recovery (test_bottleneck_is_a_bottleneck). Even the combination is
-    # only recovered to within a factor of three here, which is why the gate
-    # is 3.50 and not something that sounds stricter: a constant-size answer
-    # reports a strength of zero and fails it outright, which is the thing
-    # it is there to catch.
-    "bottleneck_strength_factor": 3.50,
+    # land on.  So the gate is on the identifiable combination.
+    "bottleneck_strength_factor": 4.50,
     # The bottleneck's TIMING is not graded at all.  Measured on four
     # independent neutral replicates with known truth, a competent
     # spectrum-based fit recovered the expansion time at 0.64, 0.68, 1.31 and
@@ -153,50 +144,57 @@ GATES: Dict[str, Any] = {
         "hard_partial": 2,
         "soft_partial": 2,
     },
-    # Unmatched calls allowed genome-wide. Cold-spot calls count here, and
-    # there are now three deep narrow cold spots carrying no sweep at all,
-    # over 70 Mb rather than 48, so the budget is spent faster.
-    "max_false_positives": 1,
+    # Unmatched calls allowed genome-wide, set from what the methods
+    # measured on this replicate actually produce:
+    #
+    #     method                                  calls   false positives
+    #     single statistic, genome 99.9th pct       1-2         0
+    #     null under a constant-size population      36        25
+    #     correct history, one pooled threshold      22        11
+    #     correct history, per-window threshold      20         9
+    #     the reference                              15         3
+    #
+    # The single-statistic scans make no false calls and find one or two
+    # sweeps out of fifteen, so recall is what excludes them; everything
+    # that finds a useful number of sweeps makes false calls, and the gate
+    # is what separates controlling them from not. Four leaves the reference
+    # one call of margin and still fails every shortcut by a factor of two
+    # or more. Cold-spot calls count here, and three of the six cold spots
+    # carry no sweep at all.
+    "max_false_positives": 4,
 
     # --- characterisation, over matched calls only ---
-    # 0.65, measured rather than chosen, and measured twice because the
-    # first measurement was against the wrong population.
+    # 0.45, and the path to that number is worth recording because two
+    # earlier values were set against the wrong population.
     #
-    # The gate is a fraction of the MATCHED calls on one replicate whose
-    # class mix is five hard_complete, three soft_complete, four
-    # hard_partial and three soft_partial. The calibration set is
-    # 42/22/31/25, which over-weights hard_complete -- the easiest class by
-    # a wide margin, 41 of 42 correct. So four-way accuracy over the
-    # calibration set reads 0.758 where the shipped mix reads 0.733, and the
-    # classifier that wins on the calibration average reads 0.667 on the
-    # shipped mix. Fraction of drawn submissions reaching each threshold,
-    # over the shipped mix, with the classifier chosen on that objective:
+    # Held out by configuration over the 120 single-sweep calibration
+    # replicates, the best classifier reaches 0.758 four-way. Reweighted to
+    # the shipped zoo's class mix -- five hard_complete, three
+    # soft_complete, four hard_partial, three soft_partial, against the
+    # calibration set's 42/22/31/25 -- it reaches 0.733, and I set the gate
+    # to 0.65 on that basis. Run against the shipped replicate itself the
+    # same classifier scores 0.50 over its twelve matched calls.
     #
-    #     threshold   all 15 matched   12 matched   10 matched
-    #       0.60           0.995         0.909        0.972
-    #       0.65           0.946         0.909        0.835
-    #       0.70           0.756         0.695        0.835
-    #       0.75           0.439         0.695        0.535
+    # That gap is a transfer gap, not noise, and it is one-sided: five of
+    # the six errors are on the SOFTNESS axis, with completeness right in
+    # every case but the hard_partial sweep sitting at 94.5% frequency. The
+    # calibration replicates are one sweep on one chromosome, where the
+    # background a haplotype statistic is measured against is nearly clean.
+    # The shipped genome has fifteen sweeps with footprints over a megabase
+    # covering roughly a fifth of it, so the background H2/H1 and diversity
+    # that the softness features are ratios to are themselves depressed, and
+    # the fitted rules are applied to feature values shifted away from the
+    # ones they were fitted on. Calibrating on full 70 Mb replicates instead
+    # would close it and costs about an hour of simulation per replicate.
     #
-    # I set this to 0.75 first on the reasoning that one agent transcript
-    # scored 9 of 9 on the previous zoo, then measured 0.70 and set that,
-    # then measured the shipped mix and set 0.65: at 0.70 the best measured
-    # classifier fails on one draw in four. 0.65 is still a demanding gate
-    # against this zoo -- the reference's own median is 0.733, so the gate
-    # sits two calls out of fifteen below the measured ceiling, and a
-    # submission that gets completeness right and guesses softness scores
-    # about 0.50.
-    #
-    # The zoo is what got harder, not the threshold. Four-way accuracy fell
-    # from 0.802 on the previous instance because the sample is 40 diploids
-    # rather than 50 and the haplotype statistics that separate soft from
-    # hard lose the most from that, because s now spans 12x so the features
-    # that classify a sweep vary more across the zoo, and because the
-    # realized zoo puts a hard_partial sweep at frequency 0.978 -- two
-    # points under the completion threshold, with very nearly a completed
-    # sweep's footprint. That one is misclassified by every calibration
-    # replicate of its configuration, and it is there on purpose.
-    "min_class_accuracy": 0.65,
+    # So the gate is set from what the best measured method achieves on the
+    # instance being graded, with margin: 0.45 against 0.50. It is a weak
+    # gate and saying otherwise would be dishonest. It still excludes
+    # answering with one class for everything -- the commonest class is five
+    # of fifteen, 0.33 -- and the verifier self-test confirms that a
+    # submission with every position right and every class hard_complete,
+    # or every class soft_partial, fails.
+    "min_class_accuracy": 0.45,
     # Selection coefficients are graded three ways, and all three must hold.
     #
     # MAGNITUDE: at least this fraction within a multiplicative factor.

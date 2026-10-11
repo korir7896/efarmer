@@ -275,21 +275,46 @@ def main():
         for ch in range(1, NC + 1)]}
     cases.append(("all calls at chromosome centres", False, centre))
 
-    # perfect plus one false positive: allowed
-    fp1 = perfect(truth)
-    fp1["sweeps"].append({"chrom": 1, "position": 3_800_000,
-                          "class": "hard_complete",
-                          "selection_coefficient": 0.03, "time_gens_ago": 300})
-    cases.append(("perfect plus 1 cold-spot call", True, fp1))
+    # Calls inside the cold spots that carry no sweep, which is where a scan
+    # run against a genome-wide threshold fires. The cap is read from GATES
+    # rather than written in, so these two cases follow it: the first sits at
+    # the cap and must pass, the second one over it and must fail.
+    #
+    # The positions are inside three of the cold spots, so these are the
+    # false positives the instance is actually designed to produce rather
+    # than arbitrary coordinates.
+    cap = int(GATES["max_false_positives"])
+    # Derived rather than written down, and checked, because a hardcoded
+    # list silently stops testing what it claims to: one position chosen by
+    # hand landed 35 kb from the cold-spot sweep, so it matched that sweep
+    # instead of counting as a false call and the over-the-cap case passed.
+    clear = 2 * int(GATES["match_window_bp"])
+    spots = []
+    for ch in range(1, NC + 1):
+        for pos in range(1_000_000, CL - 1_000_000, 500_000):
+            if all(int(s["chrom"]) != ch
+                   or abs(float(s["position_local"]) - pos) > clear
+                   for s in truth["sweeps"]):
+                spots.append((ch, pos))
+    assert len(spots) > cap + 1, "not enough sweep-free positions"
+    for ch, pos in spots[:cap + 1]:
+        near = min(abs(float(s["position_local"]) - pos)
+                   for s in truth["sweeps"] if int(s["chrom"]) == ch)
+        assert near > clear, f"chr{ch}:{pos} is only {near:.0f} bp from a sweep"
 
-    # perfect plus three false positives: not allowed
-    fp3 = perfect(truth)
-    for ch, p in ((1, 3_800_000), (2, 7_600_000), (3, 5_700_000)):
-        fp3["sweeps"].append({"chrom": ch, "position": p,
-                              "class": "hard_complete",
-                              "selection_coefficient": 0.03,
-                              "time_gens_ago": 300})
-    cases.append(("perfect plus 3 cold-spot calls", False, fp3))
+    def with_fps(n):
+        sub = perfect(truth)
+        for ch, pos in spots[:n]:
+            sub["sweeps"].append({"chrom": ch, "position": pos,
+                                  "class": "hard_complete",
+                                  "selection_coefficient": 0.03,
+                                  "time_gens_ago": 300})
+        return sub
+
+    cases.append((f"perfect plus {cap} cold-spot call(s), at the cap",
+                  True, with_fps(cap)))
+    cases.append((f"perfect plus {cap + 1} cold-spot calls, over the cap",
+                  False, with_fps(cap + 1)))
 
     tmp = tempfile.mkdtemp()
     try:
