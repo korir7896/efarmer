@@ -106,6 +106,22 @@ def high_width(mid, v, bg, centre, mult):
     return max(float(m[hi] - m[lo]), step)
 
 
+LOCATE_RADIUS = 1_500_000
+
+
+def _scan_centre(mid: np.ndarray, h12: np.ndarray, true_pos: float) -> float:
+    """The position the shipped locator would report for this sweep."""
+    from pipeline.detect import LOCATOR_SMOOTH_WINDOWS, _smooth_median
+    order = np.argsort(mid)
+    m = mid[order]
+    sm = _smooth_median(h12[order].astype(float), LOCATOR_SMOOTH_WINDOWS)
+    near = np.abs(m - true_pos) <= LOCATE_RADIUS
+    cand = np.where(near & np.isfinite(sm))[0]
+    if cand.size == 0:
+        return float(true_pos)
+    return float(m[cand[int(np.argmax(sm[cand]))]])
+
+
 def rows(subdir="training"):
     """Feature rows from one or more calibration directories.
 
@@ -131,7 +147,31 @@ def rows(subdir="training"):
         cfg_tag = os.path.basename(f).rsplit("_", 1)[0]
         shipped_cfg = "_ho_" not in cfg_tag
         mid = d["mid"].astype(float)
-        centre = float(d["sweep_pos"])
+        # Where the SCAN would say the sweep is, not where it actually is.
+        #
+        # This matters more than it looks. Every feature below is read within
+        # AT base pairs of `centre`, and the shipped pipeline reads them at
+        # the position it called -- a median of 78 kb from the true site on
+        # the shipped replicate and as much as 302 kb for the strongest
+        # sweep, whose footprint is over a megabase. Measuring the
+        # calibration features at the true site instead fits the models on a
+        # quantity the pipeline never sees, and the gap shows up as a
+        # classifier that scores 0.758 held out over these replicates and
+        # 0.42 on the shipped genome.
+        #
+        # It is not a background effect, which was the first guess: the
+        # shipped genome's background and these replicates' agree to within
+        # 5 to 18 percent on every statistic, so ratios to background
+        # transfer fine. It is the offset.
+        #
+        # The locator is the same one detect._summarize uses -- the maximum
+        # of H12 smoothed over LOCATOR_SMOOTH_WINDOWS windows -- restricted
+        # to within LOCATE_RADIUS of the true site, which stands in for "the
+        # scan formed a cluster around this sweep". Whether a cluster forms
+        # at all is a detection question and is not what these models are
+        # for.
+        centre = _scan_centre(mid, d["h12"].astype(float),
+                              float(d["sweep_pos"]))
         near = np.abs(mid - centre) <= AT
         wide = np.abs(mid - centre) <= WIDE
         pi = d["pi"].astype(float); bgpi = float(d["bg_pi"])
@@ -296,28 +336,20 @@ def score_t(cands, data):
 # alternative it is compared against, so the choice is a measurement and the
 # losing option stays visible instead of being deleted.
 CHOSEN_S = {
-    "hard_complete": ("pi_min_ratio", "w_pi_50"),              # 0.95, rho +0.46
-    "hard_partial":  ("pi_ratio", "w_h12_15"),                 # 0.94, rho +0.74
-    "soft_complete": ("snp_ratio", "w_pi_50", "rate_ratio"),   # 1.00, rho +0.54
-    "soft_partial":  ("h12_ratio",),                           # 0.92, rho +0.11
+    "hard_complete": ("pi_min_ratio", "w_pi_75"),              # 0.93, rho +0.33
+    "hard_partial":  ("snp_ratio", "w_h12_15"),                # 0.94, rho +0.75
+    "soft_complete": ("w_pi_50", "w_h12_15"),                  # 0.91, rho +0.24
+    "soft_partial":  ("h12_ratio", "w_pi_50", "rate_ratio"),   # 0.92, rho +0.41
 }
 # The best model per class that DOES carry the local rate, for the
-# shipped-composition comparison in s_gate_design.py. soft_complete is in
-# both because there the rate term wins outright -- which is the class the
-# cold-spot soft sweep belongs to, and the one a base-rate calibration gets
-# most wrong.
+# shipped-composition comparison in s_gate_design.py.
 CHOSEN_S_RATE = {
-    "hard_complete": ("w_pi_75", "rate_ratio"),                # 0.95, rho +0.38
-    "hard_partial":  ("w_h12_15", "rate_ratio"),               # 0.94, rho +0.67
-    "soft_complete": ("snp_ratio", "w_pi_50", "rate_ratio"),   # 1.00, rho +0.54
-    "soft_partial":  ("h12_ratio", "rate_ratio"),              # 0.92, rho +0.08
+    "hard_complete": ("pi_ratio", "w_pi_75", "rate_ratio"),
+    "hard_partial":  ("pi_ratio", "w_h12_2", "rate_ratio"),
+    "soft_complete": ("w_pi_50", "w_h12_15", "rate_ratio"),
+    "soft_partial":  ("h12_ratio", "w_pi_50", "rate_ratio"),
 }
-# Age, by contrast, takes the rate term on the measurement: h12_ratio alone
-# reaches 0.83 inside tolerance and h12_ratio+rate_ratio 0.88, the best of
-# any pair. Diversity recovery after a sweep is a local clock, and how much
-# diversity has returned to a window depends on how much recombination that
-# window has had.
-CHOSEN_T = ("h12_ratio", "rate_ratio")
+CHOSEN_T = ("h12_ratio", "w_pi_50", "rate_ratio")
 
 
 def fit(data, combo, target, cls=None, completed=False):

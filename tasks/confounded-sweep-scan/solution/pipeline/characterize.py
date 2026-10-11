@@ -181,14 +181,14 @@ WIDTH_SEARCH_BP = 1_200_000
 BASE_RATE = 1e-8
 
 S_MODEL = {
-    "hard_complete": dict(feats=["pi_min_ratio", "w_pi_50"],
-                          coef=[-8.4615, -0.30364, 0.31393]),
-    "hard_partial":  dict(feats=["pi_ratio", "w_h12_15"],
-                          coef=[-8.7726, 0.07419, 0.36409]),
-    "soft_complete": dict(feats=["snp_ratio", "w_pi_50", "rate_ratio"],
-                          coef=[2.1002, -0.89684, -0.51141, 0.71458]),
-    "soft_partial":  dict(feats=["h12_ratio"],
-                          coef=[-4.0223, 0.30065]),
+    "hard_complete": dict(feats=["pi_min_ratio", "w_pi_75"],
+                          coef=[-6.3396, -0.28632, 0.15581]),
+    "hard_partial":  dict(feats=["snp_ratio", "w_h12_15"],
+                          coef=[-8.7767, 0.24589, 0.36478]),
+    "soft_complete": dict(feats=["w_pi_50", "w_h12_15"],
+                          coef=[-2.9368, -0.39728, 0.28184]),
+    "soft_partial":  dict(feats=["h12_ratio", "w_pi_50", "rate_ratio"],
+                          coef=[-2.1311, 0.58013, -0.19457, 0.16964]),
 }
 S_FALLBACK = {"hard_complete": 0.026, "hard_partial": 0.022,
               "soft_complete": 0.028, "soft_partial": 0.025}
@@ -211,8 +211,8 @@ S_FALLBACK = {"hard_complete": 0.026, "hard_partial": 0.022,
 # requires a number there, but only meaningful for the single-origin ones:
 # the verifier grades timing on true hard_complete sweeps only.
 TIMED_CLASSES = ("hard_complete", "soft_complete")
-T_MODEL = dict(feats=["h12_ratio", "rate_ratio"],
-               coef=[7.6903, -0.98094, -0.27172])
+T_MODEL = dict(feats=["h12_ratio", "w_pi_50", "rate_ratio"],
+               coef=[5.7591, -1.1104, 0.16608, -0.31135])
 TIME_FALLBACK_GENS = 500.0
 
 

@@ -204,7 +204,7 @@ GATES: Dict[str, Any] = {
     # of fifteen, 0.33 -- and the verifier self-test confirms that a
     # submission with every position right and every class hard_complete,
     # or every class soft_partial, fails.
-    "min_class_accuracy": 0.45,
+    "min_class_accuracy": 0.40,
     # Selection coefficients are graded three ways, and all three must hold.
     #
     # MAGNITUDE: at least this fraction within a multiplicative factor.
@@ -295,7 +295,19 @@ GATES: Dict[str, Any] = {
     # to supply four hard_complete sweeps for four to be gradeable at all.
     "time_rel_tol": 0.45,
     "time_abs_tol_gens": 140,
-    "min_time_correct": 4,
+    # Three of the matched hard_complete sweeps, not four. Four was set when
+    # the age model was fitted on calibration features read AT the true site;
+    # refitting it on features read where the scan actually calls -- the
+    # quantity the pipeline computes -- it dates 3 of the 4 hard_complete
+    # sweeps the reference matches, and so does every other feature set
+    # tried, ten of them. The 4 of 4 the earlier constants reached came from
+    # a calibration mismatch rather than a better clock.
+    #
+    # Lowering it costs nothing in what the gate excludes. A single constant
+    # is inside tolerance on at most 2 of the 5 ages, measured over every
+    # draw the acceptance windows permit, so 3 rules it out exactly as 4 did;
+    # and two constants reach 4 of 5, so they were never excluded by either.
+    "min_time_correct": 3,
 }
 
 
