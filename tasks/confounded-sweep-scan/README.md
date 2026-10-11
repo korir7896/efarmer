@@ -706,6 +706,16 @@ this one draw -- that no constant can date three of the five hard_complete
 sweeps for any replicate the generator would accept, which makes the timing
 gate a property of the design rather than of this realization.
 
+That last check earned its place. Lowering the timing count from four to
+three broke it: a single constant in [275, 320] could date three of the five
+for SOME draw the acceptance windows then permitted, which would have made
+the gate satisfiable without dating anything. It could not do that on the
+realized replicate -- the best constant there reaches two of five -- so
+nothing in the shipped artifact was wrong, but a guarantee that holds only
+for the draw that happened is not a guarantee. Two acceptance windows were
+narrowed, sw01 to [100,150] and sw03 to [580,720], with the realized 130 and
+643 still inside, and the best constant is back to two of five.
+
 It also prints the limit of the timing gate: two well-chosen constants,
 (240, 1400), date four of the five. With five dateable sweeps and a tolerance
 that grows with age, each constant can cover at most two, so two cover four

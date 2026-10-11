@@ -371,12 +371,23 @@ ACCEPT: Dict[str, Dict] = {
     # land inside three of the five tolerance ranges for any draw the
     # generator would accept -- checked over the windows themselves by
     # gate_feasibility.design_guarantee(), not over one realized replicate.
+    # Narrowed from [100,180] and [500,720] together, because the pair of
+    # upper and lower edges is what the timing gate's design guarantee turns
+    # on. At a gate of three dated sweeps -- lowered from four when the age
+    # model was refitted on features the pipeline actually computes -- a
+    # single constant in [275,320] could date sw01, sw02 and sw03 at once for
+    # SOME draw these windows permit, which would make the gate satisfiable
+    # without dating anything. It could not do that on the realized
+    # replicate, where the best constant reaches two of five, but a guarantee
+    # that holds only for the draw that happened is not a guarantee.
+    # gate_feasibility.design_guarantee() checks it over the windows and
+    # caught this; with these edges the best constant is back to two of five.
     "sw01": dict(class_="hard_complete", must_complete=True,
-                 done_min=100,  done_max=180),    # probed 111, 131, 148
+                 done_min=100,  done_max=150),    # realized 130
     "sw02": dict(class_="hard_complete", must_complete=True,
                  done_min=280,  done_max=440),    # s raised to 0.0280
     "sw03": dict(class_="hard_complete", must_complete=True,
-                 done_min=500,  done_max=720),    # origin pulled to 900
+                 done_min=580,  done_max=720),    # realized 643
     "sw04": dict(class_="hard_complete", must_complete=True,
                  done_min=1650, done_max=2180),   # s raised to 0.0200, which
     #            shortens the rise and so makes it complete EARLIER, hence
