@@ -40,32 +40,31 @@ mkdir -p "$OUT"
 # The fifteen shipped configurations, copied from provenance/config.py
 # SWEEP_SPEC. Origins and origin counts are the ones the probe runs recorded
 # in ACCEPT settled on, not the first guesses.
-CONFIGS_SHIPPED=(
-  "hard_complete  0.0900   274    1  -  _s0900"
-  "hard_complete  0.0280   770    1  -  _s0280"
-  "hard_complete  0.0400  1083    1  -  _s0400"
-  "hard_complete  0.0130  2492    1  -  _s0130"
-  "hard_complete  0.0550  2722    1  -  _s0550"
-  "soft_complete  0.0220   440  400  -  _s0220"
-  "soft_complete  0.0500   420   80  -  _s0500"
-  "soft_complete  0.0095   900  400  -  _s0095"
-  "hard_partial   0.0160   500    1  -  _s0160"
-  "hard_partial   0.0380   210    1  -  _s0380"
-  "hard_partial   0.0075   850    1  -  _s0075p"
-  "hard_partial   0.0650   160    1  -  _s0650"
-  "soft_partial   0.0120   430  150  -  _s0120"
-  "soft_partial   0.0580   130   14  -  _s0580"
-  "soft_partial   0.0300   230  100  -  _s0300"
-)
+# The fifteen shipped configurations are NOT written out here. They are
+# printed by authoring/provenance/shipped_configs.py, straight from
+# config.SWEEP_SPEC, because the copy that used to live here drifted: sw04's
+# coefficient moved from 0.0130 to 0.0200 and five origins changed, and this
+# file kept the old ones. The estimators were then fitted on configurations
+# the shipped replicate no longer contained, and the shipped-mix weighting
+# in fit_classifier.py died looking for one that had never been simulated.
+mapfile -t CONFIGS_SHIPPED < <(
+    "$PY" "$HERE/../provenance/shipped_configs.py" \
+        | sed 's/^ *"//; s/" *#.*$//')
+mapfile -t CONFIGS_SHIPPED_COLD < <(
+    "$PY" "$HERE/../provenance/shipped_configs.py" --cold \
+        | sed 's/^ *"//; s/" *#.*$//')
+[ "${#CONFIGS_SHIPPED[@]}" -gt 0 ] || { echo "no shipped configs"; exit 1; }
 
 # The three shipped cold-spot sweeps at their own rate factors, plus two more
 # so the scaling is measured across a range of factors rather than at three
 # points that happen to be the shipped ones.
+# The three shipped cold-spot sweeps come from shipped_configs.py --cold;
+# these two exist only so the rate scaling is measured across a range of
+# factors rather than at the three points the shipped replicate happens to
+# use.
 CONFIGS_COLDSPOT=(
-  "hard_complete  0.0550  2722    1  0.22  _cs_s0550"
-  "soft_complete  0.0095   900  400  0.28  _cs_s0095"
-  "hard_partial   0.0380   210    1  0.25  _cs_s0380"
-  "hard_complete  0.0400  1083    1  0.25  _cs_s0400"
+  "${CONFIGS_SHIPPED_COLD[@]}"
+  "hard_complete  0.0400   900    1  0.25  _cs_s0400"
   "soft_partial   0.0300   230  100  0.22  _cs_s0300"
 )
 

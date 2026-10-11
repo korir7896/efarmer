@@ -1,4 +1,4 @@
-override hard_complete -> (0.04, 1083, 1)
-hard_complete seed 602000: realized=hard_complete origins_surviving=1 done_ago=736 freq=1.000 h2h1=0.311 bg=0.812 ratio=0.383 rate=1.0e-08
-hard_complete seed 602097: realized=hard_complete origins_surviving=1 done_ago=783 freq=1.000 h2h1=0.657 bg=0.802 ratio=0.818 rate=1.0e-08
-hard_complete seed 602194: realized=hard_complete origins_surviving=1 done_ago=771 freq=1.000 h2h1=0.809 bg=0.802 ratio=1.008 rate=1.0e-08
+override hard_complete -> (0.04, 900, 1)
+hard_complete seed 602000: realized=hard_complete origins_surviving=1 done_ago=551 freq=1.000 h2h1=0.267 bg=0.812 ratio=0.329 rate=1.0e-08
+hard_complete seed 602097: realized=hard_complete origins_surviving=1 done_ago=621 freq=1.000 h2h1=0.788 bg=0.824 ratio=0.957 rate=1.0e-08
+hard_complete seed 602194: realized=hard_complete origins_surviving=1 done_ago=616 freq=1.000 h2h1=0.622 bg=0.802 ratio=0.776 rate=1.0e-08
