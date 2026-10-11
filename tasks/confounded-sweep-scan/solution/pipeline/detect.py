@@ -416,9 +416,25 @@ def cluster_runs(chrom: np.ndarray, mid: np.ndarray, score: np.ndarray,
 # Expected false CLUSTERS per genome, the pipeline's one free parameter. It
 # lives here rather than in main.py's argparse default so that
 # authoring/evidence/baselines.py cannot drift away from the shipped value
-# while claiming to measure the reference. The reasoning behind 0.5, and the
-# measured comparison across budgets, is in main.py and in README.md.
-EXPECTED_FALSE = 0.5
+# while claiming to measure the reference.
+#
+# 2.0, against a verifier that allows 4. It was 0.5, which spent an eighth of
+# the budget and paid for it in recall: measured on the shipped replicate by
+# re-calibrating the mass cut at each budget and nothing else,
+#
+#     budget   calls   matched   false   per-class recall
+#       0.5      11       10       1     hc3/5 sc3/3 hp3/4 sp1/3
+#       1.0      14       12       2     hc4/5 sc3/3 hp3/4 sp2/3
+#       2.0      14       12       2     hc4/5 sc3/3 hp3/4 sp2/3
+#       3.0      15       13       2     hc4/5 sc3/3 hp3/4 sp3/3
+#       4.0      16       13       3     hc4/5 sc3/3 hp3/4 sp3/3
+#
+# so 0.5 was losing two soft partial sweeps to buy one false call it did not
+# need. 3.0 finds one more sweep still, and is not worth it: the number of
+# false clusters is Poisson about its budget, so a budget of 3 exceeds a cap
+# of 4 on roughly one genome in five, against one in twenty at 2.0. Spending
+# half the allowance is the trade this makes.
+EXPECTED_FALSE = 2.0
 
 # Null quantile at which clusters are formed, before their mass is judged.
 FORM_QUANTILE = 0.99

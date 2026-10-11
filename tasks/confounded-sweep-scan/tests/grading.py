@@ -57,21 +57,31 @@ TIMED_CLASSES = ("hard_complete",)
 GATES: Dict[str, Any] = {
     # --- matching ---
     # A call matches a true sweep if it is on the same chromosome within this
-    # many bp.  Set from the measured localisation spread of the best
-    # statistic for each class, not from how precise the reference happens to
-    # be: diversity puts completed hard sweeps within 19-31 kb (worst 121 kb)
-    # and H12 puts partial sweeps within 25 kb (worst 91 kb), but soft sweeps
-    # are the loose ones at 31 kb median and 211 kb worst, because their
-    # diversity dip is shallow and only H12 locates them at all.
+    # many bp. 350 kb, and the number is set by the footprints this zoo
+    # actually has rather than by the precision one would like.
     #
-    # The window cannot be ambiguous even though two sweep PAIRS now sit 725
-    # and 753 kb apart: half of the smaller separation is 362 kb, so a call
-    # within 250 kb of one of them is outside the window of the other, and
-    # match() assigns greedily by ascending distance with each true sweep
-    # taken at most once. Widening it cannot let a sloppy answer through
-    # either -- spraying calls is caught by the dedupe radius and the
-    # false-positive cap, not by the window.
-    "match_window_bp": 250_000,
+    # Measured on the shipped replicate as the distance from each true sweep
+    # to the nearest call, the reference localises most sweeps to a median of
+    # 78 kb -- but the strongest sweep in the zoo, at s=0.090, comes out
+    # 302 kb away, and the sweep inside a wide cold spot 190 kb. Those two
+    # have footprints well over a megabase, and across a footprint that wide
+    # every locator tried leaves a long tail: the combined score's peak, the
+    # raw H12 maximum and the diversity minimum all put at least one sweep
+    # beyond 250 kb. A 250 kb window therefore scores localisation precision
+    # that no method on this instance has, and it was costing a hard_complete
+    # sweep that the scan had plainly found.
+    #
+    # The window cannot be ambiguous even so. Two sweep PAIRS sit 725 and
+    # 753 kb apart, and half of the smaller separation is 362 kb, so 350 kb
+    # leaves a call within the window of at most one member of a pair; where
+    # it would not, match() assigns greedily by ascending distance with each
+    # true sweep taken at most once, so the assignment is still well
+    # defined. Widening it cannot let a sloppy answer through either --
+    # spraying calls is caught by the dedupe radius and the false-positive
+    # cap, not by the window -- and the verifier self-test confirms that a
+    # submission with every position moved 400 kb, or every call at a
+    # chromosome centre, still fails.
+    "match_window_bp": 350_000,
     # Two calls closer together than this are collapsed before grading, so an
     # agent cannot manufacture recall by carpeting a region with calls. It is
     # deliberately equal to the match window and well under the 725 kb
