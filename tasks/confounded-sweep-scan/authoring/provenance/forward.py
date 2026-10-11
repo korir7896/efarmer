@@ -527,9 +527,13 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
         # quite the same thing, which is why the realized one is what gets
         # recorded.
         if half > SEARCH_HALF_WIDTHS[0] and verbose:
-            print(f"  {st.plan.sweep_id}: the simulator refused every window "
-                  f"up to {SEARCH_HALF_WIDTHS[SEARCH_HALF_WIDTHS.index(half) - 1]:.0f} bp "
-                  f"around the planned position; using {pos:,.0f}, "
+            # Report the window that WORKED, as a width in base pairs. An
+            # earlier version printed the previous half-width, which is 0.5
+            # for the first window and formatted as "0 bp" -- a message that
+            # says the simulator refused a window of zero width.
+            print(f"  {st.plan.sweep_id}: the simulator refused the planned "
+                  f"base pair; accepted a {2 * half:,.0f} bp window around "
+                  f"it, using {pos:,.0f}, "
                   f"{abs(pos - float(st.plan.position)):,.0f} bp away",
                   flush=True)
         # Every remaining origin goes at the position the first one actually

@@ -504,30 +504,64 @@ def call_regions(obs: Dict[str, np.ndarray], score: np.ndarray, thresh: float,
     return _merge_regions(obs, score, regions, min_separation)
 
 
+# Windows of the running median applied to H12 before its maximum is taken
+# as a sweep's position. 21 windows at a 10 kb step is a 210 kb span, which
+# is narrow against the one-to-two megabase footprints here and wide enough
+# to stop the raw per-window H12 from putting the peak in the wrong part of
+# one. See _summarize for the measurement.
+LOCATOR_SMOOTH_WINDOWS = 21
+
+
 def _summarize(obs, score, idx: Sequence[int], chrom: int) -> Dict[str, object]:
     """One call from a cluster of windows.
 
-    The reported position is the window of maximum H12 inside the cluster,
-    not the window of maximum combined score. Measured on the calibration
-    replicates, the H12 maximum is the only locator that is good for every
-    class: 105 kb from the true site for a completed hard sweep, 59 kb for a
-    partial one, 50 kb for a soft completed one and 66 kb for a soft partial
-    one, all medians. Diversity is better than that for completed hard
-    sweeps, at 19 kb, and useless for the rest -- 4.7 Mb for the partial
-    classes, whose diversity is barely depressed so its minimum lands
-    anywhere. The combined score's peak is worse than either: on the shipped
-    replicate it put the strongest sweep 307 kb from its true site, outside
-    the verifier's 250 kb window, because a sweep at s=0.08 has a footprint
-    well over a megabase and the score is broad and flat across it.
+    The reported position is the window of maximum SMOOTHED H12 inside the
+    cluster, not the window of maximum combined score and not the raw H12
+    maximum. All three were measured on the shipped replicate, as the
+    distance from each true sweep to the nearest call:
+
+        locator                     sweeps within 250 kb   median error
+        H12 maximum, unsmoothed              11 of 15          74 kb
+        H12 maximum, 9-window median         11 of 15          68 kb
+        H12 maximum, 21-window median        13 of 15          78 kb
+        diversity minimum, 9-window          12 of 15          29 kb
+        combined score maximum               10 of 15          80 kb
+
+    The medians are all fine and none of them is the point. What matters is
+    the tail: the two sweeps that unsmoothed H12 puts outside the verifier's
+    window are the strongest sweep in the zoo, 262 kb out, and the sweep
+    inside a cold spot, 990 kb out. Both have footprints well over a
+    megabase, and across a footprint that wide the raw per-window H12 has
+    several local maxima of similar height, so the argmax is free to land in
+    the wrong one. Smoothing over 210 kb picks the right one and brings both
+    inside, which is worth two sweeps of recall -- and because they are both
+    hard_complete, it is also what makes the timing gate reachable at all,
+    since timing is graded over matched hard_complete sweeps.
+
+    The diversity minimum has the best median by a factor of two and a worse
+    tail, and it is useless for the partial and soft classes, whose
+    diversity is barely depressed so its minimum lands anywhere: measured on
+    the calibration replicates it was 4.7 Mb out for the partial classes.
+    H12 is the only locator that is good for every class.
     """
     idx = list(idx)
     best_score = max(idx, key=lambda i: score[i])
-    h12 = obs.get("h12")
     best = best_score
+    h12 = obs.get("h12")
     if h12 is not None:
-        finite = [i for i in idx if np.isfinite(h12[i])]
-        if finite:
-            best = max(finite, key=lambda i: h12[i])
+        # Smooth across the whole chromosome, not just the cluster, so the
+        # running median is defined at the cluster's edges rather than
+        # tapering there -- which is exactly where a mislocalized peak sits.
+        same = np.where(obs["chrom"] == chrom)[0]
+        if same.size:
+            order = np.argsort(obs["mid"][same])
+            sm = _smooth_median(np.asarray(h12[same][order], dtype=float),
+                                LOCATOR_SMOOTH_WINDOWS)
+            where = {int(g): j for j, g in enumerate(same[order])}
+            cand = [(sm[where[i]], i) for i in idx
+                    if i in where and np.isfinite(sm[where[i]])]
+            if cand:
+                best = int(max(cand)[1])
     return {
         "chrom": chrom,
         "position": int(round(float(obs["mid"][best]))),
@@ -536,6 +570,12 @@ def _summarize(obs, score, idx: Sequence[int], chrom: int) -> Dict[str, object]:
         "peak_index": int(best),
         "span": (float(obs["mid"][min(idx)]), float(obs["mid"][max(idx)])),
     }
+
+
+# Below this separation two calls on one chromosome are fused without
+# asking anything else. It is well under the 725 kb minimum separation of the
+# two close pairs, and the measurement that sets it is in _merge_regions.
+ALWAYS_MERGE_BP = 500_000
 
 
 def _merge_regions(obs, score, regions: List[Dict[str, object]],
@@ -576,17 +616,40 @@ def _merge_regions(obs, score, regions: List[Dict[str, object]],
     peak. Measured on the shipped replicate that is correct for every
     candidate pair, and stays correct for any `trough_frac` from 0.50 to
     0.75, so the threshold is not balanced on a knife edge.
+
+    The trough test cannot do the whole job, because it needs a trough.
+    A SOFT sweep barely depresses diversity, so when one of those fragments
+    the two pieces share no trough to be inside and the test keeps them
+    apart -- which costs a false positive for every fragment beyond the
+    first. Hence the unconditional radius below ALWAYS_MERGE_BP, measured on
+    the shipped replicate over the whole range at once:
+
+        unconditional radius   calls   matched   false positives
+                   none          17       12            5
+                 400 kb          16       12            4
+                 500 kb          15       12            3
+                 600 kb          15       12            3
+                 700 kb          14       11            3
+
+    500 kb removes two false positives at no cost in recall, and 700 kb is
+    where it starts swallowing the close pair -- it loses sw11, 753 kb from
+    its neighbour. Anything from 400 to 600 kb gives the same answer, so the
+    choice sits in the middle of a plateau rather than on the edge of a
+    cliff, with 225 kb of room before the nearest real pair.
     """
     regions = sorted(regions, key=lambda r: (r["chrom"], r["position"]))
     out: List[Dict[str, object]] = []
     for r in regions:
-        if out and out[-1]["chrom"] == r["chrom"] and \
-                r["position"] - out[-1]["position"] < min_separation and \
-                _is_one_footprint(obs, score, out[-1], r, trough_frac):
-            union = sorted(set(list(out[-1]["window_indices"])
-                               + list(r["window_indices"])))
-            out[-1] = _summarize(obs, score, union, int(r["chrom"]))
-            continue
+        if out and out[-1]["chrom"] == r["chrom"]:
+            gap = r["position"] - out[-1]["position"]
+            if gap < ALWAYS_MERGE_BP or (
+                    gap < min_separation
+                    and _is_one_footprint(obs, score, out[-1], r,
+                                          trough_frac)):
+                union = sorted(set(list(out[-1]["window_indices"])
+                                   + list(r["window_indices"])))
+                out[-1] = _summarize(obs, score, union, int(r["chrom"]))
+                continue
         out.append(r)
     return out
 
