@@ -638,6 +638,32 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                          "deadline_in": st.deadline - pop.generation})
                     failed_at = stage_of[sid]
                     break
+                # A sweep that has to be SOFT is re-checked for softness on
+                # every pass, confirmed or not, and that is not redundant.
+                # Confirmation happens once, at the deadline; a backtrack to
+                # any LATER stage then marks this one confirmed by fiat and
+                # replays it, and its surviving origins can erode during the
+                # replay with nothing watching. That is how sw06 arrived at
+                # the present with one origin out of four hundred after
+                # sw09 and sw11 restarted a combined 225 times: it passed its
+                # own deadline check once, hundreds of generations earlier,
+                # and was never looked at again.
+                #
+                # Checking continuously is EQUIVALENT to checking at the end
+                # rather than stricter, because an origin that reaches count
+                # zero is a distinct mutation that cannot come back, so the
+                # surviving count is monotonically non-increasing. It is only
+                # cheaper: the failure costs one chunk instead of the whole
+                # remaining run plus a rejected replicate.
+                if (st.plan.n_origins > 1 and pop.generation >= st.deadline
+                        and surviving < 2):
+                    stage_tally.setdefault(sid, []).append(
+                        {"why": "softness eroded after confirmation",
+                         "surviving_origins": surviving,
+                         "gens_since_origin": pop.generation - st.gen,
+                         "n_origins": st.plan.n_origins})
+                    failed_at = stage_of[sid]
+                    break
                 if confirmed.get(sid):
                     continue
                 if pop.generation >= st.deadline:
@@ -659,6 +685,22 @@ def run_forward(cfg: GenomeConfig, n_cur: int, total_gens: int,
                     # hopeless run early, and replicate acceptance is what
                     # actually decides whether a sweep counts as soft.
                     soft_target = max(2, min(3, st.plan.n_origins // 8))
+                    # ...except when the deadline IS the present, which
+                    # happens whenever a sweep's origin is more recent than
+                    # its own establishment window. Then there is nothing
+                    # left to abandon early -- the run is over -- and asking
+                    # for three surviving origins here is asking for more
+                    # than acceptance asks for, on the one check whose
+                    # failure costs the entire remaining simulation rather
+                    # than one window. Measured: moving sw13's origin from
+                    # 430 to 600 generations, both inside its 853-generation
+                    # window, took the forward pass from 13 minutes to over
+                    # 30 without finishing, because every failure replayed
+                    # 2,300 generations and nine later sweeps. Two surviving
+                    # origins is what makes a sweep soft by definition, and
+                    # replicate acceptance is what decides it.
+                    if st.deadline >= total_gens:
+                        soft_target = 2
                     soft_ok = (st.plan.n_origins == 1
                                or surviving >= soft_target)
                     if strong and soft_ok:

@@ -17,99 +17,167 @@ simulation in fwdpy11, recapitated with msprime under a bottleneck-and-
 expansion history and overlaid with neutral mutations. Generator, seeds and
 all calibration measurements are under `authoring/`.
 
-Three sources of difficulty, each measured rather than asserted.
+A previous version shipped ten sweeps on 48 Mb from 50 diploids. Two
+independent agent transcripts solved it inside the time limit with
+off-the-shelf tooling -- a demographic fit in `moments`, a windowed scan for
+low diversity and long shared haplotypes, and random forests trained on
+simulations of the fitted history -- and cleared ten of the twelve gates with
+room to spare. Scoring one of those submissions against the verifier is the
+measurement that drove this redesign:
 
-**The demography mimics selection genome-wide.** The population contracts
-from 12,000 to 800 for 400 generations starting 3,400 generations ago, then
-expands to 9,000. That depresses diversity and skews the site frequency
-spectrum everywhere, which is locally what a sweep does. A scan calibrated
-against a constant-size null reports the bottleneck.
+| gate | that submission | the gate | slack |
+| --- | --- | --- | --- |
+| class accuracy | 9 of 9 | at least 70% | 3 calls |
+| `s` within a factor | 9 of 9, worst 1.93x | 70% within 2.5x | 2 calls |
+| `s` spread | 8.17x | at least 2.0x | wide |
+| `s` rank correlation | 0.783 | at least 0.30 | 0.48 |
+| completion time | errors 52, 48, 457 | tolerances 150, 150, 1048 | wide |
 
-**Recombination cold spots mimic selection locally.** Three windows of 300 to
-600 kb carry rates 8 to 12 times below the genome average, on three of the
-four chromosomes, so an agent cannot assume one per chromosome. Fewer
-independent genealogies per window means heavier tails for every statistic.
-Over ten neutral replicates with no selection anywhere, a cut at the genome's
-own 99.9th percentile fires this much more often inside the cold spots than
-outside:
+Only two gates were tight, and both were tight for every method rather than
+for that one: `hard_complete` recall and the timing count. No tightening of
+the rest could have failed that submission without also failing the
+reference. The instance did not contain enough hard cases, so the instance
+changed rather than the thresholds: 70 Mb on five chromosomes, fifteen sweeps
+instead of ten, 40 diploids instead of 50, selection coefficients spanning a
+factor of 12 instead of 9.4, and three sweeps moved inside wide
+recombination cold spots.
 
-| statistic | enrichment inside cold spots |
-| --- | --- |
-| diversity | 20.6x |
-| Tajima's D | 9.6x |
-| nSL | 9.6x |
-| H12 | 8.8x |
-| H2/H1 | 7.4x |
+Five sources of difficulty. Every number below is measured, and where the
+obvious story turned out to be wrong the measurement is given instead of the
+story.
 
-The map is given to the agent, so this is a rule to infer, not a secret. But
-a scan run at its defaults will report cold spots as sweeps.
+**The demography mimics selection genome-wide, and the true history is not
+the best-fitting one.** The population contracts from 12,000 to 800 for 400
+generations starting 3,400 generations ago, then expands to 9,000. That
+depresses diversity and skews the spectrum everywhere, which is locally what
+a sweep does. The part that is not obvious is how far it goes: scored against
+the observed spectrum, the TRUE history reaches a distance of 0.10 to 0.16
+where the reference's fitted history reaches 0.009. The true answer is ten
+times worse than the fitted one on the objective, because fifteen sweeps have
+skewed the observed spectrum towards rare alleles and the best-fitting
+NEUTRAL history is the one that mimics that skew. No amount of search closes
+that gap. It is why the sizes are graded within a factor rather than to a
+percentage, and why the reference's ancestral size still lands within 19% of
+the truth across search seeds while the bottleneck's severity is only
+recovered to within a factor of three.
+
+**Masking the sweeps before fitting the history makes it worse, which is the
+trap an expert is most likely to walk into.** Fifteen sweeps with footprints
+of half a megabase and more cover roughly a fifth of 70 Mb, so excluding them
+before fitting a neutral spectrum looks obviously right, and the reference
+used to drop the lowest-diversity 15% of windows for exactly that reason.
+Measured against the truth:
+
+| what is excluded before fitting | N_ancestral | bottleneck strength |
+| --- | --- | --- |
+| nothing | 1.19x | 2.22x |
+| the lowest 15% of windows by diversity | 1.72x | 4.33x |
+| +/-250 kb around the top 1.5% of candidates | 2.90x | 6.64x |
+| +/-400 kb around the top 3% | 2.35x | 5.22x |
+| +/-1.2 Mb around the top 10% | 2.49x | 6.26x |
+
+Removing low-diversity windows raises the apparent diversity of what remains,
+and the fit answers with a larger ancestral size and a gentler bottleneck.
+Excluding by position instead of by diversity rank does not help, because
+candidates are found by low diversity in the first place. Worse, every masked
+fit reaches a SMALLER distance than the unmasked one, so the objective cannot
+tell you that you have made it worse.
+
+**Recombination cold spots mimic selection locally, three of them hide a
+sweep, and what they actually cost is not what the textbook says.** Six
+windows carry rates below the genome average, on four of the five
+chromosomes -- two chromosomes have two and one has none, so an agent can
+neither assume one per chromosome nor stop after finding one. They come in
+two kinds, with opposite geometry because they do opposite jobs:
+
+  * Three are DEEP and NARROW, 300 to 700 kb at 8 to 12 times below the base
+    rate, and carry no selected site at all. Fewer independent genealogies
+    fall in a window there, so every statistic grows a heavier tail, and a
+    genome-wide threshold fires on nothing.
+  * Three are WIDE and MODERATE, 2.6 to 3.0 Mb at 3.6 to 4.5 times below the
+    base rate, and each holds one sweep.
+
+The textbook consequence is that a sweep inside one leaves a footprint that
+is stretched in base pairs and unchanged in Morgans, so reading selection
+strength off physical width overestimates it. That is true, and it is
+measured: at s = 0.040 the half-diversity footprint is 650 kb at the base
+rate and 1,335 kb inside a 0.25x spot -- a factor of 2.05, where the rate
+ratio implies 4, because the footprint runs out of the spot into base-rate
+flanks. Dividing by the rate ratio would over-correct by about two, so the
+reference carries the local rate as a fitted predictor and lets the
+calibration choose the exponent.
+
+What is NOT true is that this is where the cold spots bite the grade. A
+strength estimator calibrated only on base-rate simulations -- which is what
+you get by simulating your null at the genome's average rate, and what both
+agent transcripts did -- is biased 2.65x on the soft completed sweep inside a
+cold spot and misses it by up to 5.90x. But that is one sweep in fifteen, and
+such a submission still clears all three `s` gates on 89% of draws against the
+reference's 98%. Saying the gates demand the rate correction would be
+asserting a difficulty the evidence does not support. Where the cold spots do
+bite is detection, below.
+
+**Two sweep pairs sit closer together than a footprint, and neither distance
+nor the shape of the scan can tell them from one broken footprint.** The pairs
+are 725 kb and 753 kb apart. Both are above the verifier's 250 kb dedupe
+radius, so each member has to be reported separately, but a scan working on
+megabase windows merges them into one call and loses a sweep.
+
+Distance alone cannot decide, because a footprint broken by noise throws
+clusters more than a megabase either side of the sweep -- any radius wide
+enough to repair that is wide enough to swallow a 750 kb pair. The obvious
+next move is to judge the SADDLE between the two peaks: one footprint broken
+by noise dips a little and recovers, two sweeps with 750 kb between them dip
+most of the way to background. Measured on the shipped replicate, that does
+not work either. The saddle ratio inside footprints that split runs 0.189 to
+0.305, and the ratio at the genuine close pair is 0.251 -- inside that range.
+The two populations overlap and no threshold separates them, because a sweep
+inside a wide cold spot has real structure across two megabases of footprint
+as deep as the gap between two distinct sweeps.
+
+What does separate them is the diversity trough, because that is one object
+per sweep rather than a noisy field: the three clusters the cold-spot sweep
+on chromosome 3 broke into all sit inside the same 1.74 Mb trough, while the
+close pair on chromosome 4 has two separate troughs of 180 and 200 kb that do
+not contain each other. The reference fuses two clusters only when each one's
+trough contains the other's peak, which is correct for every candidate pair
+on this replicate and stays correct across trough fractions from 0.50 to
+0.75. Getting this wrong is expensive twice over: the split sweep is missed
+AND both halves count against the false-positive cap.
 
 **No single statistic finds all four sweep classes, and neither axis of the
 class scheme has a statistic that carries it.** The four classes are the two
 binary properties a scan can be asked to recover, crossed: complete or
 partial (did the beneficial allele pass 0.98), hard or soft (is one
-independent origin of it still present, or several). Measured in the window
-containing the selected site, against each replicate's own background, over
-111 independent single-sweep replicates at 37 configurations, grouped by
-what each sweep actually turned out to be:
+independent origin of it still present, or several).
 
-| realized class | diversity | Tajima's D | H12 | H2/H1 | nSL | n |
-| --- | --- | --- | --- | --- | --- | --- |
-| hard_complete | 0.119 | -2.43 | 5.142 | 0.169 | +0.01 | 40 |
-| hard_partial | 0.540 | -0.83 | 6.596 | 0.150 | +0.45 | 21 |
-| soft_complete | 0.700 | +0.23 | 4.427 | 0.642 | -0.01 | 26 |
-| soft_partial | 0.787 | +0.00 | 5.418 | 0.488 | +0.20 | 24 |
+Different features separate them on each axis, and for softness a different
+feature set depending on completeness, which is why the reference fits one
+rule per axis rather than one rule over four classes. Three things make this
+harder than before. The sample is 40 diploids rather than 50, and the
+haplotype statistics that carry the soft-versus-hard axis lose the most from
+a smaller sample. The coefficients span a factor of 12, so the features that
+classify a sweep vary more across the zoo. And the realized zoo puts a
+hard_partial sweep at frequency 0.978 -- two points under the completion
+threshold, with very nearly a completed sweep's footprint. Held out by
+configuration, the best classifier measured reaches 0.756 four-way on the
+shipped zoo's class mix, against 0.802 on the previous one.
 
-Diversity, H12 and H2/H1 as ratios to background, Tajima's D and the
-extreme-nSL fraction as differences; median over replicates.
-
-The medians separate. The distributions do not, and that is the difficulty.
-
-H2/H1 is the textbook hard-versus-soft discriminator and it does not work
-here, because it is confounded by age: across the hard_complete replicates
-it runs from 0.007 to 1.012 of background, which swallows the 0.013 to 0.861
-the soft completed ones occupy. At a recent hard sweep one haplotype
-dominates and H2/H1 is near zero; at an old one recombination has broken up
-the swept block and H2/H1 has recovered to background. Diversity is the
-obvious complete-versus-partial discriminator and it is confounded by
-softness: 0.011 to 0.719 across hard_complete against 0.158 to 1.431 across
-hard_partial, because a soft completed sweep leaves diversity near
-background exactly as a partial one does.
-
-What does separate the classes is different features on each axis, and for
-softness a different feature set depending on completeness. Completeness is
-carried by the floor of the diversity trough with the H12 elevation and the
-standardized-nSL fraction: a completed sweep removed variation and left one
-or a few long haplotypes, while one still rising carries a long YOUNG
-high-frequency haplotype against a background that is otherwise intact,
-which is what nSL responds to. Softness among completed sweeps is carried by
-the trough floor with Tajima's D and H2/H1 -- one frequent haplotype drives
-diversity to nothing and Tajima's D far negative, several leave both milder
-and H2/H1 high. Softness among partial sweeps is carried by the extent of
-the H12 elevation with H2/H1 after all -- usable there precisely because age
-is not in play, since every partial sweep is still rising. Measured
-leave-one-configuration-out, that gets 80.2% four-way against 75.7% for the
-best nearest-centroid rule over all four classes at once, and 92.4% on the
-softness axis among completed sweeps against 80.0% among partial ones.
-
-H12 collapses for the oldest sweeps, because recombination erodes the swept
-haplotype block, so a scan that leans on it misses them. nSL reads near zero
-at any completed sweep, since no high-frequency young haplotype remains to
-carry a long tract: it is the only statistic that responds strongly to
-partial sweeps, +0.45 and +0.20 against +0.01 and -0.01, and it responds to
-almost nothing else.
+The class mix matters and is easy to get wrong when setting the gate. The
+calibration set has 42 hard_complete replicates against 22 soft_complete; the
+shipped zoo has five against three. hard_complete is far the easiest class,
+so four-way accuracy over the calibration set reads 0.758 where the same
+classifier reads 0.733 on the shipped mix -- and the classifier that wins on
+the calibration average reads 0.667 there.
 
 **And the two quantities asked about each sweep are relations that have to be
-derived and calibrated.** The selection coefficients in the shipped
-replicate span a factor of 9.4 and the ages of the datable sweeps a factor
-of 15.8, so no single plausible number satisfies either requirement. The
-textbook relation for strength, that the footprint extends to about s over
-the local recombination rate, is necessary but not sufficient: fitted as
-trough width times local rate over a per-class constant it put 74% of
-replicates inside a factor of 2.5 and ranked them at only 0.32, because a
-soft sweep leaves no trough whose width can be measured. Taking the swept
-extent from the H12 elevation instead, wherever diversity is flat, brings
-that to 109 of 109 inside a factor of 2.5 and a rank correlation of +0.82.
+derived and calibrated.** The coefficients span a factor of 12 and are
+assigned so that s is NON-MONOTONE in sweep age: by ascending completion age
+they run 0.090, 0.028, 0.040, 0.013, 0.055. The youngest completed sweep is
+the strongest in the zoo and the second youngest is among the weakest.
+Neither quantity can be read off the other even approximately, so the rank
+correlation on `s` cannot be earned by dating sweeps, and the dates cannot be
+earned by measuring strength.
 
 ## Why shortcuts fail, gate by gate
 
