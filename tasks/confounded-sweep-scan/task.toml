@@ -104,8 +104,8 @@ relations an analyst has to derive and calibrate rather than look up. The
 width of the diversity trough scales with s over the local recombination
 rate; diversity at the centre recovers in proportion to the time since the
 sweep finished. Both need constants fitted against simulations of the
-inferred history, and the strengths here span a factor of nine and the ages
-a factor of sixteen, so a single plausible number satisfies neither
+inferred history, and the strengths here span a factor of twelve and the ages
+a factor of nineteen, so a single plausible number satisfies neither
 requirement.
 
 Expert time is around 20 hours. The largest single piece of it is null
@@ -124,12 +124,32 @@ solution_explanation = """
 Fit the history first, then scan against it.
 
 The reference infers the bottleneck-and-expansion history by simulated
-method of moments: propose a history, simulate it with msprime, and compare
-the binned unfolded spectrum and mean diversity with the observed ones,
-computed over windows left after dropping the lowest-diversity decile so
-that sweeps do not get absorbed into the demography. Every proposal reuses
-one random seed, which turns a noisy objective into a deterministic one and
-lets a coarse random search plus local refinement converge.
+method of moments: propose a history, simulate it, and compare the binned
+unfolded spectrum and mean diversity with the observed ones. The simulation
+averages independent coalescent trees and uses tskit's branch-length
+statistics rather than placing mutations, because the expected spectrum is
+the mutation rate times the expected branch length subtending each allele
+count, so simulating mutations only adds sampling noise to a quantity whose
+expectation is already available.
+
+Two details of that fit were arrived at against a strong intuition, and both
+are measured in solution/pipeline/. The spectrum is fitted over EVERY
+window, with no attempt to remove the swept ones. Fifteen sweeps with
+footprints over a megabase cover roughly a fifth of 70 Mb, so masking them
+first looks obviously right, and this pipeline used to drop the
+lowest-diversity 15% of windows for that reason -- but measured against the
+truth, no exclusion recovers the ancestral size to 1.19 times truth where
+the rank drop gives 1.72 and masking by position around candidate regions
+gives 2.35 to 2.90 however narrow the mask. Removing low-diversity windows
+raises the apparent diversity of what remains, and the fit answers with a
+bigger ancestral size and a gentler bottleneck, while reaching a SMALLER
+distance, so the objective cannot see the problem. And the fit runs from four
+independent starts, scored against the same simulated realizations so their
+distances compare, keeping the best: scored against one realization under
+common random numbers the search optimizes that realization rather than the
+expected distance, and at five search seeds the recovered ancestral size
+ranged from 1.02 to 3.65 times truth with the distance not saying which was
+which.
 
 It then simulates ten neutral replicates under the fitted history using the
 provided recombination map, and scans both the observed genome and the null
@@ -151,61 +171,105 @@ allowing gaps of up to ten windows, and judged by their total mass, the
 summed excess over that forming threshold. The mass cut is calibrated by
 applying the identical procedure to every null replicate, so the
 false-positive budget is exact and is a budget on clusters, which is what a
-call is. Clusters within 1.5 megabases of each other are then fused by
-taking the union of their windows, because a footprint interrupted by a dip
-in the score otherwise becomes two calls either side of the sweep. Each
-call's reported position is the window of maximum H12 inside it, which is
-the only locator measured to be good for every class.
+call is. That budget is 2.0 against a verifier that allows 4: at 0.5 the
+detector spent an eighth of its allowance and lost two sweeps for a false
+call it did not need.
+
+Two clusters on one chromosome are fused when they are two pieces of one
+footprint, and deciding that is harder than it sounds. Distance cannot do it:
+two selected sites sit 725 and 753 kb apart, inside any radius wide enough to
+repair a split footprint. Neither can the saddle in the score -- the lowest
+value between the two peaks as a fraction of the weaker one -- which was the
+previous rule: measured on the shipped replicate the saddle inside footprints
+that split runs 0.189 to 0.305 and the saddle at the genuine close pair is
+0.251, inside that range, so no threshold separates them. A sweep inside a
+wide recombination cold spot has real structure across two megabases of
+footprint, as deep as the gap between two distinct sweeps. What does separate
+them is the DIVERSITY TROUGH, one object per sweep rather than a noisy field:
+the three clusters the cold-spot sweep broke into all sit inside the same
+1.74 Mb trough, while the close pair has two separate 200 kb troughs that do
+not contain each other. So clusters closer than 500 kb are fused outright --
+well under the 725 kb minimum separation -- and beyond that only when each
+one's trough contains the other's peak.
+
+Each call's reported position is the window of maximum H12 SMOOTHED over 21
+windows, not the raw maximum and not the peak of the combined score.
+Measured as the distance from each true sweep to the nearest call, raw H12
+puts 11 of 15 sweeps inside the verifier's window and the smoothed version
+13. The medians barely differ; the tail does. Across a footprint well over a
+megabase the raw statistic has several local maxima of similar height, and
+unsmoothed it put the strongest sweep in the zoo 262 kb out and the sweep
+inside a cold spot 990 kb out -- both hard_complete, so it also cost the
+timing gate, which is graded over matched hard_complete sweeps.
 
 Run end to end on a genome simulated under the same history and the same
 recombination map but with no selection anywhere, the pipeline reports zero
 sweeps.
 
-Characterisation then uses fixed constants, fitted offline on 111
-single-sweep replicates at 37 configurations and listed in
-solution/pipeline/characterize.py. Every score below is held out by
-CONFIGURATION, never by replicate: ten of those configurations are the
-shipped sweeps' own, so holding out one replicate at a time would reward a
-rule that had memorised a handful of (s, age) pairs.
+Characterisation then uses fixed constants, fitted offline on 126
+single-sweep replicates at 42 configurations and listed in
+solution/pipeline/characterize.py. Every score is held out by CONFIGURATION,
+never by replicate: fifteen of those configurations are the shipped sweeps'
+own, so holding out one replicate at a time would reward a rule that had
+memorised a handful of (s, age) pairs.
+
+Where those calibration features are READ matters more than which features
+they are, and getting it wrong cost more than any other single choice here.
+Every feature is read within 60 kb of a centre, and the fitter used the TRUE
+site while the pipeline uses the position it CALLED -- a median of 78 kb away
+and up to 302 kb for the strongest sweep. A classifier fitted on features the
+pipeline never computes scored 0.758 held out and 0.42 on the shipped genome.
+The fitter now locates each calibration sweep with the same smoothed-H12 rule
+the pipeline uses and reads its features there, reproducing the same offset
+distribution. It is not a background effect, which was the first guess: the
+shipped genome's background and the calibration replicates' agree to within 5
+to 18 percent on every statistic.
 
 The class comes from two logistic rules rather than one rule over four
-classes, which is worth 80.2% four-way against 75.7% for the best
-nearest-centroid rule on three features. First complete against partial,
-from the floor of the diversity trough, the H12 elevation and the
-standardized-nSL fraction (91.0%); then soft against hard with a rule fitted
-for whichever completeness group the first rule chose -- the trough floor
-with Tajima's D and H2/H1 among the completed sweeps (92.4%), and the extent
-of the H12 elevation with H2/H1 among the partial ones (80.0%). Fitting
-softness separately per group is what makes H2/H1 usable at all: pooled over
-completed sweeps of every age it is confounded, because at an old hard sweep
-recombination has broken up the swept block and H2/H1 has recovered into the
-range a soft sweep occupies. Within a completeness group that confound is
-gone, since every partial sweep is young.
+classes, because the features that separate soft from hard differ depending
+on whether the sweep completed. First complete against partial, from the
+level and the floor of the diversity trough with the standardized-nSL
+fraction; then soft against hard with a rule fitted for whichever
+completeness group the first rule chose -- the trough floor with H2/H1 among
+the completed sweeps, the width of the diversity dip with H2/H1 among the
+partial ones. Fitting softness separately per group is what makes H2/H1
+usable at all: pooled over completed sweeps of every age it is confounded,
+because at an old hard sweep recombination has broken up the swept block and
+H2/H1 has recovered into the range a soft sweep occupies. Within a
+completeness group that confound is gone, since every partial sweep is young.
+Held out by configuration the triple reaches 0.724 four-way, and 0.822 when
+the configurations are reweighted to the shipped zoo's class mix -- which is
+the number that matters, because the calibration set is 45 hard_complete
+replicates against 22 soft_complete while the shipped zoo is five against
+three, and hard_complete is far the easiest class.
 
-The selection coefficient comes from a log-linear fit in two measured
-features per class, s_hat = exp(a) * prod(feature_i ** b_i). The backbone is
-the textbook relation, that a footprint extends to about s over the local
-recombination rate, so every width feature is multiplied by the local rate:
-what strength sets is the genetic length of the footprint, not its length in
-base pairs. On its own, as trough width over one constant per class, that
-relation put 74% of calibration replicates inside a factor of 2.5 and ranked
-them at only 0.32, because a soft sweep leaves no trough whose width can be
-measured. Only the completed hard sweeps therefore read their width from the
-diversity trough; the other three classes read it from the extent of the H12
-elevation. Three of the four pair that width with a level at the peak --
-diversity for the two hard classes, H12 for the completed soft ones -- and
-soft_partial, where no level separates anything, pairs the H12 extents at
-1.5x and 2x background instead. Held out by configuration that reaches 109
-of 109 inside a factor of 2.5 with a pooled rank correlation of +0.82.
+The selection coefficient comes from a log-linear fit in two or three
+measured features per class, s_hat = exp(a) * prod(feature_i ** b_i). The
+backbone is the textbook relation, that a footprint extends to about s over
+the local recombination rate. The local rate is offered to the fit as its own
+predictor rather than dividing the widths by it, because a cold spot here is
+finite: at s = 0.040 the measured footprint is 1,335 kb inside a 0.25x spot
+against 650 kb at the base rate, a factor of 2.05 where the ratio implies 4,
+since the footprint runs out of the spot into base-rate flanks. Dividing
+would over-correct by about two. Held out by configuration the four models
+put 119 of 123 replicates inside a factor of 2.5 with a pooled rank
+correlation of +0.62.
 
-The completion time comes from H12 decay with the footprint extent
+One candidate model is deliberately not shipped. H12 alone reaches 0.86
+within tolerance for the completed soft sweeps and reads the shipped
+replicate's coefficients better than anything else tried -- with a
+within-class rank correlation of -0.86, meaning it predicts a weaker sweep
+the higher the H12 peak stands. That is backwards, and eight percentage
+points on twelve calls is not worth shipping a model whose sign is wrong.
+
+The completion time comes from H12 decay with the footprint width
 controlling for strength, not from residual diversity: haplotype homozygosity
 at a completed sweep falls back towards background as recombination breaks up
 the swept block, and that dates a sweep better than how far below background
-its diversity still sits -- 36 of 40 inside the verifier's tolerance with a
-rank correlation of +0.93, against 9 of 16 for the diversity-depth clock. It
-is reported for every call, whatever class the call was given, because the
-date is read off the footprint rather than off the class.
+its diversity still sits -- 39 of 45 inside the verifier's tolerance with a
+rank correlation of +0.81. It is reported for every call, whatever class the
+call was given, because the date is read off the footprint rather than off
+the class.
 """
 
 
@@ -220,36 +284,52 @@ and the verifier runs no simulation and needs no network at grading time; it
 imports pytest and the standard library only.
 
 Calls are deduplicated at 250 kb and then matched to true sweeps greedily by
-ascending distance, same chromosome, within 250 kb, a window set from the
-measured localisation spread of the best statistic for each class rather
-than from the reference's own error.
+ascending distance, same chromosome, within 350 kb. That window is set from
+the localisation the methods on this instance actually achieve, not from the
+precision one would like: the reference puts most sweeps within a median of
+78 kb, but the strongest sweep in the zoo comes out 302 kb away, because at
+s = 0.090 the footprint is well over a megabase and across one that wide the
+combined score's peak, the raw H12 maximum and the diversity minimum all
+leave at least one sweep beyond 250 kb. It stays unambiguous because half the
+smaller close-pair separation is 362 kb.
 
-The gates are conjunctive: ancestral and current population size each within
-a factor of 1.6; the bottleneck's duration over its depth within a factor of
-2.5; a structural check that the reported history really contracts and
-recovers; recall of at least three of the four hard_complete sweeps and at
-least one of each other class; at most one call matching no true sweep, with
-cold-spot calls counting against that cap; the right class on at least 70%
-of matched calls; selection coefficients within a factor of 2.5 on at least
-70% of matched calls, spanning a range of at least a factor of 2 across
-them, AND ranked against the true coefficients with a correlation of at
-least 0.30; and at least three of the matched hard_complete sweeps dated to
-within 50% or 150 generations, whichever is larger.
+The gates are conjunctive: ancestral population size within a factor of 1.8
+and current size within 1.6; the bottleneck's duration over its depth within
+a factor of 4.5; a structural check that the reported history really
+contracts and recovers; recall of at least four of the five hard_complete
+sweeps and at least two of each other class, which is ten of fifteen; at
+most four calls matching no true sweep, with cold-spot calls counting against
+that cap; the right class on at least 45% of matched calls; selection
+coefficients within a factor of 2.5 on at least 70% of matched calls,
+spanning a range of at least a factor of 3 across them, AND ranked against
+the true coefficients with a correlation of at least 0.55; and at least three
+of the matched hard_complete sweeps dated to within 45% or 140 generations,
+whichever is larger.
 
 Four of those choices were forced by measurement rather than chosen for
 neatness.
 
 The bottleneck's depth and duration are not separately identifiable from the
-spectrum, since the genealogy integrates duration over size. Across four
-neutral replicates with known truth the reference was off by 2.4 to 2.6
-times on depth alone while recovering the combination to within 1.14 to
-1.48, so the gate is on the combination. The bottleneck's timing is not
-graded at all: the same four fits placed the expansion at 0.64, 0.68, 1.31
-and 2.63 times its true time, so one in four fails even a 40% tolerance and
-any tolerance admitting 2.63 is vacuous. The objective has a broad flat
-minimum spanning roughly 1500 to 4000 generations for a truth of 3000, which
-is what a spectrum from 100 haplotypes contains rather than a failure of the
-search.
+spectrum, since the genealogy integrates duration over size, so the gate is
+on the combination rather than on the depth. Its timing is not graded at
+all: across neutral replicates with known truth a spectrum-based fit placed
+the expansion at 0.64, 0.68, 1.31 and 2.63 times its true time, so one in
+four fails even a 40% tolerance and any tolerance admitting 2.63 is vacuous.
+The objective has a broad flat minimum spanning roughly 1500 to 4000
+generations for a truth of 3000, which is what a spectrum from 80 haplotypes
+contains rather than a failure of the search.
+
+The three demography gates are loose, and the reason is this task's premise
+rather than the reference's weakness. The TRUE history is not the optimum of
+the objective: scored against the observed spectrum it reaches 0.10 to 0.16
+where the fitted history reaches 0.005 to 0.013, because fifteen sweeps have
+skewed the observed spectrum towards rare alleles and the best-fitting
+NEUTRAL history is the one that mimics that skew. No amount of search closes
+that gap, so the gates are set clear of the spread the reference's own
+four-start fit produces -- ancestral size 1.08 to 1.61 times truth across
+search seeds, bottleneck strength 1.88 to 3.85 -- and what they still exclude
+is everything that does not do the work. A constant-size answer reports a
+bottleneck strength of zero and fails outright.
 
 A sweep's age is deliberately not part of its class. An earlier version of
 this task split the completed hard sweeps into recent and old at a fixed
@@ -268,20 +348,20 @@ Grading a quantity nothing recovers would be grading noise.
 
 Selection coefficients are graded three ways -- magnitude, spread and order
 -- and the bundle does not pretend any one of them is enough. The shipped
-coefficients span a factor of 9.4, so the magnitude test alone is weak:
-authoring/evidence/gate_feasibility.py searches for the single coefficient
-that satisfies the most magnitude tests and reports what it achieves. The
-spread gate requires the reported coefficients to range over at least a
-factor of 2, which no constant answer can do. The ordering gate requires a
-rank correlation of at least 0.30; a constant produces nothing but ties,
-which score zero by the verifier's own convention, so no constant passes
-whatever its value. The honest limit of the pair is measured rather
-than asserted: over 20,000 random answers per match set, a jittered constant
-clears the ordering gate on 0.223 of tries at nine matched calls and 0.290
-at the smallest match set the recall gates permit, so the worst case is
-about one escape in 3.5. Raising the correlation threshold to close that gap would
-start excluding methods that order sweeps correctly but coarsely, which is
-the worse error for a benchmark.
+coefficients span a factor of 12.0, and the magnitude test alone is the weak
+one: authoring/evidence/gate_feasibility.py searches for the single
+coefficient that satisfies the most magnitude tests and finds one that
+satisfies them all at a factor of 2.5, over every match set the recall gates
+permit. The spread gate requires the reported coefficients to range over at
+least a factor of 3, which a constant spans 1.00 against. The ordering gate
+requires a rank correlation of at least 0.55; a constant produces nothing but
+ties, which score zero by the verifier's own convention, so no constant
+passes whatever its value. The honest limit of the pair is measured rather
+than asserted: over 40,000 random answers per match-set size, a constant with
+noise added clears the ordering gate on 0.0514 of tries at the smallest match
+set the recall gates permit and 0.0183 at fifteen, so the worst case is about
+one escape in 19. The previous version of this task graded the same test at a
+threshold of 0.30 and let one jittered constant in 3.5 through.
 
 That the gates are NOT trivially passable is the claim with the strongest
 evidence, and it does not involve the reference at all. gate_feasibility.py
@@ -290,45 +370,71 @@ gates and searches for the best possible constant coefficient and the best
 possible constant completion time against the shipped truth; twenty-eight
 degenerate submissions, including the best constants that search finds and a
 constant with noise added, go through the REAL verifier in
-authoring/evidence/verifier_selftest.py.
+authoring/evidence/verifier_selftest.py, and every one that should fail does.
 
-That the gates are PASSABLE rests on three measurements, in increasing order
-of how much they establish, and the first two are weaker than they look.
+For timing, the best single constant is inside tolerance on 2 of the 5 ages
+against a gate of 3, and design_guarantee() confirms that no constant can
+reach 3 for ANY draw the generator's acceptance windows permit -- checked
+over the windows, not over the one realized replicate. Two constants can
+reach 4, which is the honest limit of a count-based gate over five dateable
+sweeps and is stated as such rather than hidden: what that cheat still needs
+is to know which sweeps are old, and recovering that is the work being
+asked for.
 
-One: the reference clears all twelve gates. By itself this establishes
-little. Its characterisation constants are fitted on single-sweep replicates
-simulated under the TRUE demography rather than a fitted one, so it carries
-no demographic-inference error a real analysis would, and ten of the 37
-configurations those replicates cover are the shipped sweeps' own.
+That the gates are PASSABLE rests on the reference clearing all twelve on
+the shipped replicate, and on that result being less self-confirming than it
+sounds -- which is the reason for the calibration design. Every
+characterisation constant is held out by CONFIGURATION rather than by
+replicate: the calibration set is 126 single-sweep replicates at 42
+configurations, 27 of which the shipped replicate never uses, and holding out
+one replicate at a time would reward a rule that had memorised a handful of
+(s, age) pairs from the fifteen configurations it does use.
 
-Two: the same pipeline with every characterisation constant re-SELECTED and
-refitted on 60 replicates across 20 configurations the shipped replicate
-never uses also clears every gate -- 9 matched calls, no false positives,
-class right on 7 of 9, coefficients inside a factor of 2.5 on 8 of 9,
-spanning a factor of 5.4, with a rank correlation of 0.517, all three
-localized hard_complete sweeps dated inside tolerance
-(authoring/evidence/holdout_calibration.py). Nothing in that
-version is fitted at a point it is graded on, but it is still the reference's
-method.
+Two limits of that are worth stating plainly. The calibration replicates are
+simulated under the TRUE demography rather than a fitted one, so the
+reference carries no demographic-inference error into its characterisation
+that a real analysis would. And one tie was broken on the graded instance: of
+the two age models that reach 0.87 inside tolerance held out, the better of
+them on the shipped replicate was taken. Eight other models reach the same
+count there at held-out scores of 0.73 to 0.84, so this was a choice between
+equal-best models rather than a worse model chosen for its answer, but it is
+a tie broken on the instance being graded.
 
-Three: authoring/evidence/independent_solver.py is a structurally different
-solver -- Nelder-Mead on four moments instead of L2 on a binned spectrum,
-a sliding macro-window mean of rank scores instead of a Fisher combination
-judged by cluster mass, linear discriminant analysis for the class, the
-Tajima's D trough width for s, and a diversity-recovery clock -- calibrated
-only on configurations the shipped replicate does not use. Its submission is
-scored by the REAL verifier, in the verifier container with no network, not
-by any authoring grader: the file is authoring/evidence/indep_results.json
-and the ctrf report from that run names which gate functions passed. It
-clears 10 of the 12 gates, including all four demography gates with a
-visibly different history and all three coefficient gates with a rank
-correlation of 0.847, level with the reference's own 0.850 from a completely
-different estimator. It fails the false-positive cap, 2 against 1, and
-timing, 0 of 3, because its diversity-recovery clock dates every sweep about
-2.5 times too old. So the timing gate does separate a good clock from a poor one, and no
-structurally independent implementation has yet been shown to clear it.
-Tuning that solver until it passed would manufacture the very evidence this
-exercise exists to test for, so it was left where three good-faith
+Two further measurements say how far that passability generalises, and
+neither is flattering in the same direction.
+
+An out-of-sample REFIT of the reference's own method -- every
+characterisation constant re-selected and refitted on 60 replicates across
+20 configurations the shipped replicate never uses
+(authoring/evidence/holdout_calibration.py) -- clears the class gate at
+exactly 0.50, the coefficient magnitude gate at 0.75 and the timing gate at 3
+of 4, and FAILS the ordering gate with a rank correlation of 0.147 against
+0.55. That is worth stating rather than burying: the ordering gate is met by
+the shipped calibration robustly -- over drawn submissions it clears 0.55 on
+98% of draws, median 0.761 -- but it is sensitive to how much calibration
+data the fit had, and a refit on half the configurations with its features
+re-selected on them does not reach it. The gate measures ordering, and
+ordering twelve sweeps by strength from a scan is the hardest of the three
+coefficient demands.
+
+A structurally DIFFERENT solver, authoring/evidence/independent_solver.py --
+Nelder-Mead on four moments instead of a binned spectrum, a sliding
+macro-window mean of rank scores instead of a Fisher combination judged by
+cluster mass, linear discriminant analysis for the class, the Tajima's D
+trough width for the coefficient, and a diversity-recovery clock --
+calibrated only on configurations the shipped replicate does not use, clears
+10 of the 12 gates when its submission goes through the REAL verifier. It
+passes all three demography gates from a visibly different history (ancestral
+size 8,688 against the reference's 19,309, a bottleneck of 2,111 for 469
+generations against 1,742 for 3,354), the false-positive cap, the class gate
+and all three coefficient gates. It fails recall -- 3 of 5 hard_complete and
+1 of 3 soft_partial -- and timing, 1 of 3, because its diversity-recovery
+clock dates sweeps two to five times too old: 632 generations for a sweep
+that completed 130 generations ago, 1,134 for one that completed 408. So the
+timing gate does separate a good clock from a poor one, and the demography
+gates are met by two implementations that disagree with each other about the
+history. Tuning that solver until it passed everything would manufacture the
+evidence this exercise exists to test for, so it was left where good-faith
 improvement passes put it.
 
 What none of this establishes is that an arbitrary correct method clears
@@ -336,13 +442,16 @@ every gate. The ablation table in README.md is not evidence for it either,
 and no threshold was set from it: every row there is handed the reference's
 own classification and estimation step on purpose, so the rows isolate
 detection and calibration. The claim the bundle makes is the narrower one:
-every gate is met by at least one method measured out of sample, two of the
-twelve are met with no margin and those two are structural minima rather than
-tuned values, and no gate is met by an answer that estimates nothing.
+every gate is met by the reference with the margins listed in README.md, ten
+of the twelve are met by a structurally independent solver, three of the four
+characterisation gates are met by an out-of-sample refit, and no gate is met
+by an answer that estimates nothing.
 
 authoring/evidence/verifier_selftest.py runs the whole battery through the
 real verifier against the shipped truth file, not a stand-in. The perfect
-answer passes, and so does the perfect answer plus one false positive. The
+answer passes, and so does the perfect answer with exactly as many false
+calls as the cap allows, which confirms the cap is a budget rather than a
+prohibition. The
 rest fail: no file, an empty object, no sweeps, a carpet of calls every
 100 kb, every call given one class, a constant coefficient at 0.3, at the
 true geometric mean and at the best value a constant can take, the
@@ -351,8 +460,9 @@ completion time at 300, at 1600 and at the best value a constant can take,
 one constant time per class, every time doubled, a constant-size history,
 each of the four classes dropped entirely, every position shifted 400 kb, a
 NaN coefficient, complete sweeps submitted with no time at all, every call
-parked at a chromosome centre, and the perfect answer plus three false
-positives.
+parked at a chromosome centre, and the perfect answer with one more false
+call than the cap allows. The two cases built around the cap read it from
+GATES rather than hard-coding a count, so they follow it if it changes.
 """
 
 
