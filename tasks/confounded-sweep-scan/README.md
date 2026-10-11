@@ -659,53 +659,69 @@ the honest limit of a count-based gate over five dateable sweeps and is
 stated as such: what the cheat still needs is to know which sweeps are old,
 and recovering that is the work being asked for.
 
-**It is deterministic.** Two independent runs produce byte-identical
-submissions, md5 `be9f76f169bdd5fe20abf85c695117ef`, and identical
-calibrated thresholds: a cluster-forming cut of 31.65 and a mass cut of
-73.9.
+**It is deterministic, and reproducibly so inside the harness.** The
+submission is byte-stable at md5 `5d7f406f52f277e38e0ff3a4cf0122ff`, and the
+demographic fit run inside the environment container converged to the same
+history as the out-of-container run to every printed digit -- the same
+four-start search, the same winning start, the same distance of 0.0053 and
+the same N_ancestral of 19,309.
 
 **Twenty-eight submissions were run through the real verifier**
 (`authoring/evidence/verifier_selftest.py`), graded against the shipped
 `tests/truth.json` rather than a stand-in. Two pass: the perfect answer, and
-the perfect answer plus one false positive, which confirms the cap is not
-merely strict. Twenty-six fail, among them the four cases this redesign
-exists for -- the best possible constant selection coefficient, found by
-search rather than picked (0.0180, which satisfies the magnitude test on 8
-of 10 and the ordering test on nothing), a constant coefficient with noise
-added, the best possible constant completion time (142, which dates 2 of the
-4 hard_complete sweeps where 3 are needed), and one constant time per class.
-The rest: no file, an empty object, no sweeps, a carpet of calls every
-100 kb, every call given one class in each of two ways, a constant
-coefficient at 0.3 and at the true geometric mean, coefficients correct in
-magnitude but reversed in rank, constant times at 300 and 1600, every time
-doubled, a constant-size history, each of the four classes dropped entirely,
-every position shifted 400 kb, a NaN coefficient, complete sweeps submitted
-with no time at all, every call parked at a chromosome centre, and the
-perfect answer plus three false positives.
+the perfect answer with exactly as many false calls as the cap allows, which
+confirms the cap is a budget rather than a prohibition. Twenty-six fail,
+among them the four cases this redesign exists for -- the best possible
+constant selection coefficient, found by search rather than picked (0.0232,
+which satisfies the magnitude test on 12 of 15 and the ordering test on
+nothing), a constant coefficient with noise added, the best possible constant
+completion time (225, which dates 2 of the 5 hard_complete sweeps where 3 are
+needed), and one constant time per class. The rest: no file, an empty object,
+no sweeps, a carpet of calls every 100 kb, every call given one class in each
+of two ways, a constant coefficient at 0.3 and at the true geometric mean,
+coefficients correct in magnitude but reversed in rank, constant times at 300
+and 1600, every time doubled, a constant-size history, each of the four
+classes dropped entirely, every position shifted 400 kb, a NaN coefficient,
+complete sweeps submitted with no time at all, every call parked at a
+chromosome centre, and the perfect answer with one more false call than the
+cap allows. The two cases built around the cap read it from `GATES` rather
+than hard-coding a count, after a hand-picked position in an earlier version
+landed 35 kb from a true sweep, matched it instead of counting as a false
+call, and let the over-the-cap case pass while appearing to test it.
 
 **The gates are feasible and non-trivial, and the design guarantee holds.**
 `authoring/evidence/gate_feasibility.py` reports four things. The shipped
 estimators' accuracy on the calibration replicates, labelled in-sample
-because that is what it is -- 109 of 109 inside a factor of 2.5 and 38 of 40
-dated inside tolerance, which checks the constants were pasted in correctly
-and nothing more; the honest held-out figures come from
+because that is what it is -- it checks the constants were pasted in
+correctly and nothing more; the honest held-out figures come from
 `fit_estimators.py --emit`. The best a constant can do against the shipped
-truth, over all 135 match sets the recall gates permit. How often a jittered
-constant escapes the ordering gate, by match-set size. And -- over the
-generator's acceptance WINDOWS rather than this one draw -- that no constant
-can date three of the four hard_complete sweeps for any replicate the
-generator would accept, which makes the timing gate a property of the design
-rather than of this realization.
+truth, over all 1,056 match sets the recall gates permit: at a factor of 2.5
+a single constant satisfies the magnitude test on every one of them, which is
+why the spread and ordering gates exist -- a constant spans 1.00 against a
+spread gate of 3.00 and scores a rank correlation of 0.000 against 0.55. How
+often a jittered constant escapes the ordering gate, by match-set size:
+0.0514 at ten matched calls, the smallest the recall gates permit, falling to
+0.0183 at fifteen. And -- over the generator's acceptance WINDOWS rather than
+this one draw -- that no constant can date three of the five hard_complete
+sweeps for any replicate the generator would accept, which makes the timing
+gate a property of the design rather than of this realization.
 
 It also prints the limit of the timing gate: two well-chosen constants,
-(160, 1060), date all four. With only four dateable sweeps no count-based
-gate can exclude that, so the gate excludes ONE constant, which is what it
-claims, and nothing stronger.
+(240, 1400), date four of the five. With five dateable sweeps and a tolerance
+that grows with age, each constant can cover at most two, so two cover four
+and no count-based gate short of demanding all five excludes them -- and no
+measured clock reaches five. So the gate excludes ONE constant, which is what
+it claims, and nothing stronger. What the two-constant cheat still needs is
+to know which sweeps are old, in order to point each constant at the right
+pair, and recovering that is the work being asked for.
 
 **The data carries no shortcut.** `authoring/evidence/leak_audit.py` passes
 every check, including that no selected site appears as a variant at all.
-Median SNP density is 104 per 50 kb at the sweeps against 189 in the
-background, with no sweep window empty of variants.
+Median SNP density is 106 per 50 kb at the sweeps against 167 in the
+background, with no sweep window empty of variants (the sparsest holds 34).
+The VCF is uniform record by record -- one ID, QUAL, FILTER and FORMAT value
+throughout, nothing in INFO but the ancestral allele, no excess of round
+coordinates, and no header or sample name that mentions selection.
 
 **`task.toml` validates** against harbor's own task schema.
 
@@ -721,39 +737,45 @@ no network, and `import numpy` fails, so the verifier really does run on
 pytest and the standard library alone.
 
 The same container scored the structurally independent solver's submission,
-`authoring/evidence/indep_results.json`: `reward=0`, with the ctrf report
-naming nine of the eleven gate functions passed and exactly two failed,
-`test_false_positives` and `test_timing_of_completed_sweeps`. That is the
-10-of-12 scorecard above, produced by the shipped verifier rather than by an
-authoring script.
+`authoring/evidence/indep_results.json`: `reward=0`, with exactly two of the
+twelve items failing, `test_per_class_recall` and
+`test_timing_of_completed_sweeps`. That is the 10-of-12 scorecard above,
+produced by the shipped verifier rather than by an authoring script. It
+passes all three demography gates from a history that disagrees with the
+reference's -- ancestral size 8,688 against 19,309, a bottleneck of 2,111 for
+469 generations against 1,742 for 3,354 -- which is the clearest evidence
+that those gates grade the identifiable content of a spectrum rather than one
+implementation's quirk.
 
 **Both harbor gates pass**, run against this bundle with these constants.
-`harbor run -a oracle -e docker` returns reward **1.0** and
-`harbor run -a nop -e docker` returns **0.0**, one trial each, zero
-exceptions, through the real harness: environment image built, `solve.sh`
-run inside it for eight minutes, `/app/results.json` copied out as the
-declared artifact, and the separate verifier container grading it to
-`12 passed`. The in-container demography fit converged to the same history
-as the out-of-container run, to every printed digit.
+The oracle agent returns reward **1.0** and the nop agent **0.0**, one trial
+each, zero errors and zero cancellations, through the real harness:
+environment image built, `solve.sh` run inside it for 54 minutes,
+`/app/results.json` copied out as the declared artifact, and the separate
+verifier container grading it to `12 passed`.
+
+The strongest thing those runs establish is determinism. The submission
+`solve.sh` produced inside the environment container is BYTE-IDENTICAL to
+the one produced outside it, md5 `5d7f406f52f277e38e0ff3a4cf0122ff`, and the
+four-start demographic fit converged through the same sequence of distances
+to the same winning start -- 0.0053 at `N_ancestral` 19,309 -- to every
+printed digit.
 
 The nop trial's log carries one expected error, `Engine cp failed ... Could
 not find the file /app/results.json`: the nop agent writes no submission, so
 the artifact copy has nothing to copy and the verifier scores the missing
 file 0, which is the behaviour being checked.
 
-Those runs used a locally patched copy of the bundle. Two changes, neither
-of which applies in the real pipeline and neither of which touches what the
-gates exercise. First, the apt layer is dropped and the sandbox's proxy CA
-injected, because this sandbox's egress policy reaches PyPI but not Debian
-mirrors and pip inside a docker build does not trust the intercepting
-proxy; the apt packages are standard bookworm names and are convenience
-tooling the reference does not use. Second, each Dockerfile's base image is
-replaced by one already in the local cache, because Docker Hub began
-rate-limiting `python:3.12-slim-bookworm` (HTTP 429) partway through this
-session. The cached images were built from these very Dockerfiles earlier
-and carry the same pinned versions, numpy 2.5.3 through pandas 2.3.3 for
-the environment and pytest 8.4.1 with pytest-json-ctrf 0.3.5 for the
-verifier. The shipped bundle is untouched by either.
+Those runs used a locally patched copy of the bundle, and the patch is one
+line in each Dockerfile: the base image is replaced by a locally cached image
+built from these very Dockerfiles earlier in the session, carrying the same
+pinned versions. Docker Hub rate-limits `python:3.12-slim-bookworm` from this
+sandbox, and this sandbox's egress policy reaches PyPI but not Debian
+mirrors. Neither constraint applies in the real pipeline and neither touches
+what the gates exercise; the shipped Dockerfiles are untouched. The task was
+also run through a minimal local dataset manifest rather than the Harbor
+registry, because resolving a registry package needs an RPC this sandbox's
+proxy refuses with 403.
 
 Not run here: `harbor check`, which needs a model API key this session does
 not have.
